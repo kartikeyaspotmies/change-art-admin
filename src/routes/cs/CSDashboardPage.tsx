@@ -1,0 +1,162 @@
+import { useMemo, useState } from 'react';
+import { useSessionUser } from '@modules/auth/stores/auth-store';
+import {
+  BarChart,
+  Callout,
+  DonutChart,
+  GreetingHero,
+  JobTable,
+  Panel,
+  SectionHeader,
+  StatGrid,
+  DASH_METRICS,
+  DASH_RANGES,
+  JOBS,
+  type DashRange,
+} from '@modules/shared-ui';
+import { Inbox, Cog, CheckCircle2, Package } from 'lucide-react';
+
+export function CSDashboardPage() {
+  const user = useSessionUser();
+  const firstName = user?.name.split(' ')[0] ?? 'there';
+
+  const [range, setRange] = useState<DashRange>('This Month');
+  const m = DASH_METRICS[range].cs;
+
+  const newJobs = useMemo(
+    () => JOBS.filter((j) => j.stage !== 'quote' && j.stage !== 'delivered').slice(0, 4),
+    [],
+  );
+  const pendingQuotes = useMemo(
+    () => JOBS.filter((j) => j.stage === 'quote' && j.status === 'Quote Submitted').slice(0, 4),
+    [],
+  );
+
+  return (
+    <div className="page">
+      <GreetingHero
+        title={`Good ${getGreeting()}, ${firstName}`}
+        subtitle="Here's what's happening across your production pipeline today."
+        action={<RangeSelector value={range} onChange={setRange} />}
+      />
+
+      <StatGrid
+        stats={[
+          {
+            accent: 'crimson',
+            label: 'Quote Pending',
+            value: m.pending,
+            delta: m.sub1,
+            deltaDirection: 'up',
+            icon: <Inbox aria-hidden />,
+          },
+          {
+            accent: 'amber',
+            label: 'In Production',
+            value: m.inProd,
+            delta: m.sub2,
+            icon: <Cog aria-hidden />,
+          },
+          {
+            accent: 'teal',
+            label: 'Ready to Deliver',
+            value: m.ready,
+            delta: m.sub3,
+            deltaDirection: 'up',
+            icon: <CheckCircle2 aria-hidden />,
+          },
+          {
+            accent: 'green',
+            label: 'Delivered',
+            value: m.delivered,
+            delta: m.sub4,
+            deltaDirection: 'up',
+            icon: <Package aria-hidden />,
+          },
+        ]}
+      />
+
+      <div className="two-col">
+        <div>
+          <SectionHeader
+            title={<span style={{ color: '#5eead4' }}>New Jobs</span>}
+            action={<a href="/cs/new-jobs">View All →</a>}
+          />
+          <JobTable jobs={newJobs} defaultView="table" withControls={false} />
+
+          <div className="mt-6">
+            <SectionHeader
+              title={<span style={{ color: '#ff8a95' }}>Quotes Pending Your Review</span>}
+              action={<a href="/cs/new-quotes">View All →</a>}
+            />
+            <JobTable jobs={pendingQuotes} defaultView="table" withControls={false} />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Panel title="Order Split">
+            <DonutChart
+              centerValue={m.orderSplit.orders}
+              centerLabel="Orders"
+              slices={[
+                { label: 'Artwork', value: m.orderSplit.art, color: 'var(--color-navy-light)' },
+                { label: 'Digitizing', value: m.orderSplit.dig, color: 'var(--color-crimson)' },
+                { label: 'Sewout', value: m.orderSplit.sew, color: 'var(--color-amber)' },
+              ]}
+            />
+          </Panel>
+
+          <Panel title="Activity Trend">
+            <BarChart
+              items={m.trend.map((t, i) => ({
+                label: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i] ?? `D${i + 1}`,
+                value: t.v,
+                height: t.h,
+                highlight: i === 4,
+                color: i === 3 ? 'var(--color-navy-light)' : undefined,
+              }))}
+            />
+          </Panel>
+
+          {pendingQuotes.length > 0 ? (
+            <Callout tone="info">
+              {pendingQuotes.length} quote{pendingQuotes.length === 1 ? '' : 's'} awaiting your
+              pricing review.
+            </Callout>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
+}
+
+function RangeSelector({
+  value,
+  onChange,
+}: {
+  value: DashRange;
+  onChange: (v: DashRange) => void;
+}) {
+  return (
+    <select
+      className="btn btn-outline"
+      style={{ padding: '8px 12px', cursor: 'pointer' }}
+      value={value}
+      onChange={(e) => onChange(e.target.value as DashRange)}
+      aria-label="Time range"
+    >
+      {DASH_RANGES.map((r) => (
+        <option key={r} value={r}>
+          {r}
+        </option>
+      ))}
+    </select>
+  );
+}
