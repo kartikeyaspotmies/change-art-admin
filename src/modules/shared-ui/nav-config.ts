@@ -1,18 +1,20 @@
 import {
+  Activity,
   ClipboardList,
   FileCheck,
   Gauge,
   Inbox,
   LayoutDashboard,
-  PackageCheck,
   PencilRuler,
+  PlusCircle,
   ScrollText,
   Send,
   Settings,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Truck,
-  UserCog,
+  User,
   Users,
   Wrench,
   type LucideIcon,
@@ -29,7 +31,7 @@ import { UserRole } from '@contracts';
  * to TanStack Query selectors at the Sidebar render layer.
  */
 
-export type NavBadgeAccent = 'crimson' | 'amber' | 'green';
+export type NavBadgeAccent = 'crimson' | 'amber' | 'green' | 'navy';
 
 export interface NavItem {
   id: string;
@@ -57,34 +59,28 @@ export const NAV_CONFIG: Record<UserRole, RoleNavConfig> = {
     label: 'Client Portal',
     sections: [
       {
-        id: 'main',
-        label: 'Main',
+        id: 'my-portal',
+        label: 'My Portal',
         items: [
           { id: 'dashboard', label: 'Dashboard', to: '/client', icon: LayoutDashboard },
-          { id: 'jobs', label: 'My Projects', to: '/client/jobs', icon: ClipboardList },
-          { id: 'tracking', label: 'Delivered', to: '/client/tracking', icon: PackageCheck },
-        ],
-      },
-      {
-        id: 'request',
-        label: 'New Work',
-        items: [
-          { id: 'quote', label: 'Request Quote', to: '/client/quote', icon: Sparkles },
-          { id: 'place_order', label: 'Place Order', to: '/client/place-order', icon: Send },
+          { id: 'jobs', label: 'My Projects', to: '/client/jobs', icon: ClipboardList, badge: 3, badgeAccent: 'navy' },
+          { id: 'quote', label: 'Request Quote', to: '/client/quote', icon: PlusCircle },
+          { id: 'place_order', label: 'Place Order', to: '/client/place-order', icon: ShoppingCart },
+          { id: 'tracking', label: 'Delivered Projects', to: '/client/tracking', icon: Activity },
         ],
       },
       {
         id: 'account',
         label: 'Account',
-        items: [{ id: 'profile', label: 'My Profile', to: '/client/profile', icon: UserCog }],
+        items: [{ id: 'profile', label: 'My Profile', to: '/client/profile', icon: User }],
       },
     ],
     mobile: [
       { id: 'dashboard', label: 'Home', to: '/client', icon: LayoutDashboard },
       { id: 'jobs', label: 'Projects', to: '/client/jobs', icon: ClipboardList },
-      { id: 'quote', label: 'Quote', to: '/client/quote', icon: Sparkles },
-      { id: 'tracking', label: 'Delivered', to: '/client/tracking', icon: PackageCheck },
-      { id: 'profile', label: 'Profile', to: '/client/profile', icon: UserCog },
+      { id: 'quote', label: 'Quote', to: '/client/quote', icon: PlusCircle },
+      { id: 'tracking', label: 'Delivered', to: '/client/tracking', icon: Activity },
+      { id: 'profile', label: 'Profile', to: '/client/profile', icon: User },
     ],
   },
 

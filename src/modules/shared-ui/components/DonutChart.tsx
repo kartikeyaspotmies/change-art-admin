@@ -14,6 +14,10 @@ interface DonutChartProps {
   centerLabel?: string;
   size?: number;
   className?: string;
+  /** Show raw slice count in muted text alongside the percentage. */
+  showCount?: boolean;
+  /** Background color of the inner circle (cutout). Defaults to navy panel bg. */
+  innerBg?: string;
 }
 
 /**
@@ -26,6 +30,8 @@ export function DonutChart({
   centerLabel,
   size = 110,
   className,
+  showCount = false,
+  innerBg = 'var(--color-navy-mid)',
 }: DonutChartProps) {
   const total = slices.reduce((s, x) => s + x.value, 0) || 1;
   let acc = 0;
@@ -61,7 +67,7 @@ export function DonutChart({
           style={{
             width: inner,
             height: inner,
-            background: 'var(--color-navy-mid)',
+            background: innerBg,
             borderRadius: '50%',
             display: 'flex',
             flexDirection: 'column',
@@ -93,8 +99,13 @@ export function DonutChart({
               />
               <span className="text-[12.5px] text-text-muted font-medium">{s.label}</span>
             </div>
-            <span className="text-[13px] font-bold text-text">
-              {Math.round((s.value / total) * 100)}%
+            <span className="flex items-baseline gap-1">
+              <span className="text-[13px] font-bold text-text">
+                {Math.round((s.value / total) * 100)}%
+              </span>
+              {showCount ? (
+                <span className="text-[11px] text-text-faint">({s.value})</span>
+              ) : null}
             </span>
           </div>
         ))}

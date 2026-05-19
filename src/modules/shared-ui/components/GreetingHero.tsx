@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 interface GreetingHeroProps {
-  title: string;
+  title: ReactNode;
   subtitle?: ReactNode;
   /** Render the localized date strip above the title. */
   showDate?: boolean;
@@ -11,6 +11,7 @@ interface GreetingHeroProps {
 
 const DATE_FMT = new Intl.DateTimeFormat('en-US', {
   weekday: 'long',
+  year: 'numeric',
   month: 'short',
   day: 'numeric',
 });

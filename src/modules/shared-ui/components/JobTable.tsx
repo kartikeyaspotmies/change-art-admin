@@ -1,7 +1,19 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Inbox } from 'lucide-react';
+import { Inbox, Clock, CheckCircle2, Download } from 'lucide-react';
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  });
+}
 import { cn } from '@lib/utils';
 import { jobImage, type Job } from '../mocks/jobs';
+
+function statusDisplay(status: string): string {
+  return status === 'Pending Client Confirm' ? 'Action Required' : status;
+}
 
 type JobView = 'grid' | 'list' | 'table';
 
@@ -19,6 +31,8 @@ interface JobTableProps {
   renderActions?: (job: Job) => ReactNode;
   /** Empty-state copy when there are 0 jobs (after filter). */
   emptyLabel?: string;
+  /** Extra elements rendered to the right of the view toggle (e.g. a Filter button). */
+  controlsExtra?: ReactNode;
 }
 
 /**
@@ -33,6 +47,7 @@ export function JobTable({
   onOpen,
   renderActions,
   emptyLabel = 'No jobs found',
+  controlsExtra,
 }: JobTableProps) {
   const [view, setView] = useState<JobView>(defaultView);
   const [query, setQuery] = useState('');
@@ -84,6 +99,7 @@ export function JobTable({
               </button>
             ))}
           </div>
+          {controlsExtra}
         </div>
       ) : null}
 
@@ -145,7 +161,7 @@ function statusBadgeAccent(status: string): string {
 
 function orderBadgeAccent(order: string): string {
   const map: Record<string, string> = {
-    Artwork: 'blue',
+    Artwork: 'navy',
     Digitizing: 'teal',
     'Digitizing + Sewout': 'purple',
     Sewout: 'purple',
@@ -184,15 +200,13 @@ function TableView({
       <table className="data-table">
         <thead>
           <tr>
-            <th>Job ID / Ref</th>
-            <th>Design</th>
-            <th>Preview</th>
-            <th>Client</th>
+            <th>Job</th>
+            <th>Design Name</th>
             <th>Order</th>
             <th>Priority</th>
             <th>Status</th>
-            <th>ETA</th>
-            {renderRowActions ? <th>Actions</th> : null}
+            <th>Created</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
@@ -213,22 +227,51 @@ function TableView({
                   </div>
                 </div>
               </td>
-              <td className="font-semibold">{j.design}</td>
               <td>
-                <img
-                  className="table-preview"
-                  src={jobImage(j, 1, 220, 160)}
-                  alt={`${j.design} preview`}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                />
+                <div className="flex items-center gap-2">
+                  <span
+                    className="font-semibold text-[12.5px] leading-tight"
+                    style={{ maxWidth: 100, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}
+                  >
+                    {j.design}
+                  </span>
+                  <img
+                    className="table-preview"
+                    src={jobImage(j, 1, 220, 160)}
+                    alt={`${j.design} preview`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
               </td>
-              <td className="text-text-muted">{j.client}</td>
               <td><Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge></td>
               <td><PriorityChip priority={j.priority} /></td>
               <td><Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge></td>
-              <td className="font-mono text-[11.5px] text-text-muted">{j.eta}</td>
-              {renderRowActions ? <td>{renderRowActions(j)}</td> : null}
+              <td className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</td>
+              <td onClick={(e) => e.stopPropagation()}>
+                {renderRowActions ? renderRowActions(j) : (
+                  j.stage === 'delivered' ? (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ fontSize: 12, padding: '5px 12px', gap: 5 }}
+                      onClick={() => onOpen?.(j)}
+                    >
+                      <Download className="w-3.5 h-3.5" aria-hidden />
+                      Download
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ fontSize: 12, padding: '5px 12px' }}
+                      onClick={() => onOpen?.(j)}
+                    >
+                      View
+                    </button>
+                  )
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -248,40 +291,64 @@ function GridView({
 }) {
   return (
     <div className="grid-view">
-      {jobs.map((j) => (
-        <article
-          key={j.id}
-          className="job-card"
-          onClick={() => onOpen?.(j)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onOpen?.(j);
-            }
-          }}
-        >
-          <div className="jc-img">
-            <img
-              src={jobImage(j, 2, 400, 300)}
-              alt={j.design}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-          <div className="jc-body">
-            <div className="jc-title">{j.design}</div>
-            <div className="jc-desc">{j.summary}</div>
-            <div className="jc-meta">
-              <span>{j.client}</span>
-              <Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge>
-              <PriorityChip priority={j.priority} />
+      {jobs.map((j) => {
+        const actionRequired = j.status === 'Pending Client Confirm';
+        const agencyPrice = j.negotiation?.agencyOffer ?? j.adminPrice ?? null;
+        return (
+          <article
+            key={j.id}
+            className={cn('job-card', actionRequired && 'job-card-attention')}
+            onClick={() => onOpen?.(j)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpen?.(j);
+              }
+            }}
+          >
+            <div className="jc-img">
+              <img
+                src={jobImage(j, 2, 400, 300)}
+                alt={j.design}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+              <span className={cn('jc-status-overlay badge', statusBadgeAccent(j.status))}>
+                {statusDisplay(j.status)}
+              </span>
             </div>
-            {renderRowActions ? renderRowActions(j) : null}
-          </div>
-        </article>
-      ))}
+            <div className="jc-body">
+              <div className="jc-title">{j.design}</div>
+              <div className="jc-desc">{j.summary}</div>
+              <div className="jc-meta">
+                <span className="jc-id">{j.id}</span>
+                <Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge>
+              </div>
+              <div className="jc-meta">
+                <PriorityChip priority={j.priority} />
+                {j.etaHours ? (
+                  <span className="jc-eta">
+                    <Clock aria-hidden className="w-3 h-3" />
+                    {j.etaHours}h
+                  </span>
+                ) : null}
+              </div>
+              {actionRequired ? (
+                <div className="jc-action">
+                  <CheckCircle2 aria-hidden className="w-3.5 h-3.5 mt-px shrink-0" />
+                  <span>
+                    Agency price ready{agencyPrice ? ` — $${agencyPrice}` : ''} ·{' '}
+                    <strong>Tap to confirm &amp; start production</strong>
+                  </span>
+                </div>
+              ) : null}
+              {renderRowActions ? renderRowActions(j) : null}
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -316,14 +383,23 @@ function ListView({
           <div className="list-body">
             <div className="font-bold text-[13px]">{j.design}</div>
             <div className="text-text-muted text-[11.5px] leading-snug">{j.summary}</div>
-            <div className="text-text-muted text-[12px] flex items-center gap-2 flex-wrap">
-              <span>{j.client}</span>
-              <Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge>
-              <Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge>
+            <div className="text-text-muted text-[11.5px]">
+              {j.id} · {j.order} · {j.status}
             </div>
             {renderRowActions ? renderRowActions(j) : null}
           </div>
-          <div className="font-mono text-[11px] text-text-faint">{j.eta}</div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</div>
+            {j.etaHours ? (
+              <div
+                className="text-[12px] font-semibold flex items-center gap-1 whitespace-nowrap"
+                style={{ color: 'var(--color-blue)' }}
+              >
+                <Clock className="w-3 h-3" />
+                {j.etaHours}h
+              </div>
+            ) : null}
+          </div>
         </div>
       ))}
     </div>

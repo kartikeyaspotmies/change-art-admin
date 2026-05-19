@@ -32,6 +32,7 @@ export { BarChart } from './components/BarChart';
 export type { BarChartItem } from './components/BarChart';
 export { CreateJobForm } from './components/CreateJobForm';
 export { ClientBriefForm } from './components/ClientBriefForm';
+export { JobDetailModal } from './components/JobDetailModal';
 
 // Nav config
 export { NAV_CONFIG } from './nav-config';

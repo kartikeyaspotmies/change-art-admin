@@ -42,7 +42,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ) : null}
 
       {/* Main column */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col md:ml-[var(--sidebar-w)]">
         <Topbar title={title.title} subtitle={title.subtitle} onOpenMobileNav={openMobile} />
 
         <main
