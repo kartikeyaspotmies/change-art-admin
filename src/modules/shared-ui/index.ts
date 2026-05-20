@@ -33,6 +33,7 @@ export type { BarChartItem } from './components/BarChart';
 export { CreateJobForm } from './components/CreateJobForm';
 export { ClientBriefForm } from './components/ClientBriefForm';
 export { JobDetailModal } from './components/JobDetailModal';
+export { RequestModificationModal } from './components/RequestModificationModal';
 
 // Nav config
 export { NAV_CONFIG } from './nav-config';

@@ -49,21 +49,21 @@ export function ClientDashboardPage() {
     return { total: myJobs.length, artwork, digitizing, sewout };
   }, [myJobs]);
 
-  const activityTrend = useMemo(() => {
-    if (!myJobs.length) return [0, 0, 0, 0, 0];
-    const dates = myJobs.map((j) => new Date(j.created).getTime());
-    const latest = new Date(Math.max(...dates));
-    return Array.from({ length: 5 }, (_, i) => {
-      const end = new Date(latest);
-      end.setDate(latest.getDate() - (4 - i) * 7);
-      const start = new Date(end);
-      start.setDate(end.getDate() - 7);
-      return myJobs.filter((j) => {
-        const t = new Date(j.created).getTime();
-        return t > start.getTime() && t <= end.getTime();
-      }).length;
-    });
-  }, [myJobs]);
+  // const activityTrend = useMemo(() => {
+  //   if (!myJobs.length) return [0, 0, 0, 0, 0];
+  //   const dates = myJobs.map((j) => new Date(j.created).getTime());
+  //   const latest = new Date(Math.max(...dates));
+  //   return Array.from({ length: 5 }, (_, i) => {
+  //     const end = new Date(latest);
+  //     end.setDate(latest.getDate() - (4 - i) * 7);
+  //     const start = new Date(end);
+  //     start.setDate(end.getDate() - 7);
+  //     return myJobs.filter((j) => {
+  //       const t = new Date(j.created).getTime();
+  //       return t > start.getTime() && t <= end.getTime();
+  //     }).length;
+  //   });
+  // }, [myJobs]);
 
   const recentJobs = myJobs.slice(0, 4);
 
@@ -144,163 +144,163 @@ export function ClientDashboardPage() {
 
   return (
     <>
-    <div className="page">
-      <GreetingHero
-        title={
-          <>
-            Good {getGreeting()}, <span style={{ color: 'var(--color-crimson)' }}>{firstName}</span>
-          </>
-        }
-        subtitle={
-          <>
-            You have <span className="text-text font-medium">{active.length}</span> active job
-            {active.length === 1 ? '' : 's'} and{' '}
-            <span className="text-text font-medium">{quotes.length}</span> pending deliver
-            {quotes.length === 1 ? 'y' : 'ies'}. Here's your overview.
-          </>
-        }
-        action={
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              className="btn btn-outline !rounded-full"
-              style={{ padding: '8px 14px' }}
-              value={range}
-              onChange={(e) => setRange(e.target.value as DashRange)}
-              aria-label="Time range"
-            >
-              {DASH_RANGES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-            <Link to="/client/jobs" className="btn btn-outline !rounded-full">
-              <FileText aria-hidden className="w-4 h-4" />
-              View Projects
-            </Link>
-            <Link to="/client/quote" className="btn btn-outline !rounded-full">
-              <PlusCircle aria-hidden className="w-4 h-4" />
-              Request Quote
+      <div className="page">
+        <GreetingHero
+          title={
+            <>
+              Good {getGreeting()}, <span style={{ color: 'var(--color-crimson)' }}>{firstName}</span>
+            </>
+          }
+          subtitle={
+            <>
+              You have <span className="text-text font-medium">{active.length}</span> active job
+              {active.length === 1 ? '' : 's'} and{' '}
+              <span className="text-text font-medium">{quotes.length}</span> pending deliver
+              {quotes.length === 1 ? 'y' : 'ies'}. Here's your overview.
+            </>
+          }
+          action={
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                className="btn btn-outline !rounded-full"
+                style={{ padding: '8px 14px' }}
+                value={range}
+                onChange={(e) => setRange(e.target.value as DashRange)}
+                aria-label="Time range"
+              >
+                {DASH_RANGES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+              <Link to="/client/jobs" className="btn btn-outline !rounded-full">
+                <FileText aria-hidden className="w-4 h-4" />
+                View Projects
+              </Link>
+              <Link to="/client/quote" className="btn btn-outline !rounded-full">
+                <PlusCircle aria-hidden className="w-4 h-4" />
+                Request Quote
 
-            </Link>
-            <Link
-              to="/client/place-order"
-              className="btn btn-crimson !rounded-full w-full sm:w-auto justify-center"
-            >
-              <Plus aria-hidden className="w-4 h-4" />
-              Place Order
-            </Link>
-          </div>
-        }
-      />
-
-      <StatGrid
-        className="!grid-cols-2 md:!grid-cols-3"
-        stats={[
-          {
-            accent: 'crimson',
-            value: activeJobsBreakdown,
-          },
-          {
-            accent: 'green',
-            label: 'Delivered',
-            value: delivered.length,
-            delta: '↑ 2 this month',
-            deltaDirection: 'up',
-            icon: <CheckCircle2 aria-hidden />,
-          },
-          {
-            accent: 'gold',
-            label: 'Pending Quotes',
-            value: quotes.length,
-            delta: quotes.length === 0 ? 'All approved' : `${quotes.length} awaiting review`,
-            icon: <Clock aria-hidden />,
-          },
-        ]}
-      />
-
-      <div className="two-col">
-        <div>
-          <SectionHeader
-            title="Recent Jobs"
-            action={<Link to="/client/jobs">View all →</Link>}
-          />
-          <JobTable
-            jobs={recentJobs}
-            defaultView="grid"
-            withControls
-            emptyLabel="No jobs yet."
-            onOpen={setSelectedJob}
-          // controlsExtra={
-          //   <button
-          //     type="button"
-          //     className="btn btn-outline !rounded-full"
-          //     style={{ padding: '6px 12px', fontSize: 12 }}
-          //   >
-          //     <Filter aria-hidden className="w-3.5 h-3.5" />
-          //     Filter
-          //   </button>
-          // }
-          />
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <Panel title="Quick Actions" className="panel-blue">
-            <div className="flex flex-col gap-2.5">
-              <QuickActionTile
+              </Link>
+              <Link
                 to="/client/place-order"
-                icon={<Plus className="w-[22px] h-[22px]" />}
-                tint="blue"
-                title="Place New Order"
-                description="Submit artwork, digitizing or print orders"
-                variant="highlighted"
-              />
-              <QuickActionTile
-                to="/client/tracking"
-                icon={<Download className="w-[22px] h-[22px]" />}
-                tint="teal"
-                title="Download Files"
-                description="Get your delivered project files"
-              />
-              <QuickActionTile
-                to="/client/jobs"
-                icon={<RotateCcw className="w-[22px] h-[22px]" />}
-                tint="crimson"
-                title="Request Modification"
-                description="Revise a delivered job"
-              />
-              <QuickActionTile
-                to="/client/place-order"
-                icon={<FileText className="w-[22px] h-[22px]" />}
-                tint="amber"
-                title="Continue Draft"
-                description="Winter Collection Print · Saved 2 min ago"
-                badge="1 Draft"
-                variant="draft"
-              />
+                className="btn btn-crimson !rounded-full w-full sm:w-auto justify-center"
+              >
+                <Plus aria-hidden className="w-4 h-4" />
+                Place Order
+              </Link>
             </div>
-          </Panel>
+          }
+        />
 
-          <Panel title="Order Split">
-            <div className="flex items-center justify-center min-h-[140px] w-full">
-              <div style={{ width: '100%', maxWidth: '280px' }}>
-                <DonutChart
-                  centerValue={orderSplit.total}
-                  centerLabel="Orders"
-                  showCount
-                  size={100}
-                  innerBg="#ffffff"
-                  slices={[
-                    { label: 'Artwork', value: orderSplit.artwork, color: '#002868' },
-                    { label: 'Digitizing', value: orderSplit.digitizing, color: 'var(--color-crimson)' },
-                    { label: 'Sewout', value: orderSplit.sewout, color: 'var(--color-amber)' },
-                  ]}
+        <StatGrid
+          className="!grid-cols-2 md:!grid-cols-3"
+          stats={[
+            {
+              accent: 'crimson',
+              value: activeJobsBreakdown,
+            },
+            {
+              accent: 'green',
+              label: 'Delivered',
+              value: delivered.length,
+              delta: '↑ 2 this month',
+              deltaDirection: 'up',
+              icon: <CheckCircle2 aria-hidden />,
+            },
+            {
+              accent: 'gold',
+              label: 'Pending Quotes',
+              value: quotes.length,
+              delta: quotes.length === 0 ? 'All approved' : `${quotes.length} awaiting review`,
+              icon: <Clock aria-hidden />,
+            },
+          ]}
+        />
+
+        <div className="two-col">
+          <div>
+            <SectionHeader
+              title="Recent Jobs"
+              action={<Link to="/client/jobs">View all →</Link>}
+            />
+            <JobTable
+              jobs={recentJobs}
+              defaultView="grid"
+              withControls
+              emptyLabel="No jobs yet."
+              onOpen={setSelectedJob}
+            // controlsExtra={
+            //   <button
+            //     type="button"
+            //     className="btn btn-outline !rounded-full"
+            //     style={{ padding: '6px 12px', fontSize: 12 }}
+            //   >
+            //     <Filter aria-hidden className="w-3.5 h-3.5" />
+            //     Filter
+            //   </button>
+            // }
+            />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <Panel title="Quick Actions" className="panel-blue">
+              <div className="flex flex-col gap-2.5">
+                <QuickActionTile
+                  to="/client/place-order"
+                  icon={<Plus className="w-[22px] h-[22px]" />}
+                  tint="blue"
+                  title="Place New Order"
+                  description="Submit artwork, digitizing or print orders"
+                  variant="highlighted"
+                />
+                <QuickActionTile
+                  to="/client/tracking"
+                  icon={<Download className="w-[22px] h-[22px]" />}
+                  tint="teal"
+                  title="Download Files"
+                  description="Get your delivered project files"
+                />
+                <QuickActionTile
+                  to="/client/jobs"
+                  icon={<RotateCcw className="w-[22px] h-[22px]" />}
+                  tint="crimson"
+                  title="Request Modification"
+                  description="Revise a delivered job"
+                />
+                <QuickActionTile
+                  to="/client/place-order"
+                  icon={<FileText className="w-[22px] h-[22px]" />}
+                  tint="amber"
+                  title="Continue Draft"
+                  description="Winter Collection Print · Saved 2 min ago"
+                  badge="1 Draft"
+                  variant="draft"
                 />
               </div>
-            </div>
-          </Panel>
+            </Panel>
 
-          <Panel title="Activity Trend" className="panel-green">
+            <Panel title="Order Split">
+              <div className="flex items-center justify-center min-h-[140px] w-full">
+                <div style={{ width: '100%', maxWidth: '280px' }}>
+                  <DonutChart
+                    centerValue={orderSplit.total}
+                    centerLabel="Orders"
+                    showCount
+                    size={100}
+                    innerBg="#ffffff"
+                    slices={[
+                      { label: 'Artwork', value: orderSplit.artwork, color: '#002868' },
+                      { label: 'Digitizing', value: orderSplit.digitizing, color: 'var(--color-crimson)' },
+                      { label: 'Sewout', value: orderSplit.sewout, color: 'var(--color-amber)' },
+                    ]}
+                  />
+                </div>
+              </div>
+            </Panel>
+
+            {/* <Panel title="Activity Trend" className="panel-green">
             <BarChart
               items={activityTrend.map((v: number, i: number) => ({
                 label: String(i + 1),
@@ -310,12 +310,12 @@ export function ClientDashboardPage() {
                 // highlight: i === activityTrend.length - 1,
               }))}
             />
-          </Panel>
+          </Panel> */}
+          </div>
         </div>
       </div>
-    </div>
 
-    <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
+      <JobDetailModal job={selectedJob} onClose={() => setSelectedJob(null)} />
     </>
   );
 }

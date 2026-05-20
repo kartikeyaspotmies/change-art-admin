@@ -20,6 +20,8 @@ type JobView = 'grid' | 'list' | 'table';
 
 interface JobTableProps {
   jobs: Job[];
+  /** UI Variant */
+  variant?: 'default' | 'delivered';
   /** Default view; user can flip with the toggle. */
   defaultView?: JobView;
   /** Show built-in search input + view toggle (defaults true). */
@@ -43,6 +45,7 @@ interface JobTableProps {
 export function JobTable({
   jobs,
   defaultView = 'grid',
+  variant = 'default',
   withControls = true,
   showActions = false,
   onOpen,
@@ -66,7 +69,7 @@ export function JobTable({
 
   if (!jobs.length) {
     return (
-      <div className="jobs-root" data-view={view}>
+      <div className={variant === 'delivered' ? 'w-full' : 'jobs-root'} data-view={view}>
         <EmptyState label={emptyLabel} />
       </div>
     );
@@ -75,7 +78,7 @@ export function JobTable({
   const renderRowActions = renderActions ?? (showActions ? defaultActions(onOpen) : undefined);
 
   return (
-    <div className="jobs-root" data-view={view}>
+    <div className={variant === 'delivered' ? 'w-full' : 'jobs-root'} data-view={view}>
       {withControls ? (
         <div className="tbl-top">
           <div className="tbl-search-wrap">
@@ -109,6 +112,8 @@ export function JobTable({
 
       {filtered.length === 0 ? (
         <EmptyState label={emptyLabel} />
+      ) : variant === 'delivered' ? (
+        <DeliveredView jobs={filtered} renderRowActions={renderRowActions} />
       ) : (
         <>
           <TableView jobs={filtered} onOpen={onOpen} renderRowActions={renderRowActions} />
@@ -116,6 +121,49 @@ export function JobTable({
           <ListView jobs={filtered} onOpen={onOpen} renderRowActions={renderRowActions} />
         </>
       )}
+    </div>
+  );
+}
+
+function DeliveredView({
+  jobs,
+  renderRowActions,
+}: {
+  jobs: Job[];
+  renderRowActions?: (job: Job) => ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      {jobs.map((job) => (
+        <div key={job.id} className="panel !mb-0 !p-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="jc-id">{job.id}</span>
+                <Badge accent={statusBadgeAccent(job.status)}>{statusDisplay(job.status)}</Badge>
+                <PriorityChip priority={job.priority} />
+              </div>
+              <div className="text-[15px] font-bold text-text-main">{job.design}</div>
+              <div className="text-[12px] text-text-muted mt-0.5">
+                Order Type: {job.order} &middot; Assigned: {job.assignedTo || 'Unassigned'}
+              </div>
+            </div>
+            <div className="text-right mt-3 sm:mt-0">
+              <div className="text-[11px] text-text-faint uppercase tracking-wider mb-0.5">Created</div>
+              <div className="text-[13px] font-bold text-text-muted">{formatDate(job.created)}</div>
+            </div>
+          </div>
+          
+          <div className="border-t border-[var(--glass-border)] pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="text-[13px] text-text-muted">
+              {job.summary}
+            </div>
+            <div className="flex-shrink-0">
+              {renderRowActions ? renderRowActions(job) : null}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
