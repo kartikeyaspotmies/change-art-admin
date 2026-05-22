@@ -1699,12 +1699,19 @@ html[data-theme='light'] .mb-track {
   } */
   .page {
     animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    background-color: #f5f6f9;
+    background-color: #ffffff;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     min-height: 100%;
     /* Bleed past the <main> wrapper's px-4 / py-6 padding so the light
        surface reaches the viewport edges (md: px-6). */
     margin: -24px -16px;
     padding: 24px 16px;
+  }
+
+  html:not([data-theme='light']) .page {
+    background-image: url('/flag.png');
   }
 
   @media (min-width: 768px) {
