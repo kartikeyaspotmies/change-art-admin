@@ -5,7 +5,7 @@ export type StatAccent = 'crimson' | 'gold' | 'teal' | 'green' | 'blue' | 'purpl
 
 export interface StatCardProps {
   accent: StatAccent;
-  label: string;
+  label?: string;
   value: ReactNode;
   delta?: ReactNode;
   deltaDirection?: 'up' | 'down' | 'none';
@@ -24,7 +24,7 @@ export function StatCard({
   return (
     <article className={cn('stat-card', accent)}>
       {icon ? <span className="stat-ico" aria-hidden>{icon}</span> : null}
-      <div className="stat-label">{label}</div>
+      {label ? <div className="stat-label">{label}</div> : null}
       <div className="stat-value">{value}</div>
       {delta ? (
         <div className={cn('stat-delta', deltaDirection !== 'none' && deltaDirection)}>{delta}</div>
