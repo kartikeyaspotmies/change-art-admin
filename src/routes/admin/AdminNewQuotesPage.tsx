@@ -25,14 +25,14 @@ export function AdminNewQuotesPage() {
       {pending.length ? (
         <>
           <SectionHeader title="Pending Your Review" />
-          <JobTable jobs={pending} showActions defaultView="table" />
+          <JobTable jobs={pending} showActions defaultView="grid" />
         </>
       ) : null}
 
       {awaitingClient.length ? (
         <div className="mt-6">
           <SectionHeader title="Price Sent — Awaiting Client" />
-          <JobTable jobs={awaitingClient} showActions defaultView="table" />
+          <JobTable jobs={awaitingClient} showActions defaultView="grid" />
         </div>
       ) : null}
     </div>

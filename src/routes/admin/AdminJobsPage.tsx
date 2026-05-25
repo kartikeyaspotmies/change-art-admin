@@ -31,7 +31,7 @@ export function AdminJobsPage() {
         subtitle="Every job across the platform — search by client, stage, owner, or revenue band."
       />
       <Pills items={pills} activeId={filter} onSelect={setFilter} />
-      <JobTable jobs={filtered} showActions defaultView="table" />
+      <JobTable jobs={filtered} showActions defaultView="grid" />
     </div>
   );
 }

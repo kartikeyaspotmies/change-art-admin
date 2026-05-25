@@ -21,6 +21,7 @@ import { CSAmendmentsPage } from '@routes/cs/CSAmendmentsPage';
 import { CSCreateQuotePage } from '@routes/cs/CSCreateQuotePage';
 import { CSPlaceOrderPage } from '@routes/cs/CSPlaceOrderPage';
 import { CSClientsPage } from '@routes/cs/CSClientsPage';
+import { CSProfilePage } from '@routes/cs/CSProfilePage';
 
 // Team Lead
 import { TeamLeadDashboardPage } from '@routes/team-lead/TeamLeadDashboardPage';
@@ -59,6 +60,7 @@ import { AdminCreateQuotePage } from '@routes/admin/AdminCreateQuotePage';
 import { AdminPlaceOrderPage } from '@routes/admin/AdminPlaceOrderPage';
 import { AdminReportsPage } from '@routes/admin/AdminReportsPage';
 import { AdminSettingsPage } from '@routes/admin/AdminSettingsPage';
+import { AdminProfilePage } from '@routes/admin/AdminProfilePage';
 
 import { NotFoundPage } from '@routes/NotFoundPage';
 
@@ -105,6 +107,7 @@ export const router = createBrowserRouter([
       { path: 'create-quote', element: <CSCreateQuotePage /> },
       { path: 'place-order', element: <CSPlaceOrderPage /> },
       { path: 'clients', element: <CSClientsPage /> },
+      { path: 'profile', element: <CSProfilePage /> },
     ],
   },
 
@@ -215,6 +218,7 @@ export const router = createBrowserRouter([
       { path: 'place-order', element: <AdminPlaceOrderPage /> },
       { path: 'reports', element: <AdminReportsPage /> },
       { path: 'settings', element: <AdminSettingsPage /> },
+      { path: 'profile', element: <AdminProfilePage /> },
     ],
   },
 

@@ -24,6 +24,7 @@ export type { CalloutTone } from './components/Callout';
 export { Pills } from './components/Pills';
 export type { PillItem } from './components/Pills';
 export { JobTable } from './components/JobTable';
+export { JobModal } from './components/JobModal';
 export { MiniBars } from './components/MiniBars';
 export type { MiniBarsItem } from './components/MiniBars';
 export { DonutChart } from './components/DonutChart';
