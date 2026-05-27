@@ -11,7 +11,6 @@ import {
   Send,
   Sparkles,
   Truck,
-  UserCircle,
   Users,
 } from 'lucide-react';
 import { useSessionUser } from '@modules/auth/stores/auth-store';
