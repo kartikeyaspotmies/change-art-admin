@@ -10,7 +10,6 @@ import {
   StatGrid,
 } from '@modules/shared-ui';
 import { CheckCircle2, Send } from 'lucide-react';
-import type { Job } from '@modules/shared-ui';
 import { useAdminJobViews } from '../../modules/admin-panel/hooks/use-admin-jobs';
 import { useAdminClients } from '../../modules/admin-panel/hooks/use-admin-clients';
 
@@ -21,32 +20,24 @@ export function AdminDashboardPage() {
   const { jobs, isLoading } = useAdminJobViews({ per_page: 100 });
   const { data: clientsData } = useAdminClients();
 
-  const active = useMemo(() => jobs.filter((j) => j.stage !== 'delivered' && j.status !== 'Cancelled'), [jobs]);
-  const inProd = useMemo(() => jobs.filter((j) => j.stage === 'junior'), [jobs]);
-  const inQc = useMemo(() => jobs.filter((j) => j.stage === 'qc'), [jobs]);
+  const active   = useMemo(() => jobs.filter((j) => j.stage !== 'delivered' && j.status !== 'Cancelled'), [jobs]);
+  const inProd   = useMemo(() => jobs.filter((j) => j.stage === 'junior' || j.stage === 'senior'), [jobs]);
+  const inQc     = useMemo(() => jobs.filter((j) => j.stage === 'qc'), [jobs]);
   const inSewout = useMemo(() => jobs.filter((j) => j.stage === 'sewout'), [jobs]);
   const delivered = useMemo(() => jobs.filter((j) => j.stage === 'delivered'), [jobs]);
 
-  // Show the 4 most-recent active jobs (any stage except delivered/cancelled).
-  // Quote-stage jobs ARE included here — a freshly submitted brief is new work.
-  const newJobs = useMemo(() => active.slice(0, 4), [active]);
+  const newJobs   = useMemo(() => active.slice(0, 4), [active]);
   const newQuotes = useMemo(() => jobs.filter((j) => j.stage === 'quote').slice(0, 4), [jobs]);
 
   const totalClients = clientsData?.meta.total ?? 0;
 
-  const totalActive = inProd.length + inQc.length;
-  const prodPct = totalActive ? Math.round((inProd.length / totalActive) * 100) : 50;
+  // All non-delivered active jobs for the donut center
+  const totalActive = active.length;
+  const prodPct = totalActive
+    ? Math.round((inProd.length / totalActive) * 100)
+    : 0;
 
   const loading = (v: number | string) => isLoading ? '…' : v;
-
-  function adminActions(_j: Job) {
-    return (
-      <div className="job-actions" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="btn btn-outline">View</button>
-        <button type="button" className="btn btn-crimson">Edit</button>
-      </div>
-    );
-  }
 
   return (
     <div className="page">
@@ -97,7 +88,7 @@ export function AdminDashboardPage() {
           {isLoading ? (
             <div className="flex items-center justify-center py-8 text-text-faint text-sm">Loading…</div>
           ) : (
-            <JobTable jobs={newJobs} defaultView="grid" renderActions={adminActions} />
+            <JobTable jobs={newJobs} defaultView="grid" showActions />
           )}
 
           <div className="mt-7">
@@ -108,7 +99,7 @@ export function AdminDashboardPage() {
             {isLoading ? (
               <div className="flex items-center justify-center py-8 text-text-faint text-sm">Loading…</div>
             ) : (
-              <JobTable jobs={newQuotes} defaultView="grid" renderActions={adminActions} />
+              <JobTable jobs={newQuotes} defaultView="grid" showActions />
             )}
           </div>
         </div>
@@ -124,7 +115,9 @@ export function AdminDashboardPage() {
                 aria-label="Jobs status donut"
                 style={{
                   width: 90, height: 90, borderRadius: '50%', flexShrink: 0,
-                  background: `conic-gradient(var(--color-teal) 0% ${prodPct}%, var(--color-amber) ${prodPct}% 100%)`,
+                  background: totalActive
+                    ? `conic-gradient(var(--color-teal) 0% ${prodPct}%, var(--color-amber) ${prodPct}% 100%)`
+                    : 'var(--glass-border)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                 }}
@@ -184,6 +177,7 @@ export function AdminDashboardPage() {
 
         </div>
       </div>
+
     </div>
   );
 }
