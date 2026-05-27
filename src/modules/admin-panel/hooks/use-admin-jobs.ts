@@ -52,11 +52,34 @@ export function useAdminJobViews(filters: JobCardFilters = {}): {
     return map;
   }, [clientsQuery.data]);
 
+  // Preview thumbnails are resolved separately from job-cards: the job-card
+  // payload carries no image, so we batch-fetch one presigned thumbnail per
+  // job (keyed by the job-card UUID) in a single round-trip and merge it in.
+  const jobUuids = useMemo(
+    () => (jobsQuery.data?.items ?? []).map((c) => c.id),
+    [jobsQuery.data],
+  );
+
+  const thumbnailsQuery = useQuery({
+    queryKey: queryKeys.files.thumbnails(jobUuids),
+    queryFn: () => adminService.getJobThumbnails(jobUuids),
+    enabled: jobUuids.length > 0,
+    staleTime: 60 * 1000,
+  });
+
   const jobs = useMemo<Job[]>(() => {
     if (!jobsQuery.data) return [];
+    const thumbs = thumbnailsQuery.data ?? {};
     // Pass empty usersMap — assignedTo resolves to null → shown as "Pending".
-    return jobsQuery.data.items.map((card) => adaptJobCard(card, clientsMap, new Map()));
-  }, [jobsQuery.data, clientsMap]);
+    return jobsQuery.data.items.map((card) => {
+      const job = adaptJobCard(card, clientsMap, new Map());
+      const url = thumbs[card.id];
+      // Backend returns a single thumbnail per job; JobTable's table/grid/list
+      // views read indices 0–3, so fill each slot with the same image.
+      if (url) job.images = [url, url, url, url];
+      return job;
+    });
+  }, [jobsQuery.data, clientsMap, thumbnailsQuery.data]);
 
   return {
     jobs,

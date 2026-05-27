@@ -57,6 +57,19 @@ export const adminService = {
     });
   },
 
+  /**
+   * Batch-resolve one presigned thumbnail URL per job in a single round-trip.
+   * Keyed by job-card UUID (`IJobCard.id`), NOT the human `job_id`. Returns a
+   * `{ uuid: url | null }` map (null = job has no viewable image).
+   */
+  getJobThumbnails(jobIds: string[]): Promise<Record<string, string | null>> {
+    if (jobIds.length === 0) return Promise.resolve({});
+    return apiClient.post<Record<string, string | null>, { job_ids: string[] }>(
+      '/api/v1/files/thumbnails',
+      { job_ids: jobIds },
+    );
+  },
+
   getClients(filters: ClientFilters = {}): Promise<PaginatedList<IClient>> {
     return apiClient.getPaginated<IClient>('/api/v1/clients', {
       params: { per_page: 100, ...filters } as Record<string, unknown>,
