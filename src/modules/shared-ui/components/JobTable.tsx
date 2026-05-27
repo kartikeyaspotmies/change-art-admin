@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback, type ReactNode } from 'react';
-import { JobModal } from './JobModal';
+import { JobDetailModal } from './JobDetailModal';
+import { EditJobModal } from './EditJobModal';
 import { Inbox, Clock, CheckCircle2, Download, Search } from 'lucide-react';
 
 function formatDate(dateStr: string): string {
@@ -56,11 +57,33 @@ export function JobTable({
 }: JobTableProps) {
   const [view, setView] = useState<JobView>(defaultView);
   const [query, setQuery] = useState('');
-  const [modalJob, setModalJob] = useState<Job | null>(null);
+  const [viewJob, setViewJob] = useState<Job | null>(null);
+  const [editJob, setEditJob] = useState<Job | null>(null);
 
   const handleOpen = useCallback((job: Job) => {
-    if (onOpen) { onOpen(job); } else { setModalJob(job); }
+    if (onOpen) { onOpen(job); } else { setViewJob(job); }
   }, [onOpen]);
+
+  const builtInActions = useCallback((j: Job) => (
+    <div className="job-actions" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        className="btn btn-outline"
+        onClick={() => setViewJob(j)}
+        aria-label={`View ${j.id}`}
+      >
+        View
+      </button>
+      <button
+        type="button"
+        className="btn btn-crimson"
+        onClick={() => setEditJob(j)}
+        aria-label={`Edit ${j.id}`}
+      >
+        Edit
+      </button>
+    </div>
+  ), []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -81,7 +104,7 @@ export function JobTable({
     );
   }
 
-  const renderRowActions = renderActions ?? (showActions ? defaultActions(handleOpen) : undefined);
+  const renderRowActions = renderActions ?? (showActions ? builtInActions : undefined);
 
   return (
     <div className={variant === 'delivered' ? 'w-full' : 'jobs-root'} data-view={view}>
@@ -149,7 +172,16 @@ export function JobTable({
           />
         </>
       )}
-      <JobModal job={modalJob} onClose={() => setModalJob(null)} />
+      <JobDetailModal
+        job={viewJob}
+        onClose={() => setViewJob(null)}
+        onEdit={(j) => { setViewJob(null); setEditJob(j); }}
+      />
+      <EditJobModal
+        job={editJob}
+        onClose={() => setEditJob(null)}
+        onBack={(j) => { setEditJob(null); setViewJob(j); }}
+      />
     </div>
   );
 }
@@ -204,23 +236,6 @@ function EmptyState({ label }: { label: string }) {
       <span className="text-sm">{label}</span>
     </div>
   );
-}
-
-function defaultActions(onOpen?: (job: Job) => void) {
-  return function ActionsCell(j: Job) {
-    return (
-      <div className="job-actions" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={() => onOpen?.(j)}
-          aria-label={`View ${j.id}`}
-        >
-          View
-        </button>
-      </div>
-    );
-  };
 }
 
 function statusBadgeAccent(status: string): string {

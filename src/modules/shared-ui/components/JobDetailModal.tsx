@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { X, Download, Edit2, UserPlus, Send } from 'lucide-react';
 import { cn } from '@lib/utils';
 import { type Job, jobImage } from '../mocks/jobs';
 
@@ -7,94 +7,81 @@ interface JobDetailModalProps {
   job: Job | null;
   onClose: () => void;
   onConfirmJob?: (job: Job) => void;
+  /** Open the edit form for this job (wired to the "Edit Job" footer button). */
+  onEdit?: (job: Job) => void;
 }
 
-const FLOW_STEPS = [
-  'CS Review',
-  'Approved',
-  'Assigned',
-  'In Work',
-  'QC Review',
-  'CS Delivery',
-];
+function buildFlowSteps(hasSewout: boolean): { role: string; sub: string }[] {
+  return hasSewout
+    ? [
+        { role: 'CS',        sub: 'Created'  },
+        { role: 'TL',        sub: 'Assigned' },
+        { role: 'Execution', sub: ''         },
+        { role: 'Sewout',    sub: 'Pending'  },
+        { role: 'QC',        sub: 'Review'   },
+        { role: 'CS',        sub: 'Dispatch' },
+      ]
+    : [
+        { role: 'CS',        sub: 'Created'  },
+        { role: 'TL',        sub: 'Assigned' },
+        { role: 'Execution', sub: ''         },
+        { role: 'QC',        sub: 'Review'   },
+        { role: 'CS',        sub: 'Dispatch' },
+      ];
+}
 
-function currentStepIndex(job: Job): number {
+function currentStepIndex(job: Job, hasSewout: boolean): number {
   switch (job.stage) {
-    case 'quote':
-      return job.status === 'Quote Approved' || job.status === 'Pending Client Confirm' ? 1 : 0;
+    case 'quote':     return 0;
     case 'junior':
-    case 'senior':
-      return 3;
-    case 'sewout':
-      return 3;
-    case 'qc':
-      return 4;
-    case 'delivered':
-      return 5;
-    default:
-      return 0;
+    case 'senior':    return 2;
+    case 'sewout':    return 3;
+    case 'qc':        return hasSewout ? 4 : 3;
+    case 'delivered': return hasSewout ? 5 : 4;
+    default:          return 0;
   }
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-  });
-}
-
-function statusAccent(status: string): string {
-  const map: Record<string, string> = {
-    'In QC': 'teal',
-    'In Production': 'amber',
-    'Senior Review': 'purple',
-    Sewout: 'purple',
-    Delivered: 'green',
-    'Quote Submitted': 'blue',
-    'Quote Approved': 'amber',
-    'Pending Client Confirm': 'amber',
-    Cancelled: 'gray',
-    Amend: 'amber',
-    'In Review': 'purple',
-  };
-  return map[status] || 'gray';
 }
 
 function orderAccent(order: string): string {
   const map: Record<string, string> = {
-    Artwork: 'navy',
-    Digitizing: 'teal',
-    'Digitizing + Sewout': 'purple',
-    Sewout: 'purple',
+    Artwork: 'navy', Digitizing: 'teal',
+    'Digitizing + Sewout': 'purple', Sewout: 'purple',
   };
-  return map[order] || 'gray';
+  return map[order] ?? 'gray';
+}
+
+function statusAccent(status: string): string {
+  const map: Record<string, string> = {
+    'In QC': 'teal', 'In Production': 'amber', 'Senior Review': 'purple',
+    Sewout: 'purple', Delivered: 'green', 'Quote Submitted': 'blue',
+    'Quote Approved': 'amber', 'Pending Client Confirm': 'amber',
+    Cancelled: 'gray', Amend: 'amber', 'In Review': 'purple',
+  };
+  return map[status] ?? 'gray';
 }
 
 function priorityClass(priority: string): string {
-  const map: Record<string, string> = { Normal: 'normal', Rush: 'rush', 'Super Rush': 'super-rush' };
-  return map[priority] || 'normal';
+  const map: Record<string, string> = {
+    Normal: 'normal', Rush: 'rush', 'Super Rush': 'super-rush',
+  };
+  return map[priority] ?? 'normal';
 }
 
-export function JobDetailModal({ job, onClose, onConfirmJob }: JobDetailModalProps) {
-  const [isAnimatedIn, setIsAnimatedIn] = useState(false);
+export function JobDetailModal({ job, onClose, onEdit }: JobDetailModalProps) {
+  const [isIn, setIsIn] = useState(false);
 
   useEffect(() => {
     if (job) {
-      const raf = requestAnimationFrame(() => {
-        setIsAnimatedIn(true);
-      });
+      const raf = requestAnimationFrame(() => setIsIn(true));
       return () => cancelAnimationFrame(raf);
     }
     return undefined;
   }, [job]);
 
   const handleClose = useCallback(() => {
-    setIsAnimatedIn(false);
-    const timer = setTimeout(() => {
-      onClose();
-    }, 220);
-    return () => clearTimeout(timer);
+    setIsIn(false);
+    const t = setTimeout(() => onClose(), 220);
+    return () => clearTimeout(t);
   }, [onClose]);
 
   useEffect(() => {
@@ -106,35 +93,16 @@ export function JobDetailModal({ job, onClose, onConfirmJob }: JobDetailModalPro
 
   useEffect(() => {
     if (!job) return undefined;
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [job, handleClose]);
 
   if (!job) return null;
 
-  const stepIdx = currentStepIndex(job);
-  const isDelivered = job.stage === 'delivered';
-  const showConfirm = job.status === 'Pending Client Confirm' || job.status === 'Quote Approved';
-  const confirmPrice = job.negotiation?.agencyOffer ?? job.adminPrice ?? null;
-
-  const etaHours = job.etaHours;
-
-  const complexityAlloc: Record<string, [number, number, number]> = {
-    Simple: [0.08, 0.72, 0.20],
-    Medium: [0.10, 0.65, 0.25],
-    'Super Medium': [0.10, 0.65, 0.25],
-    Complex: [0.12, 0.63, 0.25],
-    'Super Complex': [0.15, 0.60, 0.25],
-  };
-  const [tlPct, workerPct, qcPct] = complexityAlloc[job.complexity] ?? [0.10, 0.65, 0.25];
-  const tlHours = etaHours * tlPct;
-  const designerHours = etaHours * workerPct;
-  const qcHours = etaHours * qcPct;
-
-  const workerLabel =
-    job.order === 'Artwork' ? 'Designer' :
-      job.order === 'Sewout' ? 'Sewout Operator' : 'Digitator';
+  const hasSewout  = job.order.includes('Sewout');
+  const flowSteps  = buildFlowSteps(hasSewout);
+  const stepIdx    = currentStepIndex(job, hasSewout);
 
   const images = [
     jobImage(job, 0, 560, 420),
@@ -142,15 +110,23 @@ export function JobDetailModal({ job, onClose, onConfirmJob }: JobDetailModalPro
     jobImage(job, 2, 560, 420),
   ];
 
+  const clientBudget = job.negotiation?.clientOffer ?? job.clientPrice ?? null;
+  const adminCounter = job.negotiation?.agencyOffer ?? job.adminPrice ?? null;
+  const agreedPrice  = job.negotiation?.finalPrice ?? job.agreedPrice ?? null;
+
+  const aiOverall = job.aiScore
+    ? Math.round((job.aiScore.colour + job.aiScore.align + job.aiScore.res + job.aiScore.brief) / 4)
+    : null;
+  const aiPass = aiOverall !== null ? aiOverall >= 80 : null;
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
-        background: isAnimatedIn ? 'rgba(15, 23, 42, 0.15)' : 'rgba(15, 23, 42, 0)',
-        backdropFilter: isAnimatedIn ? 'blur(4px)' : 'blur(0px)',
-        WebkitBackdropFilter: isAnimatedIn ? 'blur(4px)' : 'blur(0px)',
-        transition: 'all 240ms cubic-bezier(0.16, 1, 0.3, 1)',
-        opacity: isAnimatedIn ? 1 : 0,
+        background: isIn ? 'rgba(15,23,42,0.45)' : 'rgba(15,23,42,0)',
+        backdropFilter: isIn ? 'blur(5px)' : 'blur(0px)',
+        WebkitBackdropFilter: isIn ? 'blur(5px)' : 'blur(0px)',
+        transition: 'all 240ms cubic-bezier(0.16,1,0.3,1)',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       role="presentation"
@@ -159,330 +135,382 @@ export function JobDetailModal({ job, onClose, onConfirmJob }: JobDetailModalPro
         role="dialog"
         aria-modal="true"
         aria-label={`Job detail: ${job.design}`}
-        className="glass-heavy relative w-full sm:max-w-2xl max-h-[96dvh] sm:max-h-[90vh] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-[660px] max-h-[92vh] rounded-2xl flex flex-col overflow-hidden"
         style={{
-          transform: isAnimatedIn ? 'translateY(0px) scale(1)' : 'translateY(30px) scale(0.96)',
-          opacity: isAnimatedIn ? 1 : 0,
-          transition: 'all 240ms cubic-bezier(0.16, 1, 0.3, 1)',
+          background: '#fff',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.06)',
+          transform: isIn ? 'translateY(0) scale(1)' : 'translateY(28px) scale(0.96)',
+          opacity: isIn ? 1 : 0,
+          transition: 'all 240ms cubic-bezier(0.16,1,0.3,1)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          className="flex-shrink-0 px-5 pt-5 pb-4"
-          style={{ background: 'var(--glass-bg)', backdropFilter: 'var(--glass-blur)', borderBottom: '1px solid var(--glass-border)' }}
-        >
-          <div className="flex items-start justify-between gap-3">
+
+        {/* ── HEADER ── */}
+        <div className="flex-shrink-0 px-6 pt-5 pb-4" style={{ borderBottom: '1px solid #E8EDF5' }}>
+          <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <div className="font-mono text-[11px] font-bold mb-1.5 tracking-wider" style={{ color: 'var(--color-crimson)' }}>
-                {job.id} · {job.ref}
+              <div
+                className="flex items-center gap-2 mb-1.5"
+                style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11.5, fontWeight: 700, color: '#B22234', letterSpacing: '0.04em' }}
+              >
+                <span>{job.id}</span>
+                <span style={{ color: '#CBD5E1' }}>•</span>
+                <span>{job.ref}</span>
               </div>
-              <h2 className="text-[17px] font-extrabold leading-tight" style={{ color: 'var(--text-main)' }}>
+              <h2 className="text-[20px] font-extrabold leading-tight" style={{ color: '#0D1B2A' }}>
                 {job.design}
               </h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
                 <span className={cn('badge', orderAccent(job.order))}>{job.order}</span>
                 <span className={cn('badge', statusAccent(job.status))}>{job.status}</span>
-                <span className={cn('priority-badge', priorityClass(job.priority))}>{job.priority}</span>
                 <span className="badge gray">{job.project}</span>
+                <span className={cn('priority-badge', priorityClass(job.priority))}>{job.priority}</span>
               </div>
             </div>
             <button
               type="button"
               onClick={handleClose}
-              className="flex-shrink-0 p-2 rounded-lg border border-glass-border text-text-muted hover:border-crimson/50 hover:text-crimson transition mt-0.5"
+              className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition"
+              style={{ border: '1px solid #E8EDF5', color: '#94A3B8' }}
               aria-label="Close"
             >
-              <X className="w-4 h-4" aria-hidden />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        <div className="px-5 pb-6 pt-5 bg-white flex flex-col gap-6 overflow-y-auto flex-1">
+        {/* ── BODY ── */}
+        <div className="flex-1 overflow-y-auto px-6 py-5" style={{ background: '#fff' }}>
 
-          {/* ── QUOTE APPROVED ALERT ── */}
-          {job.status === 'Quote Approved' && (
+          {/* JOB IMAGES */}
+          <SectionLabel>JOB IMAGES</SectionLabel>
+          <div className="grid grid-cols-3 gap-2.5 mb-5">
+            {images.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt={i === 0 ? job.design : ''}
+                className="w-full rounded-xl object-cover"
+                style={{ aspectRatio: '4/3' }}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            ))}
+          </div>
+
+          {/* WORKFLOW STEPPER */}
+          <div className="mb-5 relative">
+            {/* Background track */}
             <div
-              className="rounded-xl p-4 flex items-start gap-3"
-              style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.32)' }}
-            >
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--color-amber)' }} aria-hidden />
-              <div>
-                <div className="text-[12.5px] font-bold mb-0.5" style={{ color: 'var(--text-main)' }}>
-                  Quote Ready — Action Required
-                </div>
-                <div className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  Your quote has been approved and is ready for review. Check the price below and confirm to start production.
-                </div>
-              </div>
-            </div>
-          )}
+              className="absolute"
+              style={{ top: 19, left: 19, right: 19, height: 2, background: '#E8EDF5', zIndex: 0 }}
+            />
+            {/* Progress fill */}
+            <div
+              className="absolute"
+              style={{
+                top: 19,
+                left: 19,
+                width: stepIdx === 0
+                  ? 0
+                  : `calc(${Math.min(stepIdx, flowSteps.length - 1)} / ${flowSteps.length - 1} * (100% - 38px))`,
+                height: 2,
+                background: '#B22234',
+                zIndex: 0,
+                transition: 'width 0.4s ease',
+              }}
+            />
 
-          {/* ── JOB IMAGES ── */}
-          <div>
-            <SectionDivider label="Job Images" />
-            <div className="grid grid-cols-3 gap-2">
-              {images.map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  alt={i === 0 ? job.design : ''}
-                  className="w-full aspect-[4/3] object-cover rounded-xl"
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* ── JOB STATUS FLOW ── */}
-          <div>
-            <SectionDivider label="Job Status Flow" />
-            <div className="px-1">
-              <div className="flex items-start">
-                {FLOW_STEPS.map((step, i) => {
-                  const state = isDelivered
-                    ? 'done'
-                    : i < stepIdx
-                      ? 'done'
-                      : i === stepIdx
-                        ? 'current'
-                        : 'pending';
-                  return (
-                    <div key={step} className="flex items-center flex-1 last:flex-none">
-                      <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
-                          style={
-                            state === 'done'
-                              ? { background: 'var(--color-navy-ink)', color: '#fff' }
-                              : state === 'current'
-                                ? { background: '#fff', border: '2.5px solid var(--color-crimson)', color: 'var(--color-crimson)', boxShadow: '0 0 0 3px rgba(196,30,58,0.15)' }
-                                : { background: 'rgba(0,0,0,0.05)', border: '1.5px solid var(--glass-border)', color: 'var(--text-faint)' }
-                          }
-                        >
-                          {state === 'done' ? '✓' : i + 1}
-                        </div>
-                        <span
-                          className="text-[8px] font-bold uppercase tracking-wider whitespace-nowrap text-center"
-                          style={{
-                            color:
-                              state === 'current'
-                                ? 'var(--color-crimson)'
-                                : state === 'done'
-                                  ? 'var(--text-muted)'
-                                  : 'var(--text-faint)',
-                          }}
-                        >
-                          {step}
-                        </span>
-                      </div>
-                      {i < FLOW_STEPS.length - 1 ? (
-                        <div
-                          className="flex-1 h-px mb-5 mx-0.5"
-                          style={{ background: i < stepIdx ? 'var(--color-navy-ink)' : 'var(--glass-border)' }}
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* ── ESTIMATED TIMELINE ── */}
-          {!isDelivered ? (
-            <div>
-              <SectionDivider label="Estimated Timeline" />
-              <div
-                className="rounded-xl p-4"
-                style={{ background: 'var(--glass-bg-light)', border: '1px solid var(--glass-border)' }}
-              >
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-1" style={{ color: 'var(--text-faint)' }}>
-                      CS Estimated Turnaround
-                    </div>
-                    <div className="text-[34px] font-extrabold leading-none" style={{ color: 'var(--text-main)' }}>
-                      {job.etaHours}h
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] mb-1" style={{ color: 'var(--text-faint)' }}>Current Stage</div>
-                    <span className={cn('badge', statusAccent(job.status))}>{job.status}</span>
-                  </div>
-                </div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-2.5" style={{ color: 'var(--text-faint)' }}>
-                  Time Allocation Per Stage
-                </div>
-                <div className="space-y-2.5">
-                  <TimeBar label="Team Lead — Review &amp; Assign" hours={tlHours} pct={Math.round(tlPct * 100)} color="var(--color-navy-ink)" />
-                  <TimeBar label={workerLabel} hours={designerHours} pct={Math.round(workerPct * 100)} color="var(--color-crimson)" />
-                  <TimeBar label="QC Review" hours={qcHours} pct={Math.round(qcPct * 100)} color="var(--color-green)" />
-                </div>
-                <div className="mt-3 text-[11px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
-                  Timeline is an estimate. Actual time may vary based on complexity and revision requests.
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {/* ── JOB DETAILS + REFERENCE ── */}
-          <div>
-            <SectionDivider label="Job Details" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div
-                className="rounded-xl px-4 pt-1 pb-0"
-                style={{ background: 'var(--glass-bg-light)', border: '1px solid var(--glass-border)' }}
-              >
-                <DetailRow label="Order Type" value={job.order} />
-                {job.process ? <DetailRow label="Process" value={job.process} /> : null}
-                <DetailRow label="Complexity" value={job.complexity} />
-                <DetailRow label="Colors" value={`${job.colors} color${job.colors !== 1 ? 's' : ''}`} />
-                <DetailRow label="Priority" value={job.priority} />
-                <DetailRow label="Assigned To" value={job.assignedTo || 'Unassigned'} />
-                <DetailRow label="Created" value={formatDate(job.created)} />
-              </div>
-              <div
-                className="rounded-xl px-4 pt-1 pb-0"
-                style={{ background: 'var(--glass-bg-light)', border: '1px solid var(--glass-border)' }}
-              >
-                <DetailRow label="Job ID" value={job.id} />
-                <DetailRow label="Reference No." value={job.ref} />
-                <DetailRow label="Project Type" value={job.project} />
-                <DetailRow label="Status" value={job.status} />
-                {job.placement ? <DetailRow label="Placement" value={job.placement} /> : null}
-                {job.stitchCount ? <DetailRow label="Stitch Count" value={job.stitchCount.toLocaleString()} /> : null}
-              </div>
-            </div>
-          </div>
-
-          {/* ── CONFIRM & PLACE JOB ── */}
-          {showConfirm ? (
-            <div>
-              <SectionDivider label="Confirm & Place Job" />
-              <div
-                className="rounded-xl p-5"
-                style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.28)' }}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
+            <div className="flex items-start relative" style={{ zIndex: 1 }}>
+              {flowSteps.map((step, i) => {
+                const state = i < stepIdx ? 'done'
+                  : i === stepIdx ? 'current'
+                  : 'pending';
+                const subLabel = i === 2
+                  ? (job.etaHours ? `ETA: ${job.etaHours}h` : 'In Progress')
+                  : step.sub;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center">
                     <div
-                      className="text-[10px] font-bold uppercase tracking-[0.14em] mb-1"
-                      style={{ color: 'var(--text-main)' }}
+                      className="w-[38px] h-[38px] rounded-full flex items-center justify-center"
+                      style={
+                        state === 'done'
+                          ? { background: '#B22234', border: '2px solid #B22234' }
+                          : state === 'current'
+                            ? { background: '#fff', border: '2.5px solid #B22234', boxShadow: '0 0 0 4px rgba(178,34,52,0.1)' }
+                            : { background: '#fff', border: '2px solid #E2E8F0' }
+                      }
                     >
-                      Agency Quoted Price
+                      {state === 'done' ? (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : state === 'current' ? (
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B22234" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                        </svg>
+                      ) : (
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#CBD5E1' }} />
+                      )}
                     </div>
-                    <div className="text-[36px] font-extrabold leading-none" style={{ color: 'var(--color-crimson)' }}>
-                      {confirmPrice != null ? `$${confirmPrice}` : 'Pending'}
-                    </div>
-                    <div className="text-[11px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
-                      Reviewed &amp; set by your Client Servicing team
+                    <div className="text-center mt-1.5">
+                      <div
+                        className="text-[11px] font-bold"
+                        style={{ color: state === 'pending' ? '#94A3B8' : '#0D1B2A' }}
+                      >
+                        {step.role}
+                      </div>
+                      <div className="text-[10px] font-medium mt-0.5" style={{ color: '#94A3B8' }}>
+                        {subLabel}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 shrink-0">
-                    <button
-                      type="button"
-                      className="btn font-bold text-[13px] justify-center"
-                      style={{ background: 'var(--color-amber)', color: '#0a1a3a', border: 'none', padding: '10px 18px', borderRadius: '999px' }}
-                      onClick={() => onConfirmJob?.(job)}
-                    >
-                      <CheckCircle2 className="w-4 h-4" aria-hidden />
-                      Confirm &amp; Start Production
-                    </button>
-                    <button type="button" className="btn btn-outline justify-center" style={{ padding: '9px 18px', borderRadius: '999px' }}>
-                      Discuss with CS
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-4 pt-3 flex items-start gap-2 text-[11px] leading-relaxed" style={{ color: 'var(--color-amber)', borderTop: '1px dashed rgba(245,158,11,0.35)' }}>
-                  <Clock className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />
-                  Confirming starts production immediately. Your job will be assigned to the team and tracked in My Projects.
-                </div>
-              </div>
+                );
+              })}
             </div>
-          ) : null}
+          </div>
 
-          {/* ── BRIEF / NOTES ── */}
-          {job.notes ? (
+          {/* TWO-COLUMN DETAILS */}
+          <div
+            className="grid grid-cols-2 gap-x-6 mb-5 pt-4"
+            style={{ borderTop: '1px solid #E8EDF5' }}
+          >
+            {/* JOB DETAILS */}
             <div>
-              <SectionDivider label="Brief / Notes" />
+              <div className="text-[10px] font-bold uppercase tracking-[0.13em] mb-2" style={{ color: '#94A3B8' }}>
+                JOB DETAILS
+              </div>
+              <DetailRow label="Client"      value={job.client} />
+              <DetailRow label="Client ID"   value={job.clientId} />
+              <DetailRow label="Order Type"  value={job.order} />
+              <DetailRow label="Complexity"  value={job.complexity} />
+              {job.process ? <DetailRow label="Process" value={job.process} /> : null}
+              <DetailRow label="Colors"      value={String(job.colors)} />
+              <DetailRow label="Assigned To" value={job.assignedTo ?? 'Unassigned'} />
+              {job.subType ? <DetailRow label="Sub-Type" value={job.subType} /> : null}
+            </div>
+
+            {/* SPECIFICATIONS */}
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.13em] mb-2" style={{ color: '#94A3B8' }}>
+                SPECIFICATIONS
+              </div>
+              {job.etaHours ? <DetailRow label="ETA" value={`${job.etaHours}h`} /> : null}
+              <DetailRow label="Created"   value={job.created} />
+              <DetailRow
+                label="Reference"
+                value={job.ref}
+                valueStyle={{ color: '#B22234', fontFamily: 'IBM Plex Mono, monospace', fontSize: 10.5 }}
+              />
+              <DetailRow
+                label="Client Budget"
+                value={clientBudget !== null ? `₹${Number(clientBudget).toLocaleString()}` : 'Not provided'}
+              />
+              <DetailRow
+                label="Admin Counter"
+                value={adminCounter !== null ? `₹${Number(adminCounter).toLocaleString()}` : 'None'}
+              />
+              <DetailRow
+                label="Agreed Price"
+                value={agreedPrice !== null ? `₹${Number(agreedPrice).toLocaleString()}` : 'Pending'}
+              />
+              {job.aiScore && aiOverall !== null ? (
+                <DetailRow
+                  label="AI QC Score"
+                  value={`${aiOverall}/100 — ${aiPass ? 'Pass' : 'Fail'}`}
+                  valueStyle={{ color: aiPass ? '#059669' : '#DC2626', fontWeight: 700 }}
+                />
+              ) : null}
+            </div>
+          </div>
+
+          {/* NOTES / BRIEF */}
+          {job.notes ? (
+            <div className="mb-5">
+              <SectionLabel>NOTES / BRIEF</SectionLabel>
               <div
-                className="text-[12.5px] leading-relaxed rounded-xl p-4"
-                style={{ background: 'var(--glass-bg-light)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}
+                className="text-[12.5px] leading-relaxed p-3.5 rounded-xl"
+                style={{ background: '#F8FAFC', border: '1px solid #E8EDF5', color: '#475569' }}
               >
                 {job.notes}
               </div>
             </div>
           ) : null}
 
+          {/* AI QC REPORT */}
+          {job.aiScore ? (
+            <div className="mb-2">
+              <SectionLabel>AI QC REPORT</SectionLabel>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E8EDF5' }}>
+                {/* Badge row */}
+                <div
+                  className="px-4 pt-3 pb-2.5 flex items-center gap-3"
+                  style={{ borderBottom: '1px solid #E8EDF5' }}
+                >
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+                    style={{ background: 'rgba(178,34,52,0.10)', color: '#B22234', border: '1px solid rgba(178,34,52,0.18)' }}
+                  >
+                    AI ANALYSIS
+                  </span>
+                  <span className="text-[11px]" style={{ color: '#94A3B8' }}>
+                    Auto-generated · First-pass reference only
+                  </span>
+                </div>
+
+                {/* Score bars */}
+                <div className="grid grid-cols-5 gap-2 px-4 py-3">
+                  <ScoreBar label="COLOUR"     value={job.aiScore.colour} color="#ef4444" />
+                  <ScoreBar label="ALIGNMENT"  value={job.aiScore.align}  color="#3b82f6" />
+                  <ScoreBar label="RESOLUTION" value={job.aiScore.res}    color="#a855f7" />
+                  <ScoreBar label="BRIEF"      value={job.aiScore.brief}  color="#f59e0b" />
+                  <ScoreBar label="OVERALL"    value={aiOverall ?? 0}     color="#B22234" />
+                </div>
+
+                {/* Recommendation callout */}
+                {aiPass !== null ? (
+                  <div
+                    className="mx-4 mb-3 px-3.5 py-2.5 rounded-lg flex items-start gap-2"
+                    style={{
+                      background: aiPass ? 'rgba(5,150,105,0.06)' : 'rgba(220,38,38,0.06)',
+                      border: `1px solid ${aiPass ? 'rgba(5,150,105,0.2)' : 'rgba(220,38,38,0.2)'}`,
+                    }}
+                  >
+                    <svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke={aiPass ? '#059669' : '#DC2626'}
+                      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ flexShrink: 0, marginTop: 1 }}
+                    >
+                      {aiPass
+                        ? <><circle cx="12" cy="12" r="10" /><polyline points="20 6 9 17 4 12" /></>
+                        : <><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></>
+                      }
+                    </svg>
+                    <span className="text-[11.5px] leading-relaxed" style={{ color: aiPass ? '#059669' : '#DC2626' }}>
+                      <strong>AI Recommendation: {aiPass ? 'PASS' : 'FAIL'}</strong>
+                      {aiPass
+                        ? ' — Design meets quality standards. Minor colour variance within acceptable tolerance.'
+                        : ' — Review required. Quality threshold not met.'}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
         </div>
 
-        {/* Footer — outside scroll area so it always shows on solid white */}
+        {/* ── FOOTER ── */}
         <div
-          className="flex-shrink-0 flex items-center justify-end gap-3 px-5 py-4 bg-white"
-          style={{ borderTop: '1px solid var(--glass-border)' }}
+          className="flex-shrink-0 flex items-center gap-2 px-6 py-3.5 flex-wrap"
+          style={{ borderTop: '1px solid #E8EDF5', background: '#FAFBFD' }}
         >
           <button
             type="button"
-            className="btn btn-outline justify-center"
-            style={{ borderRadius: '999px', padding: '9px 22px' }}
-            onClick={onClose}
+            className="btn btn-outline"
+            style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
           >
+            <Download className="w-3.5 h-3.5" aria-hidden />
+            Download Files
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline"
+            style={{ fontSize: 12, padding: '7px 13px', gap: 6, marginLeft: 'auto' }}
+            onClick={handleClose}
+          >
+            <X className="w-3.5 h-3.5" aria-hidden />
             Close
           </button>
           <button
             type="button"
-            className="btn btn-crimson justify-center"
-            style={{ borderRadius: '999px', padding: '9px 22px' }}
+            className="btn btn-outline"
+            style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+            onClick={() => onEdit?.(job)}
           >
-            <Clock className="w-4 h-4" aria-hidden />
-            Track This Job
+            <Edit2 className="w-3.5 h-3.5" aria-hidden />
+            Edit Job
+          </button>
+          <button
+            type="button"
+            className="btn btn-crimson"
+            style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+          >
+            <UserPlus className="w-3.5 h-3.5" aria-hidden />
+            Assign Job
+          </button>
+          <button
+            type="button"
+            className="btn btn-crimson"
+            style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+          >
+            <Send className="w-3.5 h-3.5" aria-hidden />
+            Dispatch to Client
           </button>
         </div>
+
       </div>
     </div>
   );
 }
 
-function TimeBar({ label, hours, pct, color }: { label: string; hours: number; pct: number; color: string }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="text-[11px] shrink-0 w-40" style={{ color: 'var(--text-muted)' }}>
-        {label}
-      </div>
-      <div className="flex-1 h-2 rounded-full" style={{ background: 'rgba(0,0,0,0.08)' }}>
-        <div className="h-2 rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <div className="text-[11.5px] font-bold w-10 text-right shrink-0" style={{ color }}>
-        {hours.toFixed(1)}h
-      </div>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div
-      className="flex items-center justify-between gap-4 py-2"
-      style={{ borderBottom: '1px solid var(--glass-border)' }}
-    >
-      <span className="text-[11.5px] shrink-0" style={{ color: 'var(--color-navy-ink)' }}>{label}</span>
-      <span className="text-[12px] font-semibold text-right" style={{ color: 'var(--text-main)' }}>{value}</span>
-    </div>
-  );
-}
-
-function SectionDivider({ label }: { label: string }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3 mb-3">
       <span
         className="text-[10px] font-bold uppercase tracking-[0.14em] whitespace-nowrap shrink-0"
-        style={{ color: 'var(--text-faint)' }}
+        style={{ color: '#94A3B8' }}
+      >
+        {children}
+      </span>
+      <div className="flex-1 h-px" style={{ background: '#E8EDF5' }} />
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  valueStyle,
+}: {
+  label: string;
+  value: string;
+  valueStyle?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className="flex items-baseline justify-between py-1.5 gap-3"
+      style={{ borderBottom: '1px solid #F1F5F9' }}
+    >
+      <span className="text-[11.5px] shrink-0" style={{ color: '#64748B' }}>{label}</span>
+      <span
+        className="text-[12px] font-semibold text-right"
+        style={{ color: '#0D1B2A', ...valueStyle }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <div className="text-center">
+      <div
+        className="text-[9px] font-bold uppercase mb-1.5"
+        style={{ color: '#6B7585', letterSpacing: '0.05em' }}
       >
         {label}
-      </span>
-      <div className="flex-1 h-px" style={{ background: 'var(--glass-border)' }} />
+      </div>
+      {/* Proportional fill over a grey track — matches reference */}
+      <div className="overflow-hidden mb-1" style={{ height: 4, background: '#E4E8F0', borderRadius: 2 }}>
+        <div style={{ width: `${Math.min(value, 100)}%`, height: '100%', background: color, borderRadius: 2 }} />
+      </div>
+      <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 500, color: '#0D1B2A' }}>
+        {value}
+      </div>
     </div>
   );
 }
