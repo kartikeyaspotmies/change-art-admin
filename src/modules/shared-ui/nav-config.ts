@@ -11,7 +11,6 @@ import {
   Sparkles,
   Truck,
   Users,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 import { UserRole } from '@contracts';
