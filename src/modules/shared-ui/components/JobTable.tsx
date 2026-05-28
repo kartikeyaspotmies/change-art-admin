@@ -317,13 +317,6 @@ function TableView({
             <tr key={j.id} onClick={() => onOpen?.(j)}>
               <td>
                 <div className="job-cell">
-                  <img
-                    className="job-thumb"
-                    src={jobImage(j, 0, 160, 120)}
-                    alt=""
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
                   <div>
                     <span className="ref-code">{j.id}</span>
                     <div className="text-[10.5px] text-text-muted font-medium mt-0.5">{j.ref}</div>

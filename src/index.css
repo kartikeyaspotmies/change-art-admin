@@ -2633,13 +2633,20 @@ html[data-theme='light'] .mb-track {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     display: flex;
-    align-items: flex-start;
+    /* `safe center` centers the modal when it fits the viewport but falls
+       back to start-alignment when the modal is taller — without this,
+       a tall modal gets its header clipped above the scroll origin. */
+    align-items: safe center;
     justify-content: center;
-    padding: 36px 20px 60px;
+    padding: 24px 16px;
     overflow-y: auto;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.22s;
+  }
+
+  @media (max-width: 640px) {
+    .modal-overlay { padding: 12px 8px; }
   }
 
   .modal-overlay.open {
