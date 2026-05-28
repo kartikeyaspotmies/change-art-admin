@@ -41,6 +41,7 @@ export const queryKeys = {
   files: {
     forJob: (jobId: string) => ['files', 'forJob', jobId] as const,
     byId: (id: string) => ['files', 'byId', id] as const,
+    thumbnails: (jobIds: readonly string[]) => ['files', 'thumbnails', jobIds] as const,
   },
 
   quotes: {
