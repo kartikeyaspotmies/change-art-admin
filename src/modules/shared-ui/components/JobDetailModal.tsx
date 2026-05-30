@@ -12,6 +12,8 @@ interface JobDetailModalProps {
   onConfirmJob?: (job: Job) => void;
   /** Open the edit form for this job (wired to the "Edit Job" footer button). */
   onEdit?: (job: Job) => void;
+  /** Open the assign-member modal for this job (wired to the "Assign Job" footer button). */
+  onAssign?: (job: Job) => void;
   /**
    * Render the quote popup (Review & Set Price section, blue step, no Dispatch).
    * Driven by CONTEXT — only the Quotes page/section sets this. Job lists leave
@@ -89,16 +91,34 @@ function isQuoteStageStatus(job: Job): boolean {
   return s === 'QUOTE_SUBMITTED' || s === 'QUOTE_APPROVED';
 }
 
+function isQuoteAlreadySent(job: Job): boolean {
+  // "Price sent — awaiting client" state: agency has already priced the
+  // quote, status moved to QUOTE_APPROVED, now waiting on the client's
+  // confirmation. In this state the pricing card should display the
+  // already-entered values as READ-ONLY.
+  //
+  // Match the raw backend enum first; fall back to the UI label only when
+  // the raw status is missing (mock data or stale cache). The UI label for
+  // QUOTE_APPROVED is exactly "Quote Approved".
+  if (job.rawStatus) return job.rawStatus.toUpperCase() === 'QUOTE_APPROVED';
+  return job.status === 'Quote Approved';
+}
+
 function isReadyToDeliverStatus(job: Job): boolean {
   return normalizedStatus(job) === 'READY_TO_DELIVER';
 }
 
-export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobDetailModalProps) {
+export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = false }: JobDetailModalProps) {
   const [isIn, setIsIn] = useState(false);
   const [agencyPrice, setAgencyPrice] = useState('');
   const [confirmedEta, setConfirmedEta] = useState('');
   const [noteToClient, setNoteToClient] = useState('');
-  const [priceError, setPriceError] = useState(false);
+  // Field-specific invalid flags so the error message + border colour
+  // can call out exactly which input is missing, instead of the old
+  // single boolean that always read "Please enter a valid agency price"
+  // even when the price was fine and only the ETA was empty.
+  const [priceInvalid, setPriceInvalid] = useState(false);
+  const [etaInvalid, setEtaInvalid] = useState(false);
   const [carPage, setCarPage] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
@@ -116,10 +136,16 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
 
   useEffect(() => {
     if (job) {
-      setAgencyPrice('');
-      setConfirmedEta('');
-      setNoteToClient('');
-      setPriceError(false);
+      // When the job is already priced (QUOTE_APPROVED), prefill the form
+      // with what was sent so the admin can see the locked values. The
+      // inputs render read-only in this case — see the `quoteSent` branch
+      // further down.
+      const sent = isQuoteAlreadySent(job);
+      setAgencyPrice(sent && job.adminPrice != null ? String(job.adminPrice) : '');
+      setConfirmedEta(sent && job.etaHours != null ? String(job.etaHours) : '');
+      setNoteToClient(sent ? (job.adminPriceNote ?? '') : '');
+      setPriceInvalid(false);
+      setEtaInvalid(false);
       setCarPage(0);
       setShowConfirm(false);
       setConfirmText('');
@@ -177,6 +203,12 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   const adminCounter = job.negotiation?.agencyOffer ?? job.adminPrice ?? null;
   const agreedPrice  = job.negotiation?.finalPrice ?? job.agreedPrice ?? null;
 
+  // Whether the quote has already been priced & sent (status QUOTE_APPROVED).
+  // Drives readonly fields and swaps the action buttons for a clear
+  // "awaiting client" banner instead of letting the rep submit a second
+  // price for the same quote.
+  const quoteSent = isQuoteAlreadySent(job);
+
   const aiOverall = job.aiScore
     ? Math.round((job.aiScore.colour + job.aiScore.align + job.aiScore.res + job.aiScore.brief) / 4)
     : null;
@@ -203,15 +235,37 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
     return jobUuid;
   };
 
+  // Reasonable ceilings so the rep can't push obviously-bogus numbers
+  // through (which also kept the confirm card from overflowing).
+  const MAX_PRICE = 10_000_000;        // $10M — actual value cap
+  const MAX_ETA_HOURS = 720;           // 30 days — actual value cap
+
+  // Length caps prevent pathological inputs like "44444…" (50+ chars).
+  // They're deliberately higher than what the value cap allows so the
+  // user can still see a number that's over the real cap and correct it.
+  const MAX_PRICE_LEN = 12;            // up to e.g. "999999999.99" — well past $10M
+  const MAX_ETA_LEN = 5;               // up to "999.5" — well past 720
+
+  /** Strip leading zeros, trim to `maxLen` chars. Allows one decimal point. */
+  const trimNumeric = (raw: string, maxLen: number): string => {
+    // Keep digits + a single decimal point only.
+    let cleaned = raw.replace(/[^\d.]/g, '');
+    // Collapse multiple dots: keep the first, drop the rest.
+    const firstDot = cleaned.indexOf('.');
+    if (firstDot !== -1) {
+      cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
+    }
+    return cleaned.slice(0, maxLen);
+  };
+
   const handleSendPrice = () => {
     const amount = parseFloat(agencyPrice);
     const etaHours = parseFloat(confirmedEta);
-    if (!agencyPrice || !Number.isFinite(amount) || amount <= 0
-        || !confirmedEta || !Number.isFinite(etaHours) || etaHours <= 0) {
-      setPriceError(true);
-      return;
-    }
-    setPriceError(false);
+    const priceBad = !agencyPrice || !Number.isFinite(amount)   || amount   <= 0 || amount   > MAX_PRICE;
+    const etaBad   = !confirmedEta || !Number.isFinite(etaHours) || etaHours <= 0 || etaHours > MAX_ETA_HOURS;
+    setPriceInvalid(priceBad);
+    setEtaInvalid(etaBad);
+    if (priceBad || etaBad) return;
     setConfirmText('');
     setShowConfirm(true);
   };
@@ -458,12 +512,25 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                             <input
                               type="number"
                               min={1}
+                              max={MAX_PRICE}
+                              step="any"
                               value={agencyPrice}
-                              onChange={(e) => { setAgencyPrice(e.target.value); setPriceError(false); }}
+                              readOnly={quoteSent}
+                              disabled={quoteSent}
+                              onChange={(e) => {
+                                // Strip non-numeric chars + cap length, then
+                                // flag over-cap values as invalid live so the
+                                // red border + error appear as the rep types,
+                                // not only when they click Send Price.
+                                const next = trimNumeric(e.target.value, MAX_PRICE_LEN);
+                                setAgencyPrice(next);
+                                const n = parseFloat(next);
+                                setPriceInvalid(Number.isFinite(n) && n > MAX_PRICE);
+                              }}
                               style={{
                                 width: '100%',
-                                background: '#FFFFFF',
-                                border: `1.5px solid ${priceError ? '#DC2626' : '#FCD34D'}`,
+                                background: quoteSent ? '#FEF3C7' : '#FFFFFF',
+                                border: `1.5px solid ${priceInvalid ? '#DC2626' : '#FCD34D'}`,
                                 color: '#92400E',
                                 fontSize: 13,
                                 fontWeight: 600,
@@ -473,6 +540,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                                 lineHeight: 1,
                                 outline: 'none',
                                 boxShadow: 'inset 0 1px 2px rgba(217,119,6,0.05)',
+                                cursor: quoteSent ? 'not-allowed' : 'text',
                               }}
                             />
                           </div>
@@ -487,12 +555,21 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                           <input
                             type="number"
                             min={1}
+                            max={MAX_ETA_HOURS}
+                            step="any"
                             value={confirmedEta}
-                            onChange={(e) => setConfirmedEta(e.target.value)}
+                            readOnly={quoteSent}
+                            disabled={quoteSent}
+                            onChange={(e) => {
+                              const next = trimNumeric(e.target.value, MAX_ETA_LEN);
+                              setConfirmedEta(next);
+                              const n = parseFloat(next);
+                              setEtaInvalid(Number.isFinite(n) && n > MAX_ETA_HOURS);
+                            }}
                             style={{
                               width: '100%',
-                              background: '#FFFFFF',
-                              border: '1.5px solid #FCD34D',
+                              background: quoteSent ? '#FEF3C7' : '#FFFFFF',
+                              border: `1.5px solid ${etaInvalid ? '#DC2626' : '#FCD34D'}`,
                               color: '#92400E',
                               fontSize: 13,
                               fontWeight: 600,
@@ -502,6 +579,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                               lineHeight: 1,
                               outline: 'none',
                               boxShadow: 'inset 0 1px 2px rgba(217,119,6,0.05)',
+                              cursor: quoteSent ? 'not-allowed' : 'text',
                             }}
                           />
                         </div>
@@ -520,10 +598,13 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                         </label>
                         <textarea
                           value={noteToClient}
+                          readOnly={quoteSent}
+                          disabled={quoteSent}
                           onChange={(e) => setNoteToClient(e.target.value)}
+                          placeholder={quoteSent && !noteToClient ? '— No note sent —' : undefined}
                           style={{
                             width: '100%',
-                            background: '#FFFFFF',
+                            background: quoteSent ? '#FEF3C7' : '#FFFFFF',
                             border: '1.5px solid #FCD34D',
                             color: '#92400E',
                             fontSize: 12,
@@ -532,36 +613,41 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                             padding: '7px 12px',
                             lineHeight: 1.4,
                             minHeight: 44,
-                            resize: 'vertical',
+                            resize: quoteSent ? 'none' : 'vertical',
                             outline: 'none',
                             boxShadow: 'inset 0 1px 2px rgba(217,119,6,0.05)',
+                            cursor: quoteSent ? 'not-allowed' : 'text',
                           }}
                         />
                       </div>
 
-                      {/* Info banner */}
+                      {/* Info banner — message swaps when the price has
+                          already been dispatched to the client. */}
                       <div
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: 6,
-                          background: 'rgba(217,119,6,0.04)',
-                          border: '1px dashed #FCD34D',
+                          background: quoteSent ? 'rgba(5,150,105,0.06)' : 'rgba(217,119,6,0.04)',
+                          border: `1px dashed ${quoteSent ? '#10B981' : '#FCD34D'}`,
                           borderRadius: 8,
                           padding: '8px 10px',
                           fontSize: 10.5,
-                          color: '#B45309',
+                          color: quoteSent ? '#065F46' : '#B45309',
                           lineHeight: 1.45,
                         }}
                       >
                         <AlertCircle className="w-3 h-3 shrink-0" style={{ marginTop: 1 }} aria-hidden />
                         <span>
-                          Sending price updates status to <b>Quote Approved</b> and requests client confirmation.
+                          {quoteSent
+                            ? <>Price already sent. Status is <b>Quote Approved</b> — awaiting client confirmation.</>
+                            : <>Sending price updates status to <b>Quote Approved</b> and requests client confirmation.</>}
                         </span>
                       </div>
 
-                      {/* Validation error */}
-                      {priceError ? (
+                      {/* Validation error — message picks the missing field(s)
+                          so the user knows what's actually wrong. */}
+                      {priceInvalid || etaInvalid ? (
                         <div
                           style={{
                             color: '#DC2626',
@@ -573,11 +659,28 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                             fontWeight: 600,
                           }}
                         >
-                          Please enter a valid agency price before sending.
+                          {(() => {
+                            // Per-field reason: distinguish "missing/zero"
+                            // from "over the cap" so the rep knows what
+                            // specifically failed.
+                            const priceMsg = priceInvalid
+                              ? (parseFloat(agencyPrice) > MAX_PRICE
+                                  ? `Agency price must be at most $${MAX_PRICE.toLocaleString()}.`
+                                  : 'Please enter a valid agency price.')
+                              : null;
+                            const etaMsg = etaInvalid
+                              ? (parseFloat(confirmedEta) > MAX_ETA_HOURS
+                                  ? `Confirmed ETA must be at most ${MAX_ETA_HOURS}h (30 days).`
+                                  : 'Please enter a valid confirmed ETA.')
+                              : null;
+                            return [priceMsg, etaMsg].filter(Boolean).join(' ');
+                          })()}
                         </div>
                       ) : null}
 
-                      {/* Action buttons */}
+                      {/* Action buttons — Reject is still valid while waiting
+                          on the client; Send Price is hidden once a price has
+                          been sent so the rep can't dispatch a second one. */}
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center', marginTop: 'auto' }}>
                         <button
                           type="button"
@@ -603,44 +706,46 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                           <X className="w-2.5 h-2.5" style={{ marginRight: 4 }} aria-hidden />
                           {rejectQuote.isPending ? 'Rejecting…' : 'Reject Quote'}
                         </button>
-                        <button
-                          type="button"
-                          onClick={handleSendPrice}
-                          disabled={isSubmitting}
-                          style={{
-                            background: '#D97706',
-                            border: '1.5px solid #D97706',
-                            color: '#FFFFFF',
-                            padding: '7px 15px',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            borderRadius: 99,
-                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                            opacity: isSubmitting ? 0.55 : 1,
-                            transition: 'all 0.15s ease',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
-                          onMouseOver={(e) => {
-                            if (isSubmitting) return;
-                            (e.currentTarget as HTMLButtonElement).style.background = '#B45309';
-                            (e.currentTarget as HTMLButtonElement).style.borderColor = '#B45309';
-                          }}
-                          onMouseOut={(e) => {
-                            (e.currentTarget as HTMLButtonElement).style.background = '#D97706';
-                            (e.currentTarget as HTMLButtonElement).style.borderColor = '#D97706';
-                          }}
-                        >
-                          <svg
-                            width="11" height="11" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" strokeWidth="2.5"
-                            strokeLinecap="round" strokeLinejoin="round"
-                            style={{ marginRight: 4 }}
+                        {!quoteSent ? (
+                          <button
+                            type="button"
+                            onClick={handleSendPrice}
+                            disabled={isSubmitting}
+                            style={{
+                              background: '#D97706',
+                              border: '1.5px solid #D97706',
+                              color: '#FFFFFF',
+                              padding: '7px 15px',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              borderRadius: 99,
+                              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                              opacity: isSubmitting ? 0.55 : 1,
+                              transition: 'all 0.15s ease',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                            }}
+                            onMouseOver={(e) => {
+                              if (isSubmitting) return;
+                              (e.currentTarget as HTMLButtonElement).style.background = '#B45309';
+                              (e.currentTarget as HTMLButtonElement).style.borderColor = '#B45309';
+                            }}
+                            onMouseOut={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.background = '#D97706';
+                              (e.currentTarget as HTMLButtonElement).style.borderColor = '#D97706';
+                            }}
                           >
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          {sendPrice.isPending ? 'Sending…' : 'Send Price'}
-                        </button>
+                            <svg
+                              width="11" height="11" viewBox="0 0 24 24" fill="none"
+                              stroke="currentColor" strokeWidth="2.5"
+                              strokeLinecap="round" strokeLinejoin="round"
+                              style={{ marginRight: 4 }}
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            {sendPrice.isPending ? 'Sending…' : 'Send Price'}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -887,6 +992,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
             type="button"
             className="btn btn-crimson"
             style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+            onClick={() => onAssign?.(job)}
           >
             <UserPlus className="w-3.5 h-3.5" aria-hidden />
             Assign Job
@@ -981,35 +1087,59 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
             {/* Body */}
             <div className="px-6 py-5 flex flex-col gap-4">
 
-              {/* Price card */}
-              <div
-                className="flex flex-col items-center gap-2.5 text-center"
-                style={{
-                  background: '#FFFBEB', border: '1.5px solid #FCD34D',
-                  borderRadius: 12, padding: 20,
-                  boxShadow: '0 4px 24px rgba(217,119,6,0.06)',
-                }}
-              >
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Agency Price Proposal
-                </div>
-                <div
-                  style={{
-                    fontSize: 36, fontWeight: 800, color: '#92400E',
-                    letterSpacing: '-0.02em', background: '#FEF3C7',
-                    padding: '6px 24px', borderRadius: 10, border: '1px solid #FCD34D',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)', margin: '4px auto',
-                  }}
-                >
-                  ${Number(parseFloat(agencyPrice) || 0).toLocaleString()}
-                </div>
-                <div style={{ fontSize: 13, color: '#B45309', fontWeight: 600 }}>
-                  Confirmed ETA:{' '}
-                  <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 14, fontWeight: 700 }}>
-                    {confirmedEta}h
-                  </span>
-                </div>
-              </div>
+              {/* Price card — values are clamped so long inputs (whether
+                  the rep typed in a sane number with many digits, or an
+                  absurd 30-digit value) don't blow out the dialog. */}
+              {(() => {
+                const priceStr = Number(parseFloat(agencyPrice) || 0).toLocaleString();
+                // Scale the headline price down as it grows so it still fits.
+                const priceFontSize =
+                  priceStr.length > 22 ? 18 :
+                  priceStr.length > 16 ? 22 :
+                  priceStr.length > 12 ? 28 :
+                  36;
+                return (
+                  <div
+                    className="flex flex-col items-center gap-2.5 text-center"
+                    style={{
+                      background: '#FFFBEB', border: '1.5px solid #FCD34D',
+                      borderRadius: 12, padding: 20,
+                      boxShadow: '0 4px 24px rgba(217,119,6,0.06)',
+                      maxWidth: '100%', overflow: 'hidden',
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Agency Price Proposal
+                    </div>
+                    <div
+                      style={{
+                        fontSize: priceFontSize, fontWeight: 800, color: '#92400E',
+                        letterSpacing: '-0.02em', background: '#FEF3C7',
+                        padding: '6px 18px', borderRadius: 10, border: '1px solid #FCD34D',
+                        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)', margin: '4px auto',
+                        maxWidth: '100%',
+                        wordBreak: 'break-all',
+                        overflowWrap: 'anywhere',
+                        lineHeight: 1.15,
+                        transition: 'font-size 0.15s ease',
+                      }}
+                    >
+                      ${priceStr}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13, color: '#B45309', fontWeight: 600,
+                        maxWidth: '100%', wordBreak: 'break-all', overflowWrap: 'anywhere',
+                      }}
+                    >
+                      Confirmed ETA:{' '}
+                      <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 14, fontWeight: 700 }}>
+                        {confirmedEta}h
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Warning banner */}
               <div

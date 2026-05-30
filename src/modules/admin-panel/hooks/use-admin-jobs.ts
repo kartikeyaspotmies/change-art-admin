@@ -1,9 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { UserRole } from '@contracts';
 import { queryKeys } from '@lib/query-keys';
 import type { Job } from '@modules/shared-ui';
-import { adminService, type JobCardFilters, type UserFilters } from '../services/admin.service';
+import {
+  adminService,
+  type JobCardFilters,
+  type UpdateJobCardBody,
+  type UserFilters,
+} from '../services/admin.service';
 import { adaptJobCard, type ClientInfo } from '../adapters/job-view';
 import { useAdminClients } from './use-admin-clients';
 
@@ -25,6 +30,21 @@ export function useAdminJobCards(filters: JobCardFilters = {}) {
     // 30-second stale window prevents job-cards from re-fetching on every
     // navigation while still keeping the list reasonably fresh.
     staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Persist edits to a Job Card (Edit modal "Save Changes"). On success the
+ * whole jobs cache is invalidated so every list/grid view reflects the change.
+ */
+export function useUpdateJobCard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateJobCardBody }) =>
+      adminService.updateJobCard(id, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+    },
   });
 }
 

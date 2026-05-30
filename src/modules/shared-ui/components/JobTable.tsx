@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, type ReactNode } from 'react';
 import { JobDetailModal } from './JobDetailModal';
 import { EditJobModal } from './EditJobModal';
+import { AssignJobModal } from './AssignJobModal';
 import { Inbox, Clock, CheckCircle2, Download, Search } from 'lucide-react';
 
 function formatDate(dateStr: string): string {
@@ -62,6 +63,7 @@ export function JobTable({
   const [query, setQuery] = useState('');
   const [viewJob, setViewJob] = useState<Job | null>(null);
   const [editJob, setEditJob] = useState<Job | null>(null);
+  const [assignJob, setAssignJob] = useState<Job | null>(null);
 
   const handleOpen = useCallback((job: Job) => {
     if (onOpen) { onOpen(job); } else { setViewJob(job); }
@@ -179,12 +181,17 @@ export function JobTable({
         job={viewJob}
         onClose={() => setViewJob(null)}
         onEdit={(j) => { setViewJob(null); setEditJob(j); }}
+        onAssign={(j) => { setViewJob(null); setAssignJob(j); }}
         quoteView={quoteView}
       />
       <EditJobModal
         job={editJob}
         onClose={() => setEditJob(null)}
         onBack={(j) => { setEditJob(null); setViewJob(j); }}
+      />
+      <AssignJobModal
+        job={assignJob}
+        onClose={() => setAssignJob(null)}
       />
     </div>
   );

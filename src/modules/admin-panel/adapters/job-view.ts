@@ -132,6 +132,7 @@ export function adaptJobCard(
   return {
     id: card.job_id,
     uuid: card.id,
+    version: card.version,
     ref: card.reference_number,
     client: clientInfo?.name ?? card.mail,
     clientId: clientInfo?.clientId ?? card.client_id,
@@ -151,6 +152,11 @@ export function adaptJobCard(
     assignedTo,
     subType,
     notes: card.notes ?? '',
+    // Surface the agency-set quote so the JobDetailModal can render the
+    // already-sent price as read-only when the job is in QUOTE_APPROVED.
+    adminPrice: card.admin_price ?? null,
+    adminPriceNote: card.admin_price_note ?? null,
+    adminPriceCurrency: card.admin_price_currency ?? null,
     colors: card.num_colors ?? 0,
     created: card.time_and_date ?? card.created_at,
     aiScore: null,
