@@ -28,11 +28,13 @@ export function useUnreadCount(enabled = true) {
       return data;
     },
     staleTime: 30 * 1000,
-    // Keep the badge in sync without needing a manual refresh: refetch when
-    // the tab regains focus and every 60s as a long-fallback in case the
-    // socket event was missed (e.g. delivered while the tab was throttled).
-    refetchOnWindowFocus: true,
-    refetchInterval: 60 * 1000,
+    // The badge is kept live in real time by the NOTIFICATION_NEW socket
+    // event (see SocketProvider), which optimistically increments this cache
+    // entry — so we do NOT poll on an interval and we do NOT refetch on window
+    // focus (which would re-hit /unread-count on every tab switch). The count
+    // is fetched once on mount; opening the bell panel forces an explicit
+    // reconciliation, and refetchOnReconnect (global default) covers a dropped
+    // connection. This inherits the global refetchOnWindowFocus: false.
     enabled,
   });
 }
@@ -60,10 +62,10 @@ export function useMarkRead() {
       toastApiError(err);
     },
     onSettled: () => {
-      void qc.invalidateQueries({
-        queryKey: queryKeys.notifications.all(),
-        refetchType: 'all',
-      });
+      // Count was already moved optimistically above — only the list needs a
+      // refresh. Invalidating notifications.all() would also re-hit
+      // /unread-count, which we explicitly avoid.
+      void qc.invalidateQueries({ queryKey: queryKeys.notifications.list() });
     },
   });
 }
@@ -85,10 +87,9 @@ export function useMarkAllRead() {
       toastApiError(err);
     },
     onSettled: () => {
-      void qc.invalidateQueries({
-        queryKey: queryKeys.notifications.all(),
-        refetchType: 'all',
-      });
+      // Count was already zeroed optimistically above — only the list needs a
+      // refresh, so we don't re-hit /unread-count here.
+      void qc.invalidateQueries({ queryKey: queryKeys.notifications.list() });
     },
   });
 }

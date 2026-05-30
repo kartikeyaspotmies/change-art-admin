@@ -93,14 +93,14 @@ export function SocketProvider({ children }: SocketProviderProps) {
         );
       }
 
-      // 2. Invalidate the rest — list query, alternative count query
-      //    shapes, etc. — and force a refetch even for inactive queries
-      //    so a stale tab in the background still reconciles. The optimistic
-      //    update above means the badge already moved; this is for the
-      //    open panel + eventual consistency.
+      // 2. Invalidate ONLY the notification list (the open panel), not the
+      //    unread-count query — step 1 already moved the badge optimistically,
+      //    so re-fetching the count here would be a redundant network call
+      //    (one per event) that just races with the value we just set.
+      //    The list query is only enabled while the bell panel is open, so
+      //    this is a no-op network-wise when the panel is closed.
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.notifications.all(),
-        refetchType: 'all',
+        queryKey: queryKeys.notifications.list(),
       });
 
       // 3. Toast — two-line with title + body, line-wrap enabled.

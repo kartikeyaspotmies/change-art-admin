@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { JobStatus } from '@contracts';
 import { queryKeys } from '@lib/query-keys';
 import { adminService } from '../services/admin.service';
-import { notificationsService } from '@modules/notifications/services/notifications.service';
 
 const PENDING_CR_FILTERS = { status: 'PENDING' as const, per_page: 100 };
 
@@ -33,15 +32,6 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
     enabled,
   });
 
-  // Shares its cache key with NotificationBell + AdminNotificationsPage so
-  // the count stays in sync across the sidebar, topbar, and inbox.
-  const { data: unreadNotifications } = useQuery({
-    queryKey: queryKeys.notifications.unreadCount(),
-    queryFn: () => notificationsService.unreadCount(),
-    staleTime: 30 * 1000,
-    enabled,
-  });
-
   return useMemo(() => {
     const badges: Record<string, number> = {};
     if (data) {
@@ -62,9 +52,9 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
     if (pendingChangeRequests) {
       badges['clients'] = pendingChangeRequests.meta.total;
     }
-    if (unreadNotifications) {
-      badges['notifications'] = unreadNotifications.count;
-    }
+    // Notifications badge on the sidebar is intentionally omitted — the
+    // bell icon in the topbar is the single source of truth for unread
+    // count. Showing it twice was redundant and noisy.
     return badges;
-  }, [data, pendingChangeRequests, unreadNotifications]);
+  }, [data, pendingChangeRequests]);
 }

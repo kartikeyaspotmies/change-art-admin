@@ -37,14 +37,14 @@ export function NotificationBell() {
   const { data: countData } = useUnreadCount(isAuthenticated);
   const unread = countData?.count ?? 0;
 
-  // When the user opens the panel, force a fresh count + list fetch so
-  // they always see current state (handy if a socket event was missed or
-  // the count somehow drifted out of sync).
+  // When the user opens the panel, refresh the preview LIST so they always
+  // see the latest items. The unread COUNT is not refetched here — it's kept
+  // live by the NOTIFICATION_NEW socket event + optimistic mark-read updates,
+  // so re-hitting /unread-count on every open would be redundant.
   useEffect(() => {
     if (!open || !isAuthenticated) return;
     void queryClient.invalidateQueries({
-      queryKey: queryKeys.notifications.all(),
-      refetchType: 'all',
+      queryKey: queryKeys.notifications.list(),
     });
   }, [open, isAuthenticated, queryClient]);
 
