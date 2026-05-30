@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@lib/utils';
+import { queryKeys } from '@lib/query-keys';
 import { useIsAuthenticated, useSessionUser } from '@modules/auth/stores/auth-store';
 import { UserRole, type INotification } from '@contracts';
 import {
@@ -30,9 +32,21 @@ export function NotificationBell() {
   const ref = useRef<HTMLDivElement>(null);
   const isAuthenticated = useIsAuthenticated();
   const user = useSessionUser();
+  const queryClient = useQueryClient();
 
   const { data: countData } = useUnreadCount(isAuthenticated);
   const unread = countData?.count ?? 0;
+
+  // When the user opens the panel, force a fresh count + list fetch so
+  // they always see current state (handy if a socket event was missed or
+  // the count somehow drifted out of sync).
+  useEffect(() => {
+    if (!open || !isAuthenticated) return;
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.notifications.all(),
+      refetchType: 'all',
+    });
+  }, [open, isAuthenticated, queryClient]);
 
   // Only fetch the preview list when the panel is open — saves a request on
   // every page mount for users who never click the bell.
@@ -78,7 +92,7 @@ export function NotificationBell() {
         {unread > 0 ? (
           <span
             className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-1 text-white"
-            style={{ background: 'var(--crimson)' }}
+            style={{ background: 'var(--color-crimson, #c41e3a)' }}
           >
             {unread > 99 ? '99+' : unread}
           </span>
@@ -98,7 +112,7 @@ export function NotificationBell() {
             <h2 className="text-[12px] font-bold uppercase tracking-wider">Notifications</h2>
             <button
               type="button"
-              className="text-[11px] text-text-muted hover:text-[var(--crimson)] transition disabled:opacity-50"
+              className="text-[11px] text-text-muted hover:text-[var(--color-crimson)] transition disabled:opacity-50"
               onClick={() => markAllRead.mutate()}
               disabled={unread === 0 || markAllRead.isPending}
             >
@@ -131,7 +145,7 @@ export function NotificationBell() {
             <div className="px-3 py-2 border-t border-glass-border text-center">
               <Link
                 to={inboxPath}
-                className="text-[12px] font-semibold text-[var(--crimson)] hover:underline"
+                className="text-[12px] font-semibold text-[var(--color-crimson)] hover:underline"
                 onClick={() => setOpen(false)}
               >
                 View all notifications
@@ -163,7 +177,7 @@ function NotificationRow({ notification: n, onMarkRead, busy }: RowProps) {
           aria-hidden
           className={cn(
             'mt-1.5 w-1.5 h-1.5 rounded-full shrink-0',
-            n.is_read ? 'bg-transparent' : 'bg-[var(--crimson)]',
+            n.is_read ? 'bg-transparent' : 'bg-[var(--color-crimson)]',
           )}
         />
         <div className="flex-1 min-w-0">
@@ -176,7 +190,7 @@ function NotificationRow({ notification: n, onMarkRead, busy }: RowProps) {
         {!n.is_read ? (
           <button
             type="button"
-            className="text-text-faint hover:text-[var(--crimson)] transition shrink-0 disabled:opacity-50"
+            className="text-text-faint hover:text-[var(--color-crimson)] transition shrink-0 disabled:opacity-50"
             aria-label="Mark as read"
             onClick={onMarkRead}
             disabled={busy}

@@ -18,8 +18,21 @@ export function useNotifications(filters: ListNotificationsFilters = {}, enabled
 export function useUnreadCount(enabled = true) {
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
-    queryFn: () => notificationsService.unreadCount(),
+    queryFn: async () => {
+      const data = await notificationsService.unreadCount();
+      if (import.meta.env.DEV) {
+        // Surfaces the raw API response in the console so a "0 despite
+        // notifications exist" mystery is easy to diagnose.
+        console.info('[bell] unread-count fetched:', data);
+      }
+      return data;
+    },
     staleTime: 30 * 1000,
+    // Keep the badge in sync without needing a manual refresh: refetch when
+    // the tab regains focus and every 60s as a long-fallback in case the
+    // socket event was missed (e.g. delivered while the tab was throttled).
+    refetchOnWindowFocus: true,
+    refetchInterval: 60 * 1000,
     enabled,
   });
 }
@@ -28,10 +41,30 @@ export function useMarkRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => notificationsService.markRead(id),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.notifications.all() });
+    // Optimistically tick the badge down by 1 the moment the user clicks
+    // the checkmark, so the UI feels instant even with network latency.
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      const prev = qc.getQueryData<{ count: number }>(queryKeys.notifications.unreadCount());
+      qc.setQueryData<{ count: number }>(
+        queryKeys.notifications.unreadCount(),
+        (old) => ({ count: Math.max(0, (old?.count ?? 0) - 1) }),
+      );
+      return { prev };
     },
-    onError: (err) => toastApiError(err),
+    onError: (err, _id, ctx) => {
+      // Roll back the optimistic decrement if the request failed.
+      if (ctx?.prev) {
+        qc.setQueryData(queryKeys.notifications.unreadCount(), ctx.prev);
+      }
+      toastApiError(err);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({
+        queryKey: queryKeys.notifications.all(),
+        refetchType: 'all',
+      });
+    },
   });
 }
 
@@ -39,9 +72,23 @@ export function useMarkAllRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => notificationsService.markAllRead(),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: queryKeys.notifications.all() });
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: queryKeys.notifications.unreadCount() });
+      const prev = qc.getQueryData<{ count: number }>(queryKeys.notifications.unreadCount());
+      qc.setQueryData(queryKeys.notifications.unreadCount(), { count: 0 });
+      return { prev };
     },
-    onError: (err) => toastApiError(err),
+    onError: (err, _vars, ctx) => {
+      if (ctx?.prev) {
+        qc.setQueryData(queryKeys.notifications.unreadCount(), ctx.prev);
+      }
+      toastApiError(err);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({
+        queryKey: queryKeys.notifications.all(),
+        refetchType: 'all',
+      });
+    },
   });
 }
