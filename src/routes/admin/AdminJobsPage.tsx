@@ -8,8 +8,14 @@ export function AdminJobsPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState('all');
 
-  const { jobs, total, isLoading, isError } = useAdminJobViews({ page, per_page: PER_PAGE });
+  const { jobs: rawJobs, total, isLoading, isError } = useAdminJobViews({ page, per_page: PER_PAGE });
   const totalPages = Math.ceil((total || 0) / PER_PAGE);
+
+  // Quote-stage rows belong to the Quotes page, not "All Jobs". Filter
+  // them out client-side so the two queues stay disjoint. (The backend's
+  // job-cards endpoint doesn't currently accept a stage filter; the
+  // production list keeps every confirmed job and drops only quotes.)
+  const jobs = useMemo(() => rawJobs.filter((j) => j.stage !== 'quote'), [rawJobs]);
 
   // Order-type filter is applied client-side on the current page's data.
   const filtered = useMemo(() => {

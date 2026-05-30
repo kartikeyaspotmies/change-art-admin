@@ -51,6 +51,9 @@ export interface Job {
    *  CS panel endpoints (send-price, reject, dispatch). When absent, the API
    *  calls will warn and no-op instead of sending the human-readable job_id. */
   uuid?: string;
+  /** Optimistic-lock version (IJobCard.version). Required to PATCH the job
+   *  card from the Edit modal. Omitted in mock data. */
+  version?: number;
   /** Raw backend JobStatus enum (e.g. 'QUOTE_SUBMITTED', 'READY_TO_DELIVER').
    *  The `status` field above is the UI-friendly collapsed string and loses
    *  distinctions like READY_TO_DELIVER vs DELIVERED that gating logic needs.
@@ -80,6 +83,10 @@ export interface Job {
   negotiation?: Negotiation;
   clientPrice?: number;
   adminPrice?: number | null;
+  /** Optional note the agency attached with the price (admin_price_note). */
+  adminPriceNote?: string | null;
+  /** Currency the agency quoted in. Defaults to USD when omitted. */
+  adminPriceCurrency?: string | null;
   agreedPrice?: number | null;
   placement?: string;
   width?: number;

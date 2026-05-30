@@ -12,32 +12,33 @@ export function AdminNewJobsPage() {
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
 
-  // All non-delivered, non-cancelled jobs — includes quotes AND production stages.
+  // Active production pipeline — every non-delivered, non-cancelled row
+  // EXCEPT quote-stage. Quote requests live on the Quotes page until the
+  // client confirms and the workflow moves the job to JOB_PLACED.
   const active = useMemo(
-    () => jobs.filter((j) => j.stage !== 'delivered' && j.status !== 'Cancelled'),
+    () => jobs.filter(
+      (j) => j.stage !== 'quote' && j.stage !== 'delivered' && j.status !== 'Cancelled',
+    ),
     [jobs],
   );
 
-  const quoteJobs = useMemo(() => active.filter((j) => j.stage === 'quote'), [active]);
   const inProd    = useMemo(() => active.filter((j) => j.stage === 'junior'), [active]);
   const srReview  = useMemo(() => active.filter((j) => j.stage === 'senior'), [active]);
   const inQc      = useMemo(() => active.filter((j) => j.stage === 'qc'), [active]);
   const sewout    = useMemo(() => active.filter((j) => j.stage === 'sewout'), [active]);
 
   const pills: PillItem[] = [
-    { id: 'all',          label: 'All',           count: active.length },
-    { id: 'quote',        label: 'New Requests',  count: quoteJobs.length },
+    { id: 'all',           label: 'All',           count: active.length },
     { id: 'In Production', label: 'In Production', count: inProd.length },
     { id: 'Senior Review', label: 'Senior Review', count: srReview.length },
-    { id: 'In QC',        label: 'In QC',         count: inQc.length },
-    { id: 'Sewout',       label: 'Sewout',        count: sewout.length },
+    { id: 'In QC',         label: 'In QC',         count: inQc.length },
+    { id: 'Sewout',        label: 'Sewout',        count: sewout.length },
   ];
 
   const filtered = useMemo(() => {
-    if (filter === 'all')   return active;
-    if (filter === 'quote') return quoteJobs;
+    if (filter === 'all') return active;
     return active.filter((j) => j.status === filter);
-  }, [active, quoteJobs, filter]);
+  }, [active, filter]);
 
   // Client-side pagination on the filtered list.
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
@@ -72,8 +73,8 @@ export function AdminNewJobsPage() {
       <StatGrid
         stats={[
           { accent: 'teal',    label: 'Total Active',  value: isLoading ? '…' : active.length },
-          { accent: 'crimson', label: 'New Requests',  value: isLoading ? '…' : quoteJobs.length },
           { accent: 'amber',   label: 'In Production', value: isLoading ? '…' : inProd.length },
+          { accent: 'purple',  label: 'Senior Review', value: isLoading ? '…' : srReview.length },
           { accent: 'green',   label: 'In QC',         value: isLoading ? '…' : inQc.length },
         ]}
       />

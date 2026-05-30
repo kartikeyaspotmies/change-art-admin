@@ -73,6 +73,25 @@ export interface UpdateClientBody {
   payment_mode?: string;
 }
 
+/**
+ * Editable Job Card fields. `version` is mandatory — the backend uses it for
+ * optimistic-lock concurrency (PATCH returns 409 on mismatch). Everything else
+ * is a partial; only send the fields that actually changed. Note: `status` and
+ * pricing are NOT editable here — status is workflow-driven and prices go
+ * through the CS quote endpoints.
+ */
+export interface UpdateJobCardBody {
+  version: number;
+  design_name?: string;
+  order_type?: string;
+  process_type?: string;
+  design_complexity?: string;
+  priority?: string;
+  eta_hours?: number;
+  num_colors?: number;
+  notes?: string;
+}
+
 export interface CreateUserBody {
   email: string;
   name: string;
@@ -106,6 +125,10 @@ export const adminService = {
       '/api/v1/files/thumbnails',
       { job_ids: jobIds },
     );
+  },
+
+  updateJobCard(id: string, body: UpdateJobCardBody): Promise<IJobCard> {
+    return apiClient.patch<IJobCard, UpdateJobCardBody>(`/api/v1/job-cards/${id}`, body);
   },
 
   getClients(filters: ClientFilters = {}): Promise<PaginatedList<IClient>> {

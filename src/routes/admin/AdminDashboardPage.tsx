@@ -20,7 +20,14 @@ export function AdminDashboardPage() {
   const { jobs, isLoading } = useAdminJobViews({ per_page: 100 });
   const { data: clientsData } = useAdminClients();
 
-  const active   = useMemo(() => jobs.filter((j) => j.stage !== 'delivered' && j.status !== 'Cancelled'), [jobs]);
+  // "Open Jobs" / "New Jobs" deliberately exclude quote-stage rows — those
+  // belong to the Quotes page until the client confirms the price. Once a
+  // quote is confirmed and the workflow moves it to JOB_PLACED, it shows
+  // up here. This keeps the two queues disjoint on every surface.
+  const active   = useMemo(
+    () => jobs.filter((j) => j.stage !== 'quote' && j.stage !== 'delivered' && j.status !== 'Cancelled'),
+    [jobs],
+  );
   const inProd   = useMemo(() => jobs.filter((j) => j.stage === 'junior' || j.stage === 'senior'), [jobs]);
   const inQc     = useMemo(() => jobs.filter((j) => j.stage === 'qc'), [jobs]);
   const inSewout = useMemo(() => jobs.filter((j) => j.stage === 'sewout'), [jobs]);
