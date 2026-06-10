@@ -91,7 +91,7 @@ export function ClientSectionGateModal({ onVerified, onDismiss }: ClientSectionG
 
   const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 anim-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm anim-fade-in"
       role="presentation"
     >
       <div
