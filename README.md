@@ -28,6 +28,7 @@ Pattern: **Modular by domain** — `src/modules/<name>/` self-contained (`compon
 
 ## Project layout
 
+
 ```
 .
 ├── ARCHITECTURE_BLUEPRINT.md   # SSOT (shared with backend, at repo root)
