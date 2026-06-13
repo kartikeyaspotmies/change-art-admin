@@ -67,6 +67,13 @@ interface FormState {
   state: string;
 }
 
+interface FormErrors {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phoneNumber?: string;
+}
+
 const empty: FormState = {
   firstName: '',
   middleName: '',
@@ -80,6 +87,8 @@ const empty: FormState = {
   city: '',
   state: '',
 };
+
+const emptyErrors: FormErrors = {};
 
 interface AddClientModalProps {
   open: boolean;
@@ -106,7 +115,6 @@ function SuccessStep({ client, password, onClose }: SuccessStepProps) {
   }
 
   function downloadCredentials() {
-    const name = client.company_name ?? client.client_name;
     const lines = [
       'CHANGE! — Client Sign-up Credentials',
       '─────────────────────────────────────',
@@ -228,9 +236,9 @@ function SuccessStep({ client, password, onClose }: SuccessStepProps) {
 
 export function AddClientModal({ open, onClose }: AddClientModalProps) {
   const [form, setForm] = useState<FormState>(empty);
+  const [errors, setErrors] = useState<FormErrors>({});
   const [password, setPassword] = useState(() => generatePassword());
   const [showPwd, setShowPwd] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [createdClient, setCreatedClient] = useState<IClient | null>(null);
 
   const provision = useProvisionClient();
@@ -245,25 +253,43 @@ export function AddClientModal({ open, onClose }: AddClientModalProps) {
   useEffect(() => {
     if (open) {
       setForm(empty);
+      setErrors({});
       setPassword(generatePassword());
       setShowPwd(false);
-      setError(null);
       setCreatedClient(null);
     }
   }, [open]);
 
   if (!open) return null;
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
+    if (key in errors) setErrors((e) => ({ ...e, [key]: undefined }));
+  };
+
+  function validate(): FormErrors {
+    const e: FormErrors = {};
+    if (!form.firstName.trim()) e.firstName = 'First name is required.';
+    if (!form.lastName.trim()) e.lastName = 'Last name is required.';
+    if (!form.email.trim()) {
+      e.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = 'Enter a valid email address.';
+    }
+    if (!form.phoneNumber.trim()) {
+      e.phoneNumber = 'Phone number is required.';
+    } else if (form.phoneNumber.trim().length < 5) {
+      e.phoneNumber = 'Enter a valid phone number.';
+    }
+    return e;
+  }
 
   function handleSubmit() {
-    setError(null);
-    if (!form.firstName.trim()) return setError('First name is required.');
-    if (!form.lastName.trim()) return setError('Last name is required.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
-      return setError('A valid email is required.');
-    if (!form.phoneNumber.trim()) return setError('Phone number is required.');
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
 
     const fullName = [form.firstName.trim(), form.middleName.trim(), form.lastName.trim()]
       .filter(Boolean)
@@ -323,11 +349,24 @@ export function AddClientModal({ open, onClose }: AddClientModalProps) {
 
               <div>
                 <label className="fl">First Name <span style={{ color: 'var(--crimson)' }}>*</span></label>
-                <input className="fi" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />
+                <input
+                  className="fi"
+                  style={errors.firstName ? { borderColor: 'var(--crimson)' } : undefined}
+                  value={form.firstName}
+                  onChange={(e) => set('firstName', e.target.value)}
+                />
+                {errors.firstName && <p className="text-[11px] mt-1" style={{ color: 'var(--crimson)' }}>{errors.firstName}</p>}
               </div>
               <div>
                 <label className="fl">Email <span style={{ color: 'var(--crimson)' }}>*</span></label>
-                <input className="fi" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
+                <input
+                  className="fi"
+                  type="email"
+                  style={errors.email ? { borderColor: 'var(--crimson)' } : undefined}
+                  value={form.email}
+                  onChange={(e) => set('email', e.target.value)}
+                />
+                {errors.email && <p className="text-[11px] mt-1" style={{ color: 'var(--crimson)' }}>{errors.email}</p>}
               </div>
 
               <div>
@@ -336,12 +375,25 @@ export function AddClientModal({ open, onClose }: AddClientModalProps) {
               </div>
               <div>
                 <label className="fl">Phone Number <span style={{ color: 'var(--crimson)' }}>*</span></label>
-                <input className="fi" type="tel" value={form.phoneNumber} onChange={(e) => set('phoneNumber', e.target.value)} />
+                <input
+                  className="fi"
+                  type="tel"
+                  style={errors.phoneNumber ? { borderColor: 'var(--crimson)' } : undefined}
+                  value={form.phoneNumber}
+                  onChange={(e) => set('phoneNumber', e.target.value)}
+                />
+                {errors.phoneNumber && <p className="text-[11px] mt-1" style={{ color: 'var(--crimson)' }}>{errors.phoneNumber}</p>}
               </div>
 
               <div>
                 <label className="fl">Last Name <span style={{ color: 'var(--crimson)' }}>*</span></label>
-                <input className="fi" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />
+                <input
+                  className="fi"
+                  style={errors.lastName ? { borderColor: 'var(--crimson)' } : undefined}
+                  value={form.lastName}
+                  onChange={(e) => set('lastName', e.target.value)}
+                />
+                {errors.lastName && <p className="text-[11px] mt-1" style={{ color: 'var(--crimson)' }}>{errors.lastName}</p>}
               </div>
               <div>
                 <label className="fl">Country</label>
@@ -417,15 +469,6 @@ export function AddClientModal({ open, onClose }: AddClientModalProps) {
                 <RefreshCw className="w-3.5 h-3.5" aria-hidden />
               </button>
             </div>
-
-            {error ? (
-              <div
-                className="mt-3 text-[12px] px-3 py-2 rounded-md"
-                style={{ color: '#fca5a5', background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)' }}
-              >
-                {error}
-              </div>
-            ) : null}
           </div>
 
           <div className="modal-actions">

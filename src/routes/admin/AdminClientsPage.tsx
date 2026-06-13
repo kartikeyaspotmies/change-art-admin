@@ -172,17 +172,6 @@ export function AdminClientsPage() {
             </button>
           </div>
 
-          {tab === 'clients' && (
-            <button
-              type="button"
-              className="btn btn-crimson"
-              onClick={() => setAddClientOpen(true)}
-            >
-              <Plus className="w-3.5 h-3.5" aria-hidden />
-              Add Client
-            </button>
-          )}
-
           <div className="relative flex-1 min-w-[200px] max-w-md ml-auto">
             <Search
               className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-faint"
@@ -202,6 +191,17 @@ export function AdminClientsPage() {
               aria-label="Search"
             />
           </div>
+
+          {tab === 'clients' && (
+            <button
+              type="button"
+              className="btn btn-crimson"
+              onClick={() => setAddClientOpen(true)}
+            >
+              <Plus className="w-3.5 h-3.5" aria-hidden />
+              Add Client
+            </button>
+          )}
         </div>
 
         {tab === 'requests' ? (
