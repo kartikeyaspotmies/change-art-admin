@@ -88,7 +88,7 @@ const empty: FormState = {
   state: '',
 };
 
-const emptyErrors: FormErrors = {};
+
 
 interface AddClientModalProps {
   open: boolean;
