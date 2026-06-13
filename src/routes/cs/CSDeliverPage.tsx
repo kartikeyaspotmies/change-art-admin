@@ -1,8 +1,34 @@
-import { Callout, GreetingHero, JobTable, StatGrid, JOBS } from '@modules/shared-ui';
+import { useMemo, useState } from 'react';
+import { Callout, GreetingHero, JobTable, Pagination, StatGrid } from '@modules/shared-ui';
+import { useAdminJobViews } from '../../modules/admin-panel/hooks/use-admin-jobs';
+
+const FETCH_SIZE = 200;
+const PER_PAGE   = 20;
 
 export function CSDeliverPage() {
-  const inQc = JOBS.filter((j) => j.stage === 'qc');
-  const delivered = JOBS.filter((j) => j.stage === 'delivered');
+  const { jobs: allData, isLoading, isError } = useAdminJobViews({ per_page: FETCH_SIZE });
+  const [page, setPage] = useState(1);
+
+  const readyJobs      = useMemo(() => allData.filter((j) => j.status === 'Ready to Deliver'), [allData]);
+  const delivered      = useMemo(() => allData.filter((j) => j.stage === 'delivered' && j.status === 'Delivered'), [allData]);
+  const deliveredToday = useMemo(() => delivered.filter((j) => isToday(j.created)), [delivered]);
+
+  const totalPages = Math.max(1, Math.ceil(readyJobs.length / PER_PAGE));
+  const pageItems  = useMemo(
+    () => readyJobs.slice((page - 1) * PER_PAGE, page * PER_PAGE),
+    [readyJobs, page],
+  );
+
+  if (isError) {
+    return (
+      <div className="page">
+        <GreetingHero title="Ready to Deliver" subtitle="Jobs cleared QC and ready for release." />
+        <div className="flex items-center justify-center py-16 text-[var(--crimson)] text-sm">
+          Failed to load jobs. Please refresh and try again.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page">
@@ -13,14 +39,10 @@ export function CSDeliverPage() {
 
       <StatGrid
         stats={[
-          { accent: 'teal', label: 'Ready Now', value: inQc.length, delta: 'QC approved' },
-          { accent: 'amber', label: 'Awaiting Files', value: 0 },
-          {
-            accent: 'green',
-            label: 'Delivered Today',
-            value: delivered.filter((j) => isToday(j.created)).length,
-          },
-          { accent: 'blue', label: 'Delivered (mo.)', value: delivered.length },
+          { accent: 'teal',  label: 'Ready Now',       value: isLoading ? '…' : readyJobs.length,     delta: 'QC approved'  },
+          { accent: 'amber', label: 'Awaiting Files',  value: 0                                                              },
+          { accent: 'green', label: 'Delivered Today', value: isLoading ? '…' : deliveredToday.length                       },
+          { accent: 'blue',  label: 'Delivered (mo.)', value: isLoading ? '…' : delivered.length                            },
         ]}
       />
 
@@ -30,18 +52,35 @@ export function CSDeliverPage() {
       </Callout>
 
       <div className="mt-3">
-        <JobTable jobs={inQc} showActions defaultView="grid" emptyLabel="Nothing ready to deliver" />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16 text-text-faint text-sm">Loading…</div>
+        ) : readyJobs.length === 0 ? (
+          <div className="flex items-center justify-center py-16 text-text-faint text-sm">
+            Nothing ready to deliver right now.
+          </div>
+        ) : (
+          <>
+            <JobTable jobs={pageItems} showActions defaultView="grid" emptyLabel="Nothing ready to deliver" />
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={readyJobs.length}
+              perPage={PER_PAGE}
+              onPageChange={setPage}
+            />
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function isToday(ts: string): boolean {
-  const d = new Date(ts);
+function isToday(ts: string | Date): boolean {
+  const d = new Date(ts as string);
   const now = new Date();
   return (
     d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
+    d.getMonth()    === now.getMonth()    &&
+    d.getDate()     === now.getDate()
   );
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useSessionUser } from '@modules/auth/stores/auth-store';
 import {
   BarChart,
@@ -11,10 +12,10 @@ import {
   StatGrid,
   DASH_METRICS,
   DASH_RANGES,
-  JOBS,
   type DashRange,
 } from '@modules/shared-ui';
 import { Inbox, Cog, CheckCircle2, Package } from 'lucide-react';
+import { useAdminJobViews } from '../../modules/admin-panel/hooks/use-admin-jobs';
 
 export function CSDashboardPage() {
   const user = useSessionUser();
@@ -23,13 +24,15 @@ export function CSDashboardPage() {
   const [range, setRange] = useState<DashRange>('This Month');
   const m = DASH_METRICS[range].cs;
 
+  const { jobs: allJobs } = useAdminJobViews({ per_page: 100 });
+
   const newJobs = useMemo(
-    () => JOBS.filter((j) => j.stage !== 'quote' && j.stage !== 'delivered').slice(0, 4),
-    [],
+    () => allJobs.filter((j) => j.stage !== 'quote' && j.stage !== 'delivered').slice(0, 4),
+    [allJobs],
   );
   const pendingQuotes = useMemo(
-    () => JOBS.filter((j) => j.stage === 'quote' && j.status === 'Quote Submitted').slice(0, 4),
-    [],
+    () => allJobs.filter((j) => j.stage === 'quote' && j.status === 'Quote Submitted').slice(0, 4),
+    [allJobs],
   );
 
   return (
@@ -80,14 +83,14 @@ export function CSDashboardPage() {
         <div>
           <SectionHeader
             title={<span style={{ color: '#5eead4' }}>New Jobs</span>}
-            action={<a href="/cs/new-jobs">View All →</a>}
+            action={<Link to="/cs/new-jobs">View All →</Link>}
           />
           <JobTable jobs={newJobs} defaultView="table" withControls={false} />
 
           <div className="mt-6">
             <SectionHeader
               title={<span style={{ color: '#ff8a95' }}>Quotes Pending Your Review</span>}
-              action={<a href="/cs/new-quotes">View All →</a>}
+              action={<Link to="/cs/new-quotes">View All →</Link>}
             />
             <JobTable jobs={pendingQuotes} defaultView="table" withControls={false} />
           </div>
