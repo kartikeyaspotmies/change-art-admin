@@ -20,6 +20,7 @@ export type JobComplexity = 'Simple' | 'Medium' | 'Super Medium' | 'Complex' | '
 export type JobStatus =
   | 'In QC'
   | 'In Production'
+  | 'Pending'
   | 'Senior Review'
   | 'Sewout'
   | 'Ready to Deliver'

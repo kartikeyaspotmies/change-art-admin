@@ -114,7 +114,7 @@ function orderAccent(order: string): string {
 
 function statusAccent(status: string): string {
   const map: Record<string, string> = {
-    'In QC': 'teal', 'In Production': 'amber', 'Senior Review': 'purple',
+    'In QC': 'teal', 'In Production': 'amber', Pending: 'blue', 'Senior Review': 'purple',
     Sewout: 'purple', 'Ready to Deliver': 'teal', Delivered: 'green',
     'Quote Submitted': 'blue', 'Quote Approved': 'amber',
     'Pending Client Confirm': 'amber', Cancelled: 'gray',
@@ -701,29 +701,21 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                     <span>Send Acknowledgement</span>
                   </button>
                 )
-              ) : !isDelivered && isAcknowledged && etaCountdown ? (
-                /* Live ETA countdown chip — replaces button once ack + ETA exist */
+              ) : !isDelivered && isAcknowledged && etaCountdown && !etaCountdown.expired ? (
+                /* ETA still counting down — chip only, no deliver button yet */
                 <div
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    background: etaCountdown.expired
-                      ? 'linear-gradient(135deg,rgba(5,150,105,0.10),rgba(5,150,105,0.05))'
-                      : 'linear-gradient(135deg,rgba(37,99,235,0.10),rgba(37,99,235,0.05))',
-                    border: `1.5px solid ${etaCountdown.expired ? 'rgba(5,150,105,0.28)' : 'rgba(37,99,235,0.22)'}`,
+                    background: 'linear-gradient(135deg,rgba(37,99,235,0.10),rgba(37,99,235,0.05))',
+                    border: '1.5px solid rgba(37,99,235,0.22)',
                     borderRadius: 10,
                     padding: '6px 12px',
-                    boxShadow: etaCountdown.expired
-                      ? '0 2px 8px rgba(5,150,105,0.12)'
-                      : '0 2px 8px rgba(37,99,235,0.12)',
+                    boxShadow: '0 2px 8px rgba(37,99,235,0.12)',
                   }}
                 >
-                  <Timer
-                    className="w-3.5 h-3.5 shrink-0"
-                    style={{ color: etaCountdown.expired ? '#059669' : '#2563EB' }}
-                    aria-hidden
-                  />
+                  <Timer className="w-3.5 h-3.5 shrink-0" style={{ color: '#2563EB' }} aria-hidden />
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
                     <span
                       style={{
@@ -731,7 +723,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                         fontSize: 12.5,
                         fontWeight: 700,
                         letterSpacing: '0.03em',
-                        color: etaCountdown.expired ? '#059669' : '#1D4ED8',
+                        color: '#1D4ED8',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -741,35 +733,55 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                       style={{
                         fontSize: 9.5,
                         fontWeight: 600,
-                        color: etaCountdown.expired ? '#10B981' : '#60A5FA',
+                        color: '#60A5FA',
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {etaCountdown.expired ? 'ETA reached' : 'ETA remaining'}
+                      ETA remaining
                     </span>
                   </div>
                 </div>
-              ) : !isDelivered && isAcknowledged ? (
-                /* Acknowledged but no ETA was set — simple confirmed chip */
-                <div
+              ) : !isDelivered && isAcknowledged && (!etaCountdown || etaCountdown.expired) ? (
+                /* ETA expired (or no ETA set) — replace chip with Deliver Project button */
+                <button
+                  type="button"
+                  onClick={() => setShowSendMailModal(true)}
                   style={{
+                    background: 'linear-gradient(135deg,#B22234,#8B1A28)',
+                    border: '1.5px solid rgba(255,255,255,0.18)',
+                    color: '#fff',
+                    padding: '7px 15px',
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    borderRadius: 10,
+                    letterSpacing: '0.01em',
+                    cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 5,
-                    background: 'linear-gradient(135deg,rgba(5,150,105,0.10),rgba(5,150,105,0.05))',
-                    border: '1.5px solid rgba(5,150,105,0.28)',
-                    borderRadius: 10,
-                    padding: '6px 11px',
-                    boxShadow: '0 2px 8px rgba(5,150,105,0.10)',
+                    gap: 7,
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 4px 16px rgba(178,34,52,0.40), inset 0 1px 0 rgba(255,255,255,0.14)',
+                    transition: 'all 0.18s ease',
                   }}
+                  onMouseOver={(e) => {
+                    const btn = e.currentTarget as HTMLButtonElement;
+                    btn.style.background = 'linear-gradient(135deg,#991B2A,#7F1521)';
+                    btn.style.boxShadow = '0 6px 22px rgba(178,34,52,0.55), inset 0 1px 0 rgba(255,255,255,0.14)';
+                    btn.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseOut={(e) => {
+                    const btn = e.currentTarget as HTMLButtonElement;
+                    btn.style.background = 'linear-gradient(135deg,#B22234,#8B1A28)';
+                    btn.style.boxShadow = '0 4px 16px rgba(178,34,52,0.40), inset 0 1px 0 rgba(255,255,255,0.14)';
+                    btn.style.transform = 'translateY(0)';
+                  }}
+                  aria-label="Open deliver project panel"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" style={{ color: '#059669' }} aria-hidden />
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: '#059669', whiteSpace: 'nowrap', letterSpacing: '0.01em' }}>
-                    Acknowledged
-                  </span>
-                </div>
+                  <Send className="w-3.5 h-3.5" aria-hidden />
+                  <span>Deliver Project</span>
+                </button>
               ) : null}
             </div>
           </div>
@@ -1729,7 +1741,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
             <Edit2 className="w-3.5 h-3.5" aria-hidden />
             Edit Job
           </button>
-          {!isQuote ? (
+          {!isQuote && isAcknowledged ? (
             <button
               type="button"
               className="btn btn-crimson"
@@ -1737,7 +1749,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
               onClick={() => setShowSendMailModal(true)}
             >
               <Send className="w-3.5 h-3.5" aria-hidden />
-              Send Mail to Client
+              Deliver Project
             </button>
           ) : null}
           {!isQuote && isCsApproved ? (
@@ -2034,7 +2046,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Confirm Send Mail to Client"
+            aria-label="Confirm Deliver Project"
             className="relative w-full max-w-[480px] rounded-2xl flex flex-col overflow-hidden"
             style={{
               background: '#fff',
@@ -2063,7 +2075,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
               </div>
               <div className="flex-1 min-w-0">
                 <div style={{ fontSize: 17, fontWeight: 800, color: '#78350F', letterSpacing: '0.01em', marginBottom: 2 }}>
-                  Send Mail to Client
+                  Deliver Project
                 </div>
                 <div style={{ fontSize: 12, color: '#92400E', opacity: 0.85 }}>
                   This will notify the client that their order is ready for delivery.
@@ -2337,7 +2349,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                     }}
                   >
                     <Send className="w-3.5 h-3.5" aria-hidden />
-                    {sendMailPhase === 'uploading' ? 'Uploading…' : sendMailPhase === 'sending' ? 'Sending…' : 'Send Email'}
+                    {sendMailPhase === 'uploading' ? 'Uploading…' : sendMailPhase === 'sending' ? 'Delivering…' : 'Deliver Project'}
                   </button>
                 );
               })()}
