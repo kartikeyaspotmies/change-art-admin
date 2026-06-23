@@ -8,7 +8,6 @@ import {
   StatGrid,
   applyJobFilters,
   EMPTY_FILTERS,
-  QUOTE_STATUS_OPTIONS,
   type JobFilters,
 } from '@modules/shared-ui';
 import { useAdminJobViews } from '../../modules/admin-panel/hooks/use-admin-jobs';

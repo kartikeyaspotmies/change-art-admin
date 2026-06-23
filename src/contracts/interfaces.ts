@@ -174,8 +174,8 @@ export interface IFileVersion {
   file_name: string;
   file_type: string;
   file_size_bytes: number;
-  storage_key: string;
-  storage_url: string;
+  storage_key?: string;
+  storage_url?: string;
   version_number: number;
   uploaded_by: string;
   scan_status: FileScanStatus;
