@@ -1181,6 +1181,8 @@ html[data-theme='light'] .mb-track {
 
   .jc-img {
     position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--glass-border);
   }
 
   .jc-img::after {

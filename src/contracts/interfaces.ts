@@ -164,6 +164,8 @@ export interface IJobCard {
   has_admin_copy: boolean;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
+  /** Embedded client snapshot — populated by list/findById queries via LEFT JOIN. */
+  client_info?: { client_id: string; client_name: string; company_name: string | null } | null;
 }
 
 export interface IFileVersion {

@@ -21,10 +21,11 @@ type Tab = 'clients' | 'requests';
 function formatPaymentMode(mode: PaymentMode | null): string {
   if (!mode) return '—';
   const map: Record<PaymentMode, string> = {
-    [PaymentMode.BANK_TRANSFER]: 'Bank Transfer',
-    [PaymentMode.CASH]: 'Cash',
-    [PaymentMode.CARD]: 'Card',
-    [PaymentMode.CREDIT]: 'Credit',
+    [PaymentMode.CREDIT_CARD]: 'Credit Card',
+    [PaymentMode.CARD_ON_FILE]: 'Card on File',
+    [PaymentMode.ACH]: 'ACH',
+    [PaymentMode.PAYPAL]: 'PayPal',
+    [PaymentMode.CHECK]: 'Check',
   };
   return map[mode] ?? mode;
 }

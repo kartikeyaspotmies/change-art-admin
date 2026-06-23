@@ -47,6 +47,12 @@ export interface JobCardFilters {
   search?: string;
   page?: number;
   per_page?: number;
+  priority?: string;
+  date_from?: string;
+  date_to?: string;
+  stage?: string;
+  pipeline?: string;
+  exclude_stage?: string;
 }
 
 export interface ClientFilters {
@@ -171,6 +177,10 @@ export const adminService = {
     });
   },
 
+  getJobBadges(): Promise<Record<string, number>> {
+    return apiClient.get<Record<string, number>>('/api/v1/job-cards/badges');
+  },
+
   getJobCard(id: string): Promise<IJobCard> {
     return apiClient.get<IJobCard>(`/api/v1/job-cards/${id}`);
   },
@@ -215,7 +225,7 @@ export const adminService = {
 
   getClients(filters: ClientFilters = {}): Promise<PaginatedList<IClient>> {
     return apiClient.getPaginated<IClient>('/api/v1/clients', {
-      params: { per_page: 100, ...filters } as Record<string, unknown>,
+      params: { ...filters } as Record<string, unknown>,
     });
   },
 
@@ -237,7 +247,7 @@ export const adminService = {
 
   getUsers(filters: UserFilters = {}): Promise<PaginatedList<IUser>> {
     return apiClient.getPaginated<IUser>('/api/v1/users', {
-      params: { per_page: 100, ...filters } as Record<string, unknown>,
+      params: { ...filters } as Record<string, unknown>,
     });
   },
 

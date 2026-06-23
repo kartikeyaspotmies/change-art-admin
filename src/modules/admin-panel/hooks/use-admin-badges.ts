@@ -1,11 +1,14 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { JobStatus } from '@contracts';
 import { queryKeys } from '@lib/query-keys';
 import { adminService } from '../services/admin.service';
 import { useUnreadCount } from '@modules/notifications/hooks/use-notifications';
 
-const PENDING_CR_FILTERS = { status: 'PENDING' as const, per_page: 100 };
+// per_page: 1 — we only need meta.total for the sidebar badge count.
+// Fetching 100 full records just to read a number is wasteful; 1 is enough.
+// Note: this uses a different query key from useProfileChangeRequests(filters)
+// on the Clients page, so they do not share cache and won't conflict.
+const PENDING_CR_FILTERS = { status: 'PENDING' as const, per_page: 1 };
 
 /**
  * Returns a map of nav-item-id → badge count for the admin sidebar.
@@ -16,10 +19,8 @@ const PENDING_CR_FILTERS = { status: 'PENDING' as const, per_page: 100 };
  */
 export function useAdminNavBadges(enabled: boolean): Record<string, number> {
   const { data } = useQuery({
-    // Key matches useAdminJobCards({ per_page: 100 }) used by all list pages,
-    // so badge shares the same cache entry as New Quotes / New Jobs / dashboard.
-    queryKey: queryKeys.jobs.list({ per_page: 100 }),
-    queryFn: () => adminService.getJobCards({ per_page: 100 }),
+    queryKey: queryKeys.jobs.badges(),
+    queryFn: () => adminService.getJobBadges(),
     staleTime: 30 * 1000,
     enabled,
   });
@@ -40,16 +41,8 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
   return useMemo(() => {
     const badges: Record<string, number> = {};
     if (data) {
-      const items = data.items;
-      badges['new-quotes'] = items.filter(
-        (j) => j.status === JobStatus.QUOTE_SUBMITTED,
-      ).length;
-      badges['new-jobs'] = items.filter(
-        (j) =>
-          j.status === JobStatus.JOB_PLACED ||
-          j.status === JobStatus.CS_APPROVED ||
-          j.status === JobStatus.ASSIGNED,
-      ).length;
+      badges['new-quotes'] = data['new-quotes'] ?? 0;
+      badges['new-jobs'] = data['new-jobs'] ?? 0;
     }
     if (pendingChangeRequests) {
       badges['clients'] = pendingChangeRequests.meta.total;
