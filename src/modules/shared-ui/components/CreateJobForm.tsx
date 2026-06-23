@@ -163,41 +163,55 @@ const ALLOWED_TYPES = new Set([
   'application/octet-stream',
 ]);
 
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
 function resolveFileType(file: File): string {
   if (file.type && (file.type.startsWith('image/') || ALLOWED_TYPES.has(file.type))) {
     return file.type;
   }
-  return 'application/octet-stream';
+  // Reject files with unrecognised MIME types rather than silently treating
+  // them as generic binaries — prevents executables and scripts slipping through.
+  throw new Error(`File "${file.name}" has an unsupported type: "${file.type || '(empty)'}". Allowed types are PDF, images, EPS, AI, and CDR.`);
 }
 
-async function uploadOriginalFiles(jobId: string, files: File[]) {
-  for (const file of files) {
-    const fileType = resolveFileType(file);
-    const presign = await apiClient.post<{ uploadUrl: string; storageKey: string }>('/api/v1/files/upload-url', {
-      job_card_id: jobId,
-      file_category: FileCategory.ORIGINAL,
-      file_name: file.name,
-      file_type: fileType,
-      file_size_bytes: file.size,
-    });
+async function uploadSingleFile(jobId: string, file: File): Promise<void> {
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(`File "${file.name}" exceeds the 50 MB size limit.`);
+  }
+  const fileType = resolveFileType(file);
+  const presign = await apiClient.post<{ uploadUrl: string; storageKey: string }>('/api/v1/files/upload-url', {
+    job_card_id: jobId,
+    file_category: FileCategory.ORIGINAL,
+    file_name: file.name,
+    file_type: fileType,
+    file_size_bytes: file.size,
+  });
 
-    const res = await fetch(presign.uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': fileType },
-    });
-    if (!res.ok) {
-      throw new Error(`S3 upload failed with status ${res.status}`);
-    }
+  const res = await fetch(presign.uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: { 'Content-Type': fileType },
+  });
+  if (!res.ok) {
+    throw new Error(`Storage upload failed for "${file.name}" (HTTP ${res.status}).`);
+  }
 
-    await apiClient.post('/api/v1/files/complete-upload', {
-      job_card_id: jobId,
-      storage_key: presign.storageKey,
-      file_category: FileCategory.ORIGINAL,
-      file_name: file.name,
-      file_type: fileType,
-      file_size_bytes: file.size,
-    });
+  await apiClient.post('/api/v1/files/complete-upload', {
+    job_card_id: jobId,
+    storage_key: presign.storageKey,
+    file_category: FileCategory.ORIGINAL,
+    file_name: file.name,
+    file_type: fileType,
+    file_size_bytes: file.size,
+  });
+}
+
+async function uploadOriginalFiles(jobId: string, files: File[]): Promise<void> {
+  const results = await Promise.allSettled(files.map(file => uploadSingleFile(jobId, file)));
+  const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+  if (failures.length > 0) {
+    const messages = failures.map(f => (f.reason instanceof Error ? f.reason.message : String(f.reason)));
+    throw new Error(messages.join('\n'));
   }
 }
 
@@ -2004,7 +2018,7 @@ export function CreateJobForm({ mode, clients = [], clientsLoading = false, clie
                 className="w-full rounded-lg px-3 py-2 text-[12.5px] outline-none"
                 style={{
                   background: 'var(--glass-bg-light)',
-                  border: `1px solid ${confirmOrderText === 'CONFIRM' ? '#22c55e' : 'var(--glass-border)'}`,
+                  border: `1px solid ${confirmOrderText.trim().toUpperCase() === 'CONFIRM' ? '#22c55e' : 'var(--glass-border)'}`,
                   color: 'var(--text-main)',
                   transition: 'border-color 0.15s',
                 }}
@@ -2028,7 +2042,7 @@ export function CreateJobForm({ mode, clients = [], clientsLoading = false, clie
             </button>
             <button
               type="button"
-              disabled={isSubmitting || confirmOrderText !== 'CONFIRM'}
+              disabled={isSubmitting || confirmOrderText.trim().toUpperCase() !== 'CONFIRM'}
               className="btn btn-crimson disabled:opacity-50"
               onClick={handleConfirmedOrder}
             >

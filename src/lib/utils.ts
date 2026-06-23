@@ -83,6 +83,15 @@ export function deltaToneClass(delta: number): string {
   return 'text-text-muted';
 }
 
+const LEGACY_ETA_STATUSES = new Set([
+  'In Production',
+  'Senior Review',
+  'Sewout',
+  'In QC',
+  'Ready to Deliver',
+]);
+const LEGACY_ETA_DURATION_MS = 4 * 3600_000; // 4 hours
+
 /**
  * Check if a job's ETA timer is over/expired.
  */
@@ -92,25 +101,17 @@ export function isJobEtaExpired(job: {
   status: string;
   created?: string | Date | null;
 }): boolean {
-  // Case 1: hasAck (acknowledgedAt and etaHours)
+  const now = Date.now();
+  // Case 1: acknowledged ETA
   if (job.acknowledgedAt && job.etaHours != null && job.etaHours > 0) {
-    const startMs = new Date(job.acknowledgedAt).getTime();
-    const endMs = startMs + job.etaHours * 3600_000;
-    return Date.now() >= endMs;
+    const endMs = new Date(job.acknowledgedAt).getTime() + job.etaHours * 3600_000;
+    return now >= endMs;
   }
   // Case 2: legacy SLA timer for non-acknowledged production stages
-  const LEGACY_TIMER_STATUSES = new Set([
-    'In Production',
-    'Senior Review',
-    'Sewout',
-    'In QC',
-    'Ready to Deliver',
-  ]);
-  if (LEGACY_TIMER_STATUSES.has(job.status)) {
+  if (LEGACY_ETA_STATUSES.has(job.status)) {
     const placedAt = job.created ? new Date(job.created).getTime() : null;
     if (placedAt && !isNaN(placedAt)) {
-      const TIMER_DURATION_MS = 4 * 3600_000; // 4 hours
-      return Date.now() >= placedAt + TIMER_DURATION_MS;
+      return now >= placedAt + LEGACY_ETA_DURATION_MS;
     }
   }
   return false;

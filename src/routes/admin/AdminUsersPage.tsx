@@ -285,6 +285,11 @@ export function AdminUsersPage() {
                 <li>This action cannot be undone.</li>
               </ul>
             </div>
+            {deleteMutation.isError && (
+              <div className="px-5 pb-3 text-[11.5px]" style={{ color: 'var(--color-crimson, #c41e3a)' }}>
+                {deleteMutation.error instanceof Error ? deleteMutation.error.message : 'Failed to delete user.'} — click Delete User to retry.
+              </div>
+            )}
             <div className="flex justify-end gap-2 px-5 py-3.5" style={{ borderTop: '1px solid var(--glass-border)', background: 'var(--glass-bg-light, rgba(15,23,42,0.03))' }}>
               <button
                 type="button"
@@ -303,10 +308,6 @@ export function AdminUsersPage() {
                     onSuccess: () => {
                       toast.success(`${deleteTarget.name} has been deleted.`);
                       setDeleteTarget(null);
-                    },
-                    onError: (err: unknown) => {
-                      const msg = err instanceof Error ? err.message : 'Failed to delete user.';
-                      toast.error(msg);
                     },
                   });
                 }}

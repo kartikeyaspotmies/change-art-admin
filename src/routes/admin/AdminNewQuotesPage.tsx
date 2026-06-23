@@ -84,7 +84,7 @@ export function AdminNewQuotesPage() {
   const pendingPages  = Math.ceil(pendingQuery.total  / PER_PAGE);
   const awaitingPages = Math.ceil(awaitingQuery.total / PER_PAGE);
 
-  const isLoading = pendingQuery.isLoading && awaitingQuery.isLoading;
+  const isLoading = pendingQuery.isLoading || awaitingQuery.isLoading;
   const isError   = pendingQuery.isError   || awaitingQuery.isError;
 
   function handlePendingFiltersChange(next: JobFilters) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { cn } from '@lib/utils';
 import { queryKeys } from '@lib/query-keys';
 import { useIsAuthenticated, useSessionUser } from '@modules/auth/stores/auth-store';
@@ -169,6 +170,8 @@ export function NotificationBell() {
                         const path = getNotificationPath(user.role as UserRole, n.data as Record<string, unknown> | null);
                         if (path) {
                           navigate(path);
+                        } else {
+                          toast.error('Unable to navigate to this notification.');
                         }
                       }
                     }}
