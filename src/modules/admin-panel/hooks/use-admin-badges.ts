@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { JobStatus } from '@contracts';
 import { queryKeys } from '@lib/query-keys';
 import { adminService } from '../services/admin.service';
+import { useUnreadCount } from '@modules/notifications/hooks/use-notifications';
 
 const PENDING_CR_FILTERS = { status: 'PENDING' as const, per_page: 100 };
 
@@ -32,16 +33,17 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
     enabled,
   });
 
+  // Shares the same cache entry as the bell icon in the topbar so no extra
+  // network request is made — both components read from the same query key.
+  const { data: unreadData } = useUnreadCount(enabled);
+
   return useMemo(() => {
     const badges: Record<string, number> = {};
     if (data) {
       const items = data.items;
-      // Quote requests that have been submitted by a client and need review.
-      // DRAFT is excluded — those haven't been submitted yet.
       badges['new-quotes'] = items.filter(
         (j) => j.status === JobStatus.QUOTE_SUBMITTED,
       ).length;
-      // Orders that have been placed and are waiting to enter production.
       badges['new-jobs'] = items.filter(
         (j) =>
           j.status === JobStatus.JOB_PLACED ||
@@ -52,9 +54,9 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
     if (pendingChangeRequests) {
       badges['clients'] = pendingChangeRequests.meta.total;
     }
-    // Notifications badge on the sidebar is intentionally omitted — the
-    // bell icon in the topbar is the single source of truth for unread
-    // count. Showing it twice was redundant and noisy.
+    if (unreadData) {
+      badges['notifications'] = unreadData.count;
+    }
     return badges;
-  }, [data, pendingChangeRequests]);
+  }, [data, pendingChangeRequests, unreadData]);
 }

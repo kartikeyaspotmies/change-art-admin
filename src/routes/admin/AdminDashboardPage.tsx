@@ -9,7 +9,7 @@ import {
   SectionHeader,
   StatGrid,
 } from '@modules/shared-ui';
-import { AlertTriangle, CheckCircle2, Send, Target, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Send, Sparkles, Target, TrendingUp } from 'lucide-react';
 import {
   useAdminJobViews,
   useAdminJobCards,
@@ -149,6 +149,26 @@ export function AdminDashboardPage() {
       <GreetingHero
         title={`Good ${getGreeting()}, ${firstName}`}
         subtitle="Platform-wide overview. Full access to all modules."
+        action={
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              to="/admin/create-quote"
+              className="btn btn-outline"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
+            >
+              <Sparkles className="w-3.5 h-3.5" aria-hidden />
+              New Quote
+            </Link>
+            <Link
+              to="/admin/place-order"
+              className="btn btn-crimson"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
+            >
+              <Send className="w-3.5 h-3.5" aria-hidden />
+              Place Order
+            </Link>
+          </div>
+        }
       />
 
       {/* Row 1 — Core job volume stats */}

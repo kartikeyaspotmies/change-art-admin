@@ -82,3 +82,36 @@ export function deltaToneClass(delta: number): string {
   if (delta < 0) return 'text-status-red';
   return 'text-text-muted';
 }
+
+/**
+ * Check if a job's ETA timer is over/expired.
+ */
+export function isJobEtaExpired(job: {
+  acknowledgedAt?: string | null;
+  etaHours?: number | null;
+  status: string;
+  created?: string | Date | null;
+}): boolean {
+  // Case 1: hasAck (acknowledgedAt and etaHours)
+  if (job.acknowledgedAt && job.etaHours != null && job.etaHours > 0) {
+    const startMs = new Date(job.acknowledgedAt).getTime();
+    const endMs = startMs + job.etaHours * 3600_000;
+    return Date.now() >= endMs;
+  }
+  // Case 2: legacy SLA timer for non-acknowledged production stages
+  const LEGACY_TIMER_STATUSES = new Set([
+    'In Production',
+    'Senior Review',
+    'Sewout',
+    'In QC',
+    'Ready to Deliver',
+  ]);
+  if (LEGACY_TIMER_STATUSES.has(job.status)) {
+    const placedAt = job.created ? new Date(job.created).getTime() : null;
+    if (placedAt && !isNaN(placedAt)) {
+      const TIMER_DURATION_MS = 4 * 3600_000; // 4 hours
+      return Date.now() >= placedAt + TIMER_DURATION_MS;
+    }
+  }
+  return false;
+}

@@ -435,7 +435,7 @@ function GridView({
           >
             <div className="jc-img">
               <img
-                className="w-full h-[90px] md:h-[110px] object-cover block"
+                className="w-full h-[90px] md:h-[110px] object-contain block"
                 src={jobImage(j, 0, 400, 300)}
                 alt={j.design}
                 loading="lazy"

@@ -1,9 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
   GreetingHero,
-  JobDetailModal,
-  EditJobModal,
   JobFilterBar,
   JobTable,
   Pagination,
@@ -11,38 +8,11 @@ import {
   EMPTY_FILTERS,
   JOB_STATUS_OPTIONS,
   type JobFilters,
-  type Job,
 } from '@modules/shared-ui';
-import { useAdminJobViews, useAdminJobById } from '../../modules/admin-panel/hooks/use-admin-jobs';
+import { useAdminJobViews } from '../../modules/admin-panel/hooks/use-admin-jobs';
 import { useAdminClients } from '../../modules/admin-panel/hooks/use-admin-clients';
 
 const PER_PAGE = 20;
-
-/** Reads `?open=<uuid>` from the URL and opens that job's detail modal directly. */
-function DeepLinkModal() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const openId = searchParams.get('open') ?? '';
-  const { data: job } = useAdminJobById(openId);
-  const [editJob, setEditJob] = useState<Job | null>(null);
-
-  return (
-    <>
-      <JobDetailModal
-        job={openId && job ? job : null}
-        onClose={() => setSearchParams((p) => { p.delete('open'); return p; })}
-        onEdit={(j) => setEditJob(j)}
-        onAssign={() => setSearchParams((p) => { p.delete('open'); return p; })}
-      />
-      {editJob && (
-        <EditJobModal
-          job={editJob}
-          onClose={() => setEditJob(null)}
-          onBack={() => setEditJob(null)}
-        />
-      )}
-    </>
-  );
-}
 
 export function AdminJobsPage() {
   const [page, setPage] = useState(1);
@@ -111,7 +81,6 @@ export function AdminJobsPage() {
           />
         </>
       )}
-      <DeepLinkModal />
     </div>
   );
 }

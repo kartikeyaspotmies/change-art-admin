@@ -121,6 +121,34 @@ export interface UpdateJobCardBody {
   fabric?: string;
 }
 
+export interface CreateJobCardBody {
+  client_id: string;
+  mail: string;
+  order_type: string;
+  project_type: string;
+  design_name: string;
+  eta_hours?: number;
+  priority?: string;
+  process_type?: string;
+  final_files?: string[];
+  placement?: string;
+  width_inches?: number;
+  height_inches?: number;
+  num_colors?: number;
+  fabric?: string;
+  sewout_required?: boolean;
+  description?: string;
+  billing_address?: string;
+  shipping_address?: string;
+  client_po?: string;
+}
+
+export interface SendQuotePriceBody {
+  amount: number;
+  currency?: string;
+  note?: string;
+}
+
 export interface CreateUserBody {
   email: string;
   name: string;
@@ -221,6 +249,10 @@ export const adminService = {
     return apiClient.patch<IUser, UpdateUserBody>(`/api/v1/users/${id}`, body);
   },
 
+  deleteUser(id: string): Promise<void> {
+    return apiClient.delete<void>(`/api/v1/users/${id}`);
+  },
+
   /**
    * Fire-and-forget: logs a client record access event so the backend can
    * notify the administrator (John Peter) that client data was viewed or edited.
@@ -230,8 +262,8 @@ export const adminService = {
   },
 
   /** Send a 6-digit OTP to the current admin's email for client-section access. */
-  requestAccessOtp(): Promise<void> {
-    return apiClient.post<void>('/api/v1/clients/request-access-otp');
+  requestAccessOtp(): Promise<{ email: string }> {
+    return apiClient.post<{ email: string }>('/api/v1/clients/request-access-otp');
   },
 
   /** Verify the OTP the admin entered. Throws on wrong code, expiry, or lockout. */
@@ -273,6 +305,17 @@ export const adminService = {
    */
   activateJobCard(id: string): Promise<IJobCard> {
     return apiClient.post<IJobCard>(`/api/v1/job-cards/${id}/activate`);
+  },
+
+  createJobCard(body: CreateJobCardBody): Promise<IJobCard> {
+    return apiClient.post<IJobCard, CreateJobCardBody>('/api/v1/job-cards', body);
+  },
+
+  sendQuotePrice(jobId: string, body: SendQuotePriceBody): Promise<IJobCard> {
+    return apiClient.post<IJobCard, SendQuotePriceBody>(
+      `/api/v1/cs/jobs/${jobId}/quote/send-price`,
+      body,
+    );
   },
 
   listContactSubmissions(): Promise<IIngestedEmail[]> {

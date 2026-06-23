@@ -23,6 +23,16 @@ export function useAdminUsers(filters: UserFilters = {}) {
   });
 }
 
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.deleteUser(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all() });
+    },
+  });
+}
+
 export function useAdminJobCards(filters: JobCardFilters = {}) {
   return useQuery({
     queryKey: queryKeys.jobs.list(filters as Record<string, unknown>),

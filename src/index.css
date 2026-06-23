@@ -1194,7 +1194,7 @@ html[data-theme='light'] .mb-track {
   .jc-img img {
     width: 100%;
     height: 160px;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
     background: rgba(0, 0, 0, 0.06);
   }

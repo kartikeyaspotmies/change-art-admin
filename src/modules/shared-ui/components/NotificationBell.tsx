@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Bell, Check } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@lib/utils';
 import { queryKeys } from '@lib/query-keys';
@@ -27,9 +27,32 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diff / 86_400)}d ago`;
 }
 
+function getNotificationPath(role: UserRole, data: Record<string, unknown> | null): string | null {
+  const jobId = data?.jobId as string | undefined;
+  const kind = data?.kind as string | undefined;
+
+  if (kind === 'profile_change_submitted') {
+    return '/admin/clients?tab=requests';
+  }
+
+  if (!jobId) return null;
+  switch (role) {
+    case UserRole.CLIENT:     return `/client/jobs?open=${jobId}`;
+    case UserRole.CS:         return `/cs/projects?open=${jobId}`;
+    case UserRole.TEAM_LEAD:  return `/team-lead/queue?open=${jobId}`;
+    case UserRole.DESIGNER:   return `/designer?open=${jobId}`;
+    case UserRole.DIGITATOR:  return `/digitator?open=${jobId}`;
+    case UserRole.SEWOUT:     return `/sewout?open=${jobId}`;
+    case UserRole.QC:         return `/qc?open=${jobId}`;
+    case UserRole.ADMIN:      return `/admin/jobs?open=${jobId}`;
+    default:                  return null;
+  }
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const isAuthenticated = useIsAuthenticated();
   const user = useSessionUser();
   const queryClient = useQueryClient();
@@ -58,20 +81,17 @@ export function NotificationBell() {
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
-  // Close on click outside.
+  // Close on Escape + lock body scroll while open.
   useEffect(() => {
     if (!open) return undefined;
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
-    window.addEventListener('mousedown', onClick);
     window.addEventListener('keydown', onEsc);
+    document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('mousedown', onClick);
       window.removeEventListener('keydown', onEsc);
+      document.body.style.overflow = '';
     };
   }, [open]);
 
@@ -100,14 +120,21 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div
-          role="dialog"
-          aria-label="Notifications"
-          className={cn(
-            'absolute right-0 top-full mt-2 w-[340px] max-w-[calc(100vw-2rem)]',
-            'glass-heavy rounded-2xl z-40 overflow-hidden',
-          )}
-        >
+        <>
+          {/* Backdrop — blocks background scroll and click pass-through */}
+          <div
+            className="fixed inset-0 z-[39]"
+            aria-hidden
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-label="Notifications"
+            className={cn(
+              'absolute right-0 top-full mt-2 w-[340px] max-w-[calc(100vw-2rem)]',
+              'glass-heavy rounded-2xl z-40 overflow-hidden',
+            )}
+          >
           <div className="flex items-center justify-between px-3 py-2 border-b border-glass-border">
             <h2 className="text-[12px] font-bold uppercase tracking-wider">Notifications</h2>
             <button
@@ -135,6 +162,16 @@ export function NotificationBell() {
                     notification={n}
                     onMarkRead={() => markRead.mutate(n.id)}
                     busy={markRead.isPending}
+                    onClick={(n) => {
+                      setOpen(false);
+                      if (!n.is_read) markRead.mutate(n.id);
+                      if (user?.role) {
+                        const path = getNotificationPath(user.role as UserRole, n.data as Record<string, unknown> | null);
+                        if (path) {
+                          navigate(path);
+                        }
+                      }
+                    }}
                   />
                 ))}
               </ul>
@@ -152,7 +189,8 @@ export function NotificationBell() {
               </Link>
             </div>
           ) : null}
-        </div>
+          </div>
+        </>
       ) : null}
     </div>
   );
@@ -162,16 +200,29 @@ interface RowProps {
   notification: INotification;
   onMarkRead: () => void;
   busy: boolean;
+  onClick: (notification: INotification) => void;
 }
 
-function NotificationRow({ notification: n, onMarkRead, busy }: RowProps) {
+function NotificationRow({ notification: n, onMarkRead, busy, onClick }: RowProps) {
+  const data = n.data as Record<string, unknown> | null;
+  const isClickable = !!data?.jobId || data?.kind === 'profile_change_submitted';
+
+  function handleRowClick() {
+    onClick(n);
+  }
+
   return (
     <li className="border-b border-glass-border last:border-b-0">
       <div
         className={cn(
-          'flex items-start gap-2 px-3 py-2.5 hover:bg-white/[0.03] transition',
+          'flex items-start gap-2 px-3 py-2.5 transition',
           !n.is_read && 'bg-white/[0.02]',
+          isClickable ? 'cursor-pointer hover:bg-white/[0.05]' : 'hover:bg-white/[0.03]',
         )}
+        onClick={isClickable ? handleRowClick : undefined}
+        role={isClickable ? 'button' : undefined}
+        tabIndex={isClickable ? 0 : undefined}
+        onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(); } } : undefined}
       >
         <span
           aria-hidden
@@ -186,13 +237,22 @@ function NotificationRow({ notification: n, onMarkRead, busy }: RowProps) {
             <div className="text-[11.5px] text-text-muted mt-0.5 line-clamp-2">{n.body}</div>
           ) : null}
           <div className="text-[10.5px] text-text-faint mt-1">{timeAgo(n.created_at)}</div>
+          {data?.jobId ? (
+            <div className="text-[10.5px] mt-0.5 font-semibold" style={{ color: 'var(--color-crimson)' }}>
+              Tap to open job →
+            </div>
+          ) : data?.kind === 'profile_change_submitted' ? (
+            <div className="text-[10.5px] mt-0.5 font-semibold" style={{ color: 'var(--color-crimson)' }}>
+              Tap to review request →
+            </div>
+          ) : null}
         </div>
         {!n.is_read ? (
           <button
             type="button"
             className="text-text-faint hover:text-[var(--color-crimson)] transition shrink-0 disabled:opacity-50"
             aria-label="Mark as read"
-            onClick={onMarkRead}
+            onClick={(e) => { e.stopPropagation(); onMarkRead(); }}
             disabled={busy}
           >
             <Check className="w-3.5 h-3.5" aria-hidden />

@@ -22,19 +22,21 @@ export function AdminNewQuotesPage() {
   const clientsQuery = useAdminClients();
   const clients = clientsQuery.data?.items ?? [];
 
-  const [filters, setFilters]         = useState<JobFilters>(EMPTY_FILTERS);
-  const [pendingPage, setPendingPage]   = useState(1);
-  const [awaitingPage, setAwaitingPage] = useState(1);
+  const [pendingFilters, setPendingFilters]   = useState<JobFilters>(EMPTY_FILTERS);
+  const [awaitingFilters, setAwaitingFilters] = useState<JobFilters>(EMPTY_FILTERS);
+  const [pendingPage, setPendingPage]         = useState(1);
+  const [awaitingPage, setAwaitingPage]       = useState(1);
 
   const quoteJobs      = useMemo(() => jobs.filter((j) => j.stage === 'quote'), [jobs]);
   const artwork        = useMemo(() => quoteJobs.filter((j) => j.order === 'Artwork'), [quoteJobs]);
   const digit          = useMemo(() => quoteJobs.filter((j) => j.order === 'Digitizing'), [quoteJobs]);
 
-  // Apply filter bar on top of quote-stage base set
-  const filteredQuotes = useMemo(() => applyJobFilters(quoteJobs, filters), [quoteJobs, filters]);
+  const basePending    = useMemo(() => quoteJobs.filter((j) => j.status === 'Quote Submitted'), [quoteJobs]);
+  const baseAwaiting   = useMemo(() => quoteJobs.filter((j) => j.status === 'Quote Approved'),  [quoteJobs]);
 
-  const pending        = useMemo(() => filteredQuotes.filter((j) => j.status === 'Quote Submitted'), [filteredQuotes]);
-  const awaitingClient = useMemo(() => filteredQuotes.filter((j) => j.status === 'Quote Approved'),  [filteredQuotes]);
+  // Apply filters independently on respective base sets
+  const pending        = useMemo(() => applyJobFilters(basePending, pendingFilters), [basePending, pendingFilters]);
+  const awaitingClient = useMemo(() => applyJobFilters(baseAwaiting, awaitingFilters), [baseAwaiting, awaitingFilters]);
 
   const pendingPages   = Math.ceil(pending.length / PER_PAGE);
   const awaitingPages  = Math.ceil(awaitingClient.length / PER_PAGE);
@@ -48,9 +50,13 @@ export function AdminNewQuotesPage() {
     [awaitingClient, awaitingPage],
   );
 
-  function handleFiltersChange(next: JobFilters) {
-    setFilters(next);
+  function handlePendingFiltersChange(next: JobFilters) {
+    setPendingFilters(next);
     setPendingPage(1);
+  }
+
+  function handleAwaitingFiltersChange(next: JobFilters) {
+    setAwaitingFilters(next);
     setAwaitingPage(1);
   }
 
@@ -74,8 +80,8 @@ export function AdminNewQuotesPage() {
 
       <StatGrid
         stats={[
-          { accent: 'crimson', label: 'Pending Review',  value: isLoading ? '…' : pending.length },
-          { accent: 'amber',   label: 'Awaiting Client', value: isLoading ? '…' : awaitingClient.length },
+          { accent: 'crimson', label: 'Pending Review',  value: isLoading ? '…' : basePending.length },
+          { accent: 'amber',   label: 'Awaiting Client', value: isLoading ? '…' : baseAwaiting.length },
           { accent: 'blue',    label: 'Artwork',         value: isLoading ? '…' : artwork.length },
           { accent: 'teal',    label: 'Digitizing',      value: isLoading ? '…' : digit.length },
         ]}
@@ -96,9 +102,9 @@ export function AdminNewQuotesPage() {
             quoteView
             toolbarSlot={
               <JobFilterBar
-                filters={filters}
-                onChange={handleFiltersChange}
-                statusOptions={QUOTE_STATUS_OPTIONS}
+                filters={pendingFilters}
+                onChange={handlePendingFiltersChange}
+                statusOptions={[]}
                 clients={clients}
               />
             }
@@ -113,17 +119,33 @@ export function AdminNewQuotesPage() {
             />
           )}
 
-          {awaitingClient.length > 0 && (
+          {baseAwaiting.length > 0 && (
             <div className="mt-6">
               <SectionHeader title="Price Sent — Awaiting Client" />
-              <JobTable jobs={awaitingPageItems} showActions defaultView="grid" quoteView />
-              <Pagination
-                page={awaitingPage}
-                totalPages={awaitingPages}
-                total={awaitingClient.length}
-                perPage={PER_PAGE}
-                onPageChange={setAwaitingPage}
+              <JobTable
+                jobs={awaitingPageItems}
+                showActions
+                defaultView="grid"
+                quoteView
+                emptyLabel="No awaiting client quotes match the current filters."
+                toolbarSlot={
+                  <JobFilterBar
+                    filters={awaitingFilters}
+                    onChange={handleAwaitingFiltersChange}
+                    statusOptions={[]}
+                    clients={clients}
+                  />
+                }
               />
+              {awaitingClient.length > 0 && (
+                <Pagination
+                  page={awaitingPage}
+                  totalPages={awaitingPages}
+                  total={awaitingClient.length}
+                  perPage={PER_PAGE}
+                  onPageChange={setAwaitingPage}
+                />
+              )}
             </div>
           )}
         </>

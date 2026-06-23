@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { queryKeys } from '@lib/query-keys';
 import { toastApiError } from '@lib/toast-error';
-import { adminService, type ClientFilters, type CreateClientBody, type ProvisionClientBody, type UpdateClientBody } from '../services/admin.service';
+import { adminService, type ClientFilters, type CreateClientBody, type CreateJobCardBody, type ProvisionClientBody, type SendQuotePriceBody, type UpdateClientBody } from '../services/admin.service';
 
 export function useAdminClients(filters: ClientFilters = {}) {
   return useQuery({
@@ -58,6 +58,30 @@ export function useDeleteClient() {
       toast.success('Client deleted');
     },
     // Surfaces CLIENT_HAS_JOBS ("Cannot delete a client with associated Job Cards.")
+    onError: (err) => toastApiError(err),
+  });
+}
+
+export function useCreateJobCard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateJobCardBody) => adminService.createJobCard(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+    },
+    onError: (err) => toastApiError(err),
+  });
+}
+
+export function useSendQuotePrice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, body }: { jobId: string; body: SendQuotePriceBody }) =>
+      adminService.sendQuotePrice(jobId, body),
+    onSuccess: (job) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.jobs.byId(job.id) });
+      void qc.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+    },
     onError: (err) => toastApiError(err),
   });
 }
