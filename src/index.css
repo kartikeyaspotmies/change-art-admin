@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Scroll lock: toggled by JS via classList — avoids inline style conflicts ── */
+body.scroll-locked { overflow: hidden; }
+
 /* ── Strip browser spinner arrows from all number inputs ── */
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {

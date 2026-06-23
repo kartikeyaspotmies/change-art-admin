@@ -166,7 +166,7 @@ const ALLOWED_TYPES = new Set([
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 function resolveFileType(file: File): string {
-  if (file.type && (file.type.startsWith('image/') || ALLOWED_TYPES.has(file.type))) {
+  if (file.type && ALLOWED_TYPES.has(file.type)) {
     return file.type;
   }
   // Reject files with unrecognised MIME types rather than silently treating

@@ -5,6 +5,7 @@ import { GreetingHero, Pagination, Panel, StatGrid } from '@modules/shared-ui';
 import { UserRole, UserSubType } from '@contracts';
 import type { IUser } from '@contracts';
 import { useAdminUsers, useDeleteUser } from '../../modules/admin-panel/hooks/use-admin-jobs';
+import { ApiClientError } from '@lib/api-client';
 import { UserFormModal, type UserModalMode } from '../../modules/admin-panel/components/UserFormModal';
 
 const PER_PAGE = 20;
@@ -287,7 +288,7 @@ export function AdminUsersPage() {
             </div>
             {deleteMutation.isError && (
               <div className="px-5 pb-3 text-[11.5px]" style={{ color: 'var(--color-crimson, #c41e3a)' }}>
-                {deleteMutation.error instanceof Error ? deleteMutation.error.message : 'Failed to delete user.'} — click Delete User to retry.
+                {deleteMutation.error instanceof ApiClientError ? deleteMutation.error.toUserMessage() : 'Failed to delete user.'} — click Delete User to retry.
               </div>
             )}
             <div className="flex justify-end gap-2 px-5 py-3.5" style={{ borderTop: '1px solid var(--glass-border)', background: 'var(--glass-bg-light, rgba(15,23,42,0.03))' }}>

@@ -89,10 +89,10 @@ export function NotificationBell() {
       if (e.key === 'Escape') setOpen(false);
     };
     window.addEventListener('keydown', onEsc);
-    document.body.style.overflow = 'hidden';
+    document.body.classList.add('scroll-locked');
     return () => {
       window.removeEventListener('keydown', onEsc);
-      document.body.style.overflow = '';
+      document.body.classList.remove('scroll-locked');
     };
   }, [open]);
 
