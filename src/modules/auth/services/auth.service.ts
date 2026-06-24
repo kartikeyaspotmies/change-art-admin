@@ -20,13 +20,12 @@ export interface SignUpPayload {
   name: string;
 }
 
-/** Better Auth's session shape. We only need the user portion. */
-interface BetterAuthSessionResponse {
-  data?: {
-    session?: { id: string; userId: string; expiresAt: string };
-    user?: BetterAuthUser;
-  } | null;
+/** Better Auth's sign-in / sign-up response shape. */
+interface BetterAuthResponse {
   user?: BetterAuthUser;
+  // error body (Better Auth returns { code, message } on failure)
+  code?: string;
+  message?: string;
 }
 
 interface BetterAuthUser {
@@ -61,12 +60,8 @@ export const authService = {
   /** Fetch the current session. Returns null when the cookie is missing or invalid. */
   async fetchSession(): Promise<SessionUser | null> {
     try {
-      const res = await apiClient.raw.get<BetterAuthSessionResponse>('/api/auth/get-session', {
-        validateStatus: (status) => status < 500,
-      });
-      if (res.status === 401 || res.status === 403) return null;
-      const u = res.data.user ?? res.data.data?.user ?? null;
-      return adaptUser(u);
+      const data = await apiClient.get<{ user: SessionUser } | null>('/api/v1/auth/session');
+      return data?.user ?? null;
     } catch (err) {
       if (err instanceof ApiClientError && err.code === ERROR_CODES.NETWORK_ERROR) {
         throw err;
@@ -76,11 +71,11 @@ export const authService = {
   },
 
   async signIn(payload: SignInPayload): Promise<SessionUser> {
-    const res = await apiClient.raw.post<BetterAuthSessionResponse>(
+    const res = await apiClient.raw.post<BetterAuthResponse>(
       '/api/auth/sign-in/email',
       payload,
     );
-    const user = adaptUser(res.data.user ?? res.data.data?.user ?? null);
+    const user = adaptUser(res.data.user ?? null);
     if (!user) {
       throw new ApiClientError({
         code: ERROR_CODES.INVALID_CREDENTIALS,
@@ -92,11 +87,11 @@ export const authService = {
   },
 
   async signUp(payload: SignUpPayload): Promise<SessionUser> {
-    const res = await apiClient.raw.post<BetterAuthSessionResponse>(
+    const res = await apiClient.raw.post<BetterAuthResponse>(
       '/api/auth/sign-up/email',
       payload,
     );
-    const user = adaptUser(res.data.user ?? res.data.data?.user ?? null);
+    const user = adaptUser(res.data.user ?? null);
     if (!user) {
       throw new ApiClientError({
         code: ERROR_CODES.INTERNAL_ERROR,
