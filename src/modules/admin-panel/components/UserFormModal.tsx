@@ -132,7 +132,7 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
           name: form.name.trim(),
           password: form.password,
           role: form.role,
-          sub_type: subTypeValue,
+          ...(subTypeValue ? { sub_type: subTypeValue } : {}),
         },
         { onSuccess: onClose },
       );

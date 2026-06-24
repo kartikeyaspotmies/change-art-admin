@@ -50,8 +50,8 @@ type StepState = 'done' | 'cur' | 'pending';
 function buildSteps(job: Job): { role: string; note: string; state: StepState }[] {
   const hasSewout = job.order.includes('Sewout');
   const base: [string, string][] = hasSewout
-    ? [['CS', 'Created'], ['Team Lead', 'Assigned'], ['Production', job.etaHours ? `ETA: ${job.etaHours}h` : 'In Progress'], ['Sewout', 'Pending'], ['QC', 'Review'], ['CS', 'Dispatch']]
-    : [['CS', 'Created'], ['Team Lead', 'Assigned'], ['Production', job.etaHours ? `ETA: ${job.etaHours}h` : 'In Progress'], ['QC', 'Review'], ['CS', 'Dispatch']];
+    ? [['Client Servicing', 'Created'], ['Team Lead', 'Assigned'], ['Production', job.etaHours ? `ETA: ${job.etaHours}h` : 'In Progress'], ['Sewout', 'Pending'], ['QC', 'Review'], ['Client Servicing', 'Dispatch']]
+    : [['Client Servicing', 'Created'], ['Team Lead', 'Assigned'], ['Production', job.etaHours ? `ETA: ${job.etaHours}h` : 'In Progress'], ['QC', 'Review'], ['Client Servicing', 'Dispatch']];
 
   const stageIdx: Record<string, number> = {
     quote: 0, junior: 2, senior: 2,

@@ -65,19 +65,19 @@ interface JobDetailModalProps {
 function buildFlowSteps(hasSewout: boolean): { role: string; sub: string }[] {
   return hasSewout
     ? [
-      { role: 'CS', sub: 'Created' },
+      { role: 'Client Servicing', sub: 'Created' },
       { role: 'TL', sub: 'Assigned' },
       { role: 'Execution', sub: '' },
       { role: 'Sewout', sub: 'Pending' },
       { role: 'QC', sub: 'Review' },
-      { role: 'CS', sub: 'Dispatch' },
+      { role: 'Client Servicing', sub: 'Dispatch' },
     ]
     : [
-      { role: 'CS', sub: 'Created' },
+      { role: 'Client Servicing', sub: 'Created' },
       { role: 'TL', sub: 'Assigned' },
       { role: 'Execution', sub: '' },
       { role: 'QC', sub: 'Review' },
-      { role: 'CS', sub: 'Dispatch' },
+      { role: 'Client Servicing', sub: 'Dispatch' },
     ];
 }
 
@@ -1547,8 +1547,6 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                 <div className="text-[10px] font-bold uppercase tracking-[0.13em] mb-2" style={{ color: '#94A3B8' }}>
                   JOB DETAILS
                 </div>
-                <DetailRow label="Client" value={displayJob.client} />
-                <DetailRow label="Client ID" value={displayJob.clientId} />
                 <DetailRow label="Order Type" value={displayJob.order} />
                 {displayJob.specificType ? <DetailRow label="Specific Service" value={displayJob.specificType} /> : null}
                 <DetailRow label="Complexity" value={displayJob.complexity} />
@@ -1737,11 +1735,12 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
               gap: 6,
             }}
             onClick={() => onEdit?.(job)}
+            disabled={isDelivered}
           >
             <Edit2 className="w-3.5 h-3.5" aria-hidden />
             Edit Job
           </button>
-          {!isQuote && isAcknowledged ? (
+          {!isQuote && isAcknowledged && !isDelivered ? (
             <button
               type="button"
               className="btn btn-crimson"

@@ -464,7 +464,6 @@ function GridView({
               <div className="jc-title">{j.design}</div>
               <div className="jc-desc">{briefText(j.summary)}</div>
               <div className="jc-meta">
-                <span className="truncate max-w-[90px]">{j.client}</span>
                 <PriorityChip priority={j.priority} />
               </div>
               {actionRequired ? (
@@ -528,10 +527,8 @@ function ListView({
               </div>
             </div>
 
-            {/* Client + ref */}
+            {/* Ref */}
             <div className="flex items-center gap-2">
-              {j.client && <span className="list-client">{j.client}</span>}
-              {j.client && (j.ref || j.id) && <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>·</span>}
               <span className="list-ref">{j.ref || j.id}</span>
               {j.specificType && (
                 <>
