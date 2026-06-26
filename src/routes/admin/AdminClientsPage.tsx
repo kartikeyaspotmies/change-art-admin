@@ -13,10 +13,12 @@ import {
 import { ClientSectionGateModal } from '../../modules/admin-panel/components/ClientSectionGateModal';
 import { ProfileChangeRequestsTab } from '../../modules/admin-panel/components/ProfileChangeRequestsTab';
 import { AddClientModal } from '../../modules/admin-panel/components/AddClientModal';
+import { ClientApproveTab } from '../../modules/admin-panel/components/ClientApproveTab';
+import { usePendingClients } from '../../modules/admin-panel/hooks/use-admin-clients';
 
 const PER_PAGE = 20;
 
-type Tab = 'clients' | 'requests';
+type Tab = 'clients' | 'requests' | 'approve';
 
 function formatPaymentMode(mode: PaymentMode | null): string {
   if (!mode) return '—';
@@ -70,13 +72,13 @@ export function AdminClientsPage() {
   const [searchParams] = useSearchParams();
   const [pageGateOpen, setPageGateOpen] = useState(() => !isSessionVerified());
 
-  const initialTab = (searchParams.get('tab') === 'requests') ? 'requests' : 'clients';
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const initialTab = (searchParams.get('tab') as Tab) || 'clients';
+  const [tab, setTab] = useState<Tab>(['requests', 'approve'].includes(initialTab) ? initialTab : 'clients');
 
   // Sync tab state when URL search params change
   useEffect(() => {
-    const t = searchParams.get('tab');
-    if (t === 'requests' || t === 'clients') {
+    const t = searchParams.get('tab') as Tab;
+    if (['requests', 'clients', 'approve'].includes(t)) {
       setTab(t);
     }
   }, [searchParams]);
@@ -99,6 +101,9 @@ export function AdminClientsPage() {
     per_page: 100,
   });
   const pendingCount = pendingCRs?.meta.total ?? 0;
+
+  const { data: pendingApprovals } = usePendingClients();
+  const pendingApprovalsCount = pendingApprovals?.length ?? 0;
 
   const clientsFilters = useMemo(
     () => ({
@@ -150,7 +155,9 @@ export function AdminClientsPage() {
         title={
           tab === 'clients'
             ? `All Clients${total ? ` (${total})` : ''}`
-            : 'Profile Change Requests'
+            : tab === 'requests'
+            ? 'Profile Change Requests'
+            : 'Pending Client Approvals'
         }
       >
         {/* Tab toggle + search bar */}
@@ -183,6 +190,26 @@ export function AdminClientsPage() {
                 </span>
               ) : null}
             </button>
+            <button
+              type="button"
+              className={`btn ${tab === 'approve' ? 'btn-crimson' : 'btn-outline'}`}
+              onClick={() => setTab('approve')}
+            >
+              Client Approve
+              {pendingApprovalsCount > 0 ? (
+                <span
+                  className="ml-1 inline-flex items-center justify-center text-[10px] font-bold rounded-full px-1.5"
+                  style={{
+                    background: 'var(--crimson)',
+                    color: 'white',
+                    minWidth: 16,
+                    height: 16,
+                  }}
+                >
+                  {pendingApprovalsCount}
+                </span>
+              ) : null}
+            </button>
           </div>
 
           <div className="relative flex-1 min-w-[200px] max-w-md ml-auto">
@@ -197,7 +224,9 @@ export function AdminClientsPage() {
               placeholder={
                 tab === 'clients'
                   ? 'Search by name, company, email, or client ID…'
-                  : 'Search by client name, company, or proposed value…'
+                  : tab === 'requests'
+                  ? 'Search by client name, company, or proposed value…'
+                  : 'Search by client name, email, or ID…'
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -217,7 +246,9 @@ export function AdminClientsPage() {
           )}
         </div>
 
-        {tab === 'requests' ? (
+        {tab === 'approve' ? (
+          <ClientApproveTab />
+        ) : tab === 'requests' ? (
           <ProfileChangeRequestsTab search={debouncedSearch} />
         ) : isLoading ? (
           <div className="flex items-center justify-center py-12 text-text-faint text-sm">
@@ -244,12 +275,15 @@ export function AdminClientsPage() {
                     <th>Email</th>
                     <th>Location</th>
                     <th>Payment</th>
-                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {clients.map((c) => (
-                    <tr key={c.id}>
+                    <tr
+                      key={c.id}
+                      onClick={() => openClient(c, 'view')}
+                      className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                    >
                       <td><span className="ref-code">{c.client_id}</span></td>
                       <td className="font-semibold">{c.contact_name}</td>
                       <td className="text-text-muted">{c.company_name ?? '—'}</td>
@@ -257,17 +291,6 @@ export function AdminClientsPage() {
                       <td className="text-text-muted">••••••••••</td>
                       <td className="text-text-muted">{c.location ?? '—'}</td>
                       <td><span className="badge gray">{formatPaymentMode(c.payment_mode)}</span></td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-outline"
-                          aria-label={`Edit ${c.contact_name}`}
-                          onClick={() => openClient(c, 'edit')}
-                        >
-                          <Pencil aria-hidden className="w-3.5 h-3.5" />
-                          Edit
-                        </button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>

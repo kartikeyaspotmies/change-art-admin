@@ -176,7 +176,11 @@ export function ProfileChangeRequestsTab({ search }: Props) {
                 {pageRows.map((r) => {
                   const c = r.client;
                   return (
-                    <tr key={r.id} onClick={() => setSelected(r)}>
+                    <tr
+                      key={r.id}
+                      onClick={() => setSelected(r)}
+                      className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                    >
                       <td>
                         <div className="font-semibold">
                           {c?.client_name ?? '— (orphaned)'}
