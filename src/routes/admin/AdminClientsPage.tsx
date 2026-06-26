@@ -140,8 +140,8 @@ export function AdminClientsPage() {
 
       <StatGrid
         stats={[
-          { accent: 'blue',    label: 'Active Accounts', value: isLoading ? '…' : total },
-          { accent: 'green',   label: 'New (mo.)',        value: isLoading ? '…' : currentMonthCount(clients) },
+          { accent: 'blue', label: 'Active Accounts', value: isLoading ? '…' : total },
+          { accent: 'green', label: 'New (mo.)', value: isLoading ? '…' : currentMonthCount(clients) },
           { accent: 'crimson', label: 'Profile Requests', value: pendingCount },
           {
             accent: 'gold',
@@ -156,8 +156,8 @@ export function AdminClientsPage() {
           tab === 'clients'
             ? `All Clients${total ? ` (${total})` : ''}`
             : tab === 'requests'
-            ? 'Profile Change Requests'
-            : 'Pending Client Approvals'
+              ? 'Profile Change Requests'
+              : 'Pending Client Approvals'
         }
       >
         {/* Tab toggle + search bar */}
@@ -169,26 +169,6 @@ export function AdminClientsPage() {
               onClick={() => setTab('clients')}
             >
               Clients
-            </button>
-            <button
-              type="button"
-              className={`btn ${tab === 'requests' ? 'btn-crimson' : 'btn-outline'}`}
-              onClick={() => setTab('requests')}
-            >
-              Profile Requests
-              {pendingCount > 0 ? (
-                <span
-                  className="ml-1 inline-flex items-center justify-center text-[10px] font-bold rounded-full px-1.5"
-                  style={{
-                    background: 'var(--crimson)',
-                    color: 'white',
-                    minWidth: 16,
-                    height: 16,
-                  }}
-                >
-                  {pendingCount}
-                </span>
-              ) : null}
             </button>
             <button
               type="button"
@@ -210,6 +190,26 @@ export function AdminClientsPage() {
                 </span>
               ) : null}
             </button>
+            <button
+              type="button"
+              className={`btn ${tab === 'requests' ? 'btn-crimson' : 'btn-outline'}`}
+              onClick={() => setTab('requests')}
+            >
+              Profile Requests
+              {pendingCount > 0 ? (
+                <span
+                  className="ml-1 inline-flex items-center justify-center text-[10px] font-bold rounded-full px-1.5"
+                  style={{
+                    background: 'var(--crimson)',
+                    color: 'white',
+                    minWidth: 16,
+                    height: 16,
+                  }}
+                >
+                  {pendingCount}
+                </span>
+              ) : null}
+            </button>
           </div>
 
           <div className="relative flex-1 min-w-[200px] max-w-md ml-auto">
@@ -225,8 +225,8 @@ export function AdminClientsPage() {
                 tab === 'clients'
                   ? 'Search by name, company, email, or client ID…'
                   : tab === 'requests'
-                  ? 'Search by client name, company, or proposed value…'
-                  : 'Search by client name, email, or ID…'
+                    ? 'Search by client name, company, or proposed value…'
+                    : 'Search by client name, email, or ID…'
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -275,15 +275,12 @@ export function AdminClientsPage() {
                     <th>Email</th>
                     <th>Location</th>
                     <th>Payment</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {clients.map((c) => (
-                    <tr
-                      key={c.id}
-                      onClick={() => openClient(c, 'view')}
-                      className="hover:bg-white/[0.02] transition-colors cursor-pointer"
-                    >
+                    <tr key={c.id}>
                       <td><span className="ref-code">{c.client_id}</span></td>
                       <td className="font-semibold">{c.contact_name}</td>
                       <td className="text-text-muted">{c.company_name ?? '—'}</td>
@@ -291,6 +288,17 @@ export function AdminClientsPage() {
                       <td className="text-text-muted">••••••••••</td>
                       <td className="text-text-muted">{c.location ?? '—'}</td>
                       <td><span className="badge gray">{formatPaymentMode(c.payment_mode)}</span></td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          aria-label={`Edit ${c.contact_name}`}
+                          onClick={() => openClient(c, 'edit')}
+                        >
+                          <Pencil aria-hidden className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

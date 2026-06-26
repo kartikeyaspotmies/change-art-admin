@@ -134,6 +134,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   CLIENT_HAS_JOBS: 'This client has active jobs and cannot be deleted.',
   CLIENT_NOT_FOUND: 'This client was not found.',
   CLIENT_ID_TAKEN: 'A client with this ID already exists.',
+  CLIENT_PENDING_APPROVAL: 'This client account is pending approval.',
 
   QUOTE_NOT_FOUND: 'This quote was not found.',
   QUOTE_FINALIZED: 'This quote is final and cannot be changed.',
