@@ -314,13 +314,6 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
     return () => window.removeEventListener('keydown', onKey);
   }, [job, handleClose, showConfirm, sendPrice.isPending, showDispatchConfirm, dispatchJob.isPending]);
 
-  if (!job) return null;
-
-  // The data source for all detail fields. Toggle switches this between
-  // the admin-edited copy and the original client submission.
-  const showToggle = job.isAdminCopy === true;
-  const displayJob: Job = showToggle && viewMode === 'client' && originalJob ? originalJob : job;
-
   const allowedFormats = useMemo(() => {
     const text = (job?.notes || '') + '\n' + (job?.summary || '') + '\n' + (originalJob?.notes || '') + '\n' + (originalJob?.summary || '');
     const match = text.match(/\[\s*Expected Output Format\s*:\s*([^\]]*?)\s*\]/i);
@@ -331,6 +324,13 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
       .map(s => s.trim().replace(/^\./, ''))
       .filter(Boolean);
   }, [job, originalJob]);
+
+  if (!job) return null;
+
+  // The data source for all detail fields. Toggle switches this between
+  // the admin-edited copy and the original client submission.
+  const showToggle = job.isAdminCopy === true;
+  const displayJob: Job = showToggle && viewMode === 'client' && originalJob ? originalJob : job;
 
   const flowSteps = buildFlowSteps();
   const stepIdx = currentStepIndex(job);
