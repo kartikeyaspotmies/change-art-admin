@@ -277,6 +277,18 @@ export interface IFcmToken {
   created_at: IsoDateTime;
 }
 
+export interface IJobQuery {
+  id: string;
+  tenant_id: string;
+  job_card_id: string;
+  raised_by_user_id: string;
+  raised_by_role: 'ADMIN' | 'CLIENT';
+  message: string;
+  is_resolved: boolean;
+  created_at: IsoDateTime;
+  raised_by_name?: string;
+}
+
 export interface IAttendanceRecord {
   id: string;
   tenant_id: string;

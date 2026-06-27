@@ -53,6 +53,7 @@ export interface JobCardFilters {
   stage?: string;
   pipeline?: string;
   exclude_stage?: string;
+  unacknowledged?: boolean;
 }
 
 export interface ClientFilters {
