@@ -86,4 +86,8 @@ export const queryKeys = {
     list: () => ['contact-submissions', 'list'] as const,
     byId: (id: string) => ['contact-submissions', 'byId', id] as const,
   },
+
+  queries: {
+    forJob: (jobId: string) => ['queries', 'forJob', jobId] as const,
+  },
 } as const;

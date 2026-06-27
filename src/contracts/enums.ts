@@ -162,6 +162,7 @@ export enum NotificationType {
   DELIVERY = 'DELIVERY',
   SYSTEM = 'SYSTEM',
   CLIENT_DATA_ACCESSED = 'CLIENT_DATA_ACCESSED',
+  QUERY = 'QUERY',
 }
 
 export enum FileCategory {
