@@ -42,7 +42,7 @@ const TYPE_BADGE: Record<NotificationType, string> = {
   [NotificationType.DELIVERY]: 'green',
   [NotificationType.SYSTEM]: 'gray',
   [NotificationType.CLIENT_DATA_ACCESSED]: 'gray',
-  [NotificationType.QUERY]: 'amber',
+  [NotificationType.QUERY]: 'purple',
 };
 
 function formatDateTime(iso: string): string {
