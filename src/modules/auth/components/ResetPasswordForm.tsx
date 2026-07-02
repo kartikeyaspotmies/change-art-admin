@@ -20,7 +20,9 @@ type ResetValues = z.infer<typeof ResetSchema>;
 
 export function ResetPasswordForm() {
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const rawToken = searchParams.get('token') ?? '';
+  const TOKEN_RE = /^[A-Za-z0-9_\-.~]{16,256}$/;
+  const token = TOKEN_RE.test(rawToken) ? rawToken : '';
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -41,7 +43,7 @@ export function ResetPasswordForm() {
       <div aria-live="polite">
         <h2 className="text-[18px] font-bold mb-1">Invalid reset link</h2>
         <p className="text-[12.5px] text-text-muted mb-6">
-          This password reset link is missing a token. Please request a new one.
+          This password reset link is invalid or missing. Please request a new one.
         </p>
         <Link to="/forgot-password" className="btn btn-crimson w-full justify-center">
           Request new link
@@ -73,8 +75,18 @@ export function ResetPasswordForm() {
     try {
       await authService.resetPassword(token, values.newPassword);
       setDone(true);
-    } catch {
-      setServerError('This reset link may have expired. Please request a new one.');
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
+      const isExpired =
+        msg.toLowerCase().includes('expired') ||
+        msg.toLowerCase().includes('invalid') ||
+        msg.toLowerCase().includes('token');
+      setServerError(
+        isExpired
+          ? 'This reset link has expired or is invalid. Please request a new one.'
+          : 'Something went wrong. Please try again or request a new reset link.',
+      );
     }
   }
 
