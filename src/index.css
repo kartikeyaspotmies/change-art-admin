@@ -678,6 +678,7 @@ html[data-theme='light'] .mb-track {
     padding: 12px 14px;
     margin-bottom: 10px;
     transition: var(--transition);
+    overflow: hidden; /* prevent long strings (email, UUID) from breaking out on mobile */
   }
 
   .panel:hover {

@@ -38,7 +38,10 @@ const PRIORITY_OPTIONS = [
 ];
 
 export const JOB_STATUS_OPTIONS = [
+  { value: 'In Review',        label: 'In Review' },
+  { value: 'Quote Submitted',  label: 'Quote Submitted' },
   { value: 'Order Placed',     label: 'Order Placed' },
+  { value: 'Pending',          label: 'Pending' },
   { value: 'In Production',    label: 'In Production' },
   { value: 'Senior Review',    label: 'Senior Review' },
   { value: 'Sewout',           label: 'Sewout' },

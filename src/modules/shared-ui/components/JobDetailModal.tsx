@@ -135,6 +135,18 @@ function isReadyToDeliverStatus(job: Job): boolean {
   return normalizedStatus(job) === 'READY_TO_DELIVER';
 }
 
+const QUOTE_UNRESOLVED_STATUSES = new Set([
+  'DRAFT', 'QUOTE_SUBMITTED', 'QUOTE_APPROVED', 'QUOTE_REJECTED', 'CANCELLED',
+]);
+
+// The price is only truly "agreed" once the client has confirmed the quote
+// (action: place_job), moving the job out of the quote stage into JOB_PLACED+.
+// QUOTE_APPROVED only means CS has sent a price — the client hasn't acted yet.
+function isPriceAgreed(job: Job): boolean {
+  const s = normalizedStatus(job);
+  return !!s && !QUOTE_UNRESOLVED_STATUSES.has(s);
+}
+
 export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobDetailModalProps) {
   const [isIn, setIsIn] = useState(false);
   const [agencyPrice, setAgencyPrice] = useState('');
@@ -392,7 +404,13 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
 
   const clientBudget = displayJob.negotiation?.clientOffer ?? displayJob.clientPrice ?? null;
   const adminCounter = displayJob.negotiation?.agencyOffer ?? displayJob.adminPrice ?? null;
-  const agreedPrice = displayJob.negotiation?.finalPrice ?? displayJob.agreedPrice ?? null;
+  // Once the client has confirmed the quote (job moved past the quote stage),
+  // the CS-submitted price IS the agreed price — there's no separate stored
+  // "agreed_price" field on the job card, so fall back to adminCounter.
+  const agreedPrice =
+    displayJob.negotiation?.finalPrice ??
+    displayJob.agreedPrice ??
+    (isPriceAgreed(displayJob) ? adminCounter : null);
 
   // Whether the quote has already been priced & sent (status QUOTE_APPROVED).
   // Drives readonly fields and swaps the action buttons for a clear
@@ -1303,6 +1321,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                                   const n = parseFloat(next);
                                   setPriceInvalid(Number.isFinite(n) && n > MAX_PRICE);
                                 }}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 style={{
                                   width: '100%',
                                   background: quoteSent ? '#FEF3C7' : '#FFFFFF',
@@ -1342,6 +1361,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                                 const n = parseFloat(next);
                                 setEtaInvalid(Number.isFinite(n) && n > MAX_ETA_HOURS);
                               }}
+                              onWheel={(e) => e.currentTarget.blur()}
                               style={{
                                 width: '100%',
                                 background: quoteSent ? '#FEF3C7' : '#FFFFFF',
@@ -1636,7 +1656,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                       const text = displayJob.notes || displayJob.summary;
                       const match = text?.match(/\[\s*Expected Output Format\s*:\s*([^\]]*?)\s*\]/i);
                       const customFormat = match && match[1] ? match[1].trim() : null;
-                      return displayJob.finalFiles.map(f => {
+                      const labels = displayJob.finalFiles.map(f => {
                         if (f.toUpperCase() === 'OTHERS' || f.toUpperCase() === 'OTHER') {
                           if (customFormat) {
                             if (/^others:\s*/i.test(customFormat)) {
@@ -1647,7 +1667,11 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                           return f;
                         }
                         return f;
-                      }).join(', ');
+                      });
+                      // Defensive dedup — older records saved before the
+                      // final_files mapping fix may carry repeated OTHERS
+                      // entries (one per unrecognized format token).
+                      return [...new Set(labels)].join(', ');
                     })()}
                   />
                 ) : null}
@@ -2943,7 +2967,7 @@ function CompareView({
         const text = j.notes || j.summary;
         const match = text?.match(/\[\s*Expected Output Format\s*:\s*([^\]]*?)\s*\]/i);
         const customFormat = match && match[1] ? match[1].trim() : null;
-        return j.finalFiles.map(f => {
+        const labels = j.finalFiles.map(f => {
           if (f.toUpperCase() === 'OTHERS' || f.toUpperCase() === 'OTHER') {
             if (customFormat) {
               if (/^others:\s*/i.test(customFormat)) {
@@ -2954,7 +2978,8 @@ function CompareView({
             return f;
           }
           return f;
-        }).join(', ');
+        });
+        return [...new Set(labels)].join(', ');
       }
     },
     { label: 'Placement', get: (j) => j.placement || '—' },
