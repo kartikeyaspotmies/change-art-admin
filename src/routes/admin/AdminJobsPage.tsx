@@ -56,7 +56,7 @@ function mapStatusFilter(display: string): { status?: string; stage?: string } {
       return { stage: 'qc' };
     case 'Ready to Deliver':
       return { status: 'READY_TO_DELIVER' };
-    case 'Delivered':
+    case 'Dispatched':
       return { status: 'DELIVERED' };
     case 'Amend':
       return { status: 'MODIFICATION_REQUESTED' };
