@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Pencil, Plus, Search } from 'lucide-react';
+import { Pencil, Plus, Search, X } from 'lucide-react';
 import { GreetingHero, Pagination, Panel, StatGrid } from '@modules/shared-ui';
 import { PaymentMode } from '@contracts';
 import type { IClient } from '@contracts';
@@ -104,6 +104,7 @@ export function AdminClientsPage() {
 
   const { data: pendingApprovals } = usePendingClients();
   const pendingApprovalsCount = pendingApprovals?.length ?? 0;
+  const autoOpenUserId = searchParams.get('open_user') ?? undefined;
 
   const clientsFilters = useMemo(
     () => ({
@@ -126,6 +127,15 @@ export function AdminClientsPage() {
     setSearch('');
     setPage(1);
   }, [tab]);
+
+  // Strip open_user from the URL after passing it down, so a page refresh
+  // doesn't re-open the modal.
+  useEffect(() => {
+    if (!autoOpenUserId) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('open_user');
+    navigate({ search: next.toString() }, { replace: true });
+  }, [autoOpenUserId, navigate, searchParams]);
 
   const clients = data?.items ?? [];
   const total = data?.meta.total ?? 0;
@@ -218,9 +228,9 @@ export function AdminClientsPage() {
               aria-hidden
             />
             <input
-              type="search"
+              type="text"
               className="fi"
-              style={{ paddingLeft: 28 }}
+              style={{ paddingLeft: 28, paddingRight: search ? 32 : undefined }}
               placeholder={
                 tab === 'clients'
                   ? 'Search by name, company, email, or client ID…'
@@ -229,9 +239,20 @@ export function AdminClientsPage() {
                     : 'Search by client name, email, or ID…'
               }
               value={search}
+              maxLength={500}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search"
             />
+            {search && (
+              <button
+                type="button"
+                className="fjb-search-x"
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden />
+              </button>
+            )}
           </div>
 
           {tab === 'clients' && (
@@ -247,7 +268,7 @@ export function AdminClientsPage() {
         </div>
 
         {tab === 'approve' ? (
-          <ClientApproveTab />
+          <ClientApproveTab autoOpenUserId={autoOpenUserId} />
         ) : tab === 'requests' ? (
           <ProfileChangeRequestsTab search={debouncedSearch} />
         ) : isLoading ? (

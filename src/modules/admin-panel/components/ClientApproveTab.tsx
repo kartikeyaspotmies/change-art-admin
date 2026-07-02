@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, X } from 'lucide-react';
 import type { IClient } from '@contracts';
@@ -54,7 +54,7 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
   const modal = (
     <div
       className="modal-overlay open"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={undefined}
       role="dialog"
       aria-modal
       aria-label="Client details"
@@ -96,10 +96,22 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
               <div className="f-val">{client.company_name}</div>
             </div>
           ) : null}
-          {(client.country || client.location) ? (
+          {(client.location) ? (
             <div className="f-row">
               <div className="f-key">Location</div>
-              <div className="f-val">{client.country || client.location}</div>
+              <div className="f-val">{client.location}</div>
+            </div>
+          ) : null}
+          {(client.country) ? (
+            <div className="f-row">
+              <div className="f-key">Country</div>
+              <div className="f-val">{client.country}</div>
+            </div>
+          ) : null}
+          {(client.currency) ? (
+            <div className="f-row">
+              <div className="f-key">Currency</div>
+              <div className="f-val">{client.currency}</div>
             </div>
           ) : null}
           <div className="f-row">
@@ -213,8 +225,11 @@ function ClientTable({
             <th>Generated ID</th>
             <th>Name</th>
             <th>Company</th>
-            <th>Email / Phone</th>
+            <th>Email</th>
+            <th>Phone</th>
             <th>Location</th>
+            <th>Country</th>
+            <th>Currency</th>
             <th>Signup Date</th>
             {showRejectionNote && <th>Rejected Reason</th>}
             {showActions && <th>Actions</th>}
@@ -230,13 +245,13 @@ function ClientTable({
               <td>
                 <span className="ref-code">{c.client_id}</span>
               </td>
-              <td className="font-semibold">{c.contact_name}</td>
+              <td className="font-semibold whitespace-nowrap">{c.contact_name}</td>
               <td className="text-text-muted">{c.company_name || '—'}</td>
-              <td>
-                <div className="text-[12px]">{c.email}</div>
-                <div className="font-mono text-[11px] text-text-muted">{c.contact_number}</div>
-              </td>
-              <td className="text-text-muted">{c.country || c.location || '—'}</td>
+              <td className="text-[12px]">{c.email}</td>
+              <td className="font-mono text-[11px] text-text-muted">{c.contact_number}</td>
+              <td className="text-text-muted">{c.location || '—'}</td>
+              <td className="text-text-muted">{c.country || '—'}</td>
+              <td className="text-text-muted font-mono">{c.currency || '—'}</td>
               <td className="text-text-muted text-[12px]">
                 {new Date(c.created_at).toLocaleDateString()}
               </td>
@@ -277,15 +292,27 @@ function ClientTable({
 
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
-export function ClientApproveTab() {
+export function ClientApproveTab({ autoOpenUserId }: { autoOpenUserId?: string }) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('pending');
   const [approvingClient, setApprovingClient] = useState<IClient | null>(null);
   const [rejectingClient, setRejectingClient] = useState<IClient | null>(null);
   const [selectedClient, setSelectedClient] = useState<IClient | null>(null);
+  const autoOpened = useRef(false);
 
   const pending = usePendingClients();
   const approved = useApprovedClients();
   const rejected = useRejectedClients();
+
+  // Auto-open the client detail modal when navigated from a notification.
+  useEffect(() => {
+    if (!autoOpenUserId || autoOpened.current || !pending.data) return;
+    const match = pending.data.find((c) => c.user_id === autoOpenUserId);
+    if (match) {
+      autoOpened.current = true;
+      setActiveSubTab('pending');
+      setSelectedClient(match);
+    }
+  }, [autoOpenUserId, pending.data]);
 
   const subTabs: { key: SubTab; label: string; count?: number }[] = [
     { key: 'pending', label: 'Pending', count: pending.data?.length },
