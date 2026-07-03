@@ -187,7 +187,7 @@ export function AdminClientsPage() {
               className={`btn ${tab === 'approve' ? 'btn-crimson' : 'btn-outline'}`}
               onClick={() => setTab('approve')}
             >
-              Client Approve
+              Sign Up Requests
               {pendingApprovalsCount > 0 ? (
                 <span
                   className="ml-1 inline-flex items-center justify-center text-[10px] font-bold rounded-full px-1.5"
