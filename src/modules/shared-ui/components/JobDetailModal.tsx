@@ -1777,7 +1777,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                     className="text-[12.5px] leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap"
                     style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', color: '#0C4A6E' }}
                   >
-                    {clientText}
+                    <ExpandableText text={clientText} color="#2563EB" />
                   </div>
                 </div>
               );
@@ -1788,10 +1788,10 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
               <div className="mb-5">
                 <SectionLabel>NOTES / BRIEF</SectionLabel>
                 <div
-                  className="text-[12.5px] leading-relaxed p-3.5 rounded-xl"
+                  className="text-[12.5px] leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap"
                   style={{ background: '#F8FAFC', border: '1px solid #E8EDF5', color: '#475569' }}
                 >
-                  {displayJob.notes}
+                  <ExpandableText text={displayJob.notes} color="#B22234" />
                 </div>
               </div>
             ) : null}
@@ -2932,6 +2932,35 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
         </div>
       ) : null}
 
+    </div>
+  );
+}
+
+const TEXT_COLLAPSE_CHARS = 300;
+const TEXT_COLLAPSE_LINES = 4;
+
+function ExpandableText({ text, color = '#B22234' }: { text: string; color?: string }) {
+  const isLong = text.length > TEXT_COLLAPSE_CHARS || text.split('\n').length > TEXT_COLLAPSE_LINES;
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => { setExpanded(false); }, [text]);
+  const preview = isLong && !expanded ? text.slice(0, TEXT_COLLAPSE_CHARS).trimEnd() : text;
+
+  return (
+    <div>
+      <div style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
+        {preview}
+        {isLong && !expanded ? '…' : null}
+      </div>
+      {isLong ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-2 text-[11.5px] font-semibold"
+          style={{ color, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+        >
+          {expanded ? 'Show less ↑' : 'View more ↓'}
+        </button>
+      ) : null}
     </div>
   );
 }
