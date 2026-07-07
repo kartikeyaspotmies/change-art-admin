@@ -88,6 +88,11 @@ function orderAccent(order: string): string {
   return map[order] ?? 'gray';
 }
 
+function displayStatus(status: string): string {
+  if (status === 'Quote Approved') return 'Quote Sent';
+  return status;
+}
+
 function statusAccent(status: string): string {
   const map: Record<string, string> = {
     'In QC': 'teal', 'In Production': 'amber', Pending: 'blue', 'Senior Review': 'purple',
@@ -721,7 +726,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                   </>
                 )}
                 */}
-                <span className={cn('badge', statusAccent(job.status))}>{job.status}</span>
+                <span className={cn('badge', statusAccent(job.status))}>{displayStatus(job.status)}</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-2.5 flex-shrink-0">
@@ -1437,8 +1442,8 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                           <AlertCircle className="w-3 h-3 shrink-0" style={{ marginTop: 1 }} aria-hidden />
                           <span>
                             {quoteSent
-                              ? <>Price already sent. Status is <b>Quote Approved</b> — awaiting client confirmation.</>
-                              : <>Sending price updates status to <b>Quote Approved</b> and requests client confirmation.</>}
+                              ? <>Price already sent. Status is <b>Quote Sent</b> — awaiting client confirmation.</>
+                              : <>Sending price updates status to <b>Quote Sent</b> and requests client confirmation.</>}
                           </span>
                         </div>
 

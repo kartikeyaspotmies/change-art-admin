@@ -1460,7 +1460,7 @@ export function CreateJobForm({ mode, clients = [], clientsLoading = false, clie
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                    <Field name="design" label="DESIGN NAME" required placeholder=" " maxLength={30} fieldError={fieldErrors.has('design')} onChange={() => clearFieldError('design')} />
+                    <Field name="design" label="DESIGN NAME" required placeholder=" " maxLength={150} fieldError={fieldErrors.has('design')} onChange={() => clearFieldError('design')} />
 
                     <Field
                       name="client_po"
