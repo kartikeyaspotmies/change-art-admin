@@ -330,7 +330,7 @@ function DeliveredView({
                 */}
                 <Badge accent={statusBadgeAccent(job.status)}>{statusDisplay(job.status)}</Badge>
               </div>
-              <div className="text-[15px] font-bold text-text-main">{job.design}</div>
+              <div className="text-[15px] font-bold text-text-main line-clamp-2 break-words">{job.design}</div>
               <div className="text-[12px] text-text-muted mt-0.5">
                 Order Type: {job.order} &middot; Assigned: {job.assignedTo || 'Unassigned'}
               </div>
