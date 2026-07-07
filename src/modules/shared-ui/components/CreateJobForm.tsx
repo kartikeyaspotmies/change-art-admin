@@ -2073,7 +2073,7 @@ export function CreateJobForm({ mode, clients = [], clientsLoading = false, clie
             {/* Body */}
             <div className="px-5 py-4 text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
               <div className="mb-2">
-                <span className="font-bold" style={{ color: 'var(--text-main)' }}>{pendingOrderData.design_name}</span>
+                <span className="font-bold line-clamp-2 break-words" style={{ color: 'var(--text-main)' }}>{pendingOrderData.design_name}</span>
                 {selectedClientData ? <> &mdash; {selectedClientData.client_name}</> : null}
               </div>
               <ul className="list-disc pl-5 space-y-1">

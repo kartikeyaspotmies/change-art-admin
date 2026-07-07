@@ -644,7 +644,7 @@ export function EditJobModal({ job, onClose, onBack, onSave }: EditJobModalProps
                 <span style={{ color: '#CBD5E1' }}>·</span>
                 <span>Edit Job</span>
               </div>
-              <h2 className="text-[20px] font-extrabold leading-tight" style={{ color: '#0D1B2A' }}>
+              <h2 className="text-[20px] font-extrabold leading-tight line-clamp-2 break-words" style={{ color: '#0D1B2A' }}>
                 {form.design || job.design}
               </h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">
