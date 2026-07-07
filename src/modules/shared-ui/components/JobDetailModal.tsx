@@ -704,7 +704,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                 <span>{job.ref}</span>
                 <span className={cn('priority-badge', priorityClass(job.priority))}>{job.priority}</span>
               </div>
-              <h2 className="text-[20px] font-extrabold leading-tight line-clamp-2 break-words" style={{ color: '#0D1B2A' }}>
+              <h2 className="text-[20px] font-extrabold leading-tight break-words" style={{ color: '#0D1B2A' }}>
                 {job.design}
               </h2>
               <div className="flex flex-wrap items-center gap-1.5 mt-2">

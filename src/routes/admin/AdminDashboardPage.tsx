@@ -235,7 +235,7 @@ export function AdminDashboardPage() {
           {isLoading ? (
             <div className="flex items-center justify-center py-8 text-text-faint text-sm">Loading…</div>
           ) : (
-            <JobTable jobs={newJobs} defaultView="grid" showActions />
+            <JobTable jobs={newJobs} defaultView="table" showActions />
           )}
 
           <div className="mt-7">
@@ -246,7 +246,7 @@ export function AdminDashboardPage() {
             {isLoading ? (
               <div className="flex items-center justify-center py-8 text-text-faint text-sm">Loading…</div>
             ) : (
-              <JobTable jobs={newQuotes} defaultView="grid" showActions quoteView />
+              <JobTable jobs={newQuotes} defaultView="table" showActions quoteView />
             )}
           </div>
         </div>
