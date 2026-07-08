@@ -1402,7 +1402,8 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                             value={noteToClient}
                             readOnly={quoteSent}
                             disabled={quoteSent}
-                            onChange={(e) => setNoteToClient(e.target.value)}
+                            maxLength={500}
+                            onChange={(e) => setNoteToClient(e.target.value.slice(0, 500))}
                             placeholder={quoteSent && !noteToClient ? '— No note sent —' : undefined}
                             style={{
                               width: '100%',
@@ -1421,6 +1422,17 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                               cursor: quoteSent ? 'not-allowed' : 'text',
                             }}
                           />
+                          {!quoteSent ? (
+                            <div
+                              style={{
+                                textAlign: 'right', fontSize: 10, marginTop: 3,
+                                color: noteToClient.length >= 500 ? '#B22234' : '#92400E',
+                                opacity: 0.65, fontWeight: 600,
+                              }}
+                            >
+                              {noteToClient.length}/500
+                            </div>
+                          ) : null}
                         </div>
 
                         {/* Info banner — message swaps when the price has
