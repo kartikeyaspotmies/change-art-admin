@@ -2235,7 +2235,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
               onClick={() => openSendMailModal()}
             >
               <Send className="w-3.5 h-3.5" aria-hidden />
-              Dispatch Client
+              Dispatch Project
             </button>
           ) : null}
           {normalizedStatus(job) === 'MODIFICATION_REQUESTED' ? (
@@ -2280,7 +2280,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
               onClick={() => setShowDispatchConfirm(true)}
             >
               <Send className="w-3.5 h-3.5" aria-hidden />
-              Dispatch to Client
+              Dispatch Project
             </button>
           ) : null}
         </div>
