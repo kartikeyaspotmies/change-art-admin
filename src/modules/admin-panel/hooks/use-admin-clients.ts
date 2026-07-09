@@ -86,6 +86,19 @@ export function useSetClientActive() {
   });
 }
 
+/** Admin: send the Credit Card Authorization Form to a client's registered email. */
+export function useSendCcForm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminService.sendCcForm(id),
+    onSuccess: (client) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.clients.all() });
+      toast.success(`CC Form sent to ${client.company_name ?? client.client_name}`);
+    },
+    onError: (err) => toastApiError(err),
+  });
+}
+
 export function useDeleteClient() {
   const qc = useQueryClient();
   return useMutation({
