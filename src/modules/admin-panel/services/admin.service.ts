@@ -289,6 +289,11 @@ export const adminService = {
     });
   },
 
+  /** Admin: send the Credit Card Authorization Form to a client's registered email. */
+  sendCcForm(id: string): Promise<IClient> {
+    return apiClient.post<IClient, Record<string, never>>(`/api/v1/clients/${id}/send-cc-form`, {});
+  },
+
   /** List self-registered clients awaiting admin approval. */
   getPendingClients(): Promise<IClient[]> {
     return apiClient.get<IClient[]>('/api/v1/clients/pending');
