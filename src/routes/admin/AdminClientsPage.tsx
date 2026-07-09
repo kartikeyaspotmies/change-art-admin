@@ -21,17 +21,7 @@ const PER_PAGE = 20;
 
 type Tab = 'clients' | 'requests' | 'approve';
 
-function formatPaymentMode(mode: PaymentMode | null): string {
-  if (!mode) return '—';
-  const map: Record<PaymentMode, string> = {
-    [PaymentMode.CREDIT_CARD]: 'Credit Card',
-    [PaymentMode.CARD_ON_FILE]: 'Card on File',
-    [PaymentMode.ACH]: 'ACH',
-    [PaymentMode.PAYPAL]: 'PayPal',
-    [PaymentMode.CHECK]: 'Check',
-  };
-  return map[mode] ?? mode;
-}
+
 
 function currentMonthCount(items: { created_at: string }[]): number {
   const now = new Date();
