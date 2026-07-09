@@ -5,7 +5,7 @@ import { ConfirmModal, GreetingHero, Pagination, Panel, RowActionsMenu, StatGrid
 import { PaymentMode } from '@contracts';
 import type { IClient } from '@contracts';
 import { formatDateTime } from '@lib/utils';
-import { useAdminClients, useSendCcForm, useSetClientActive, useSetClientHotlisted } from '../../modules/admin-panel/hooks/use-admin-clients';
+import { useAdminClients, useSendCcForm, useAdminClientById, useSetClientActive, useSetClientHotlisted } from '../../modules/admin-panel/hooks/use-admin-clients';
 import { useProfileChangeRequests } from '../../modules/admin-panel/hooks/use-profile-change-requests';
 import {
   ClientDetailModal,
@@ -87,7 +87,13 @@ export function AdminClientsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [hotlistedOnly, setHotlistedOnly] = useState(false);
-  const [selected, setSelected] = useState<{ client: IClient; mode: ClientModalMode } | null>(null);
+  // Track only the id + mode, not the clicked row's snapshot — the snapshot
+  // never updates again once stored. Deriving the live client below from
+  // `useAdminClientById` means the open modal re-fetches and reflects changes
+  // in real time (e.g. the CLIENT_UPDATED socket event firing when the client
+  // edits their own profile/payment details), matching the same fix applied
+  // to job cards.
+  const [selected, setSelected] = useState<{ clientId: string; mode: ClientModalMode } | null>(null);
   const [addClientOpen, setAddClientOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<IClient | null>(null);
   const [hotlistTarget, setHotlistTarget] = useState<IClient | null>(null);
@@ -95,10 +101,11 @@ export function AdminClientsPage() {
 
   const setActive = useSetClientActive();
   const setHotlisted = useSetClientHotlisted();
+  const { data: selectedClient } = useAdminClientById(selected?.clientId ?? null);
   const sendCcForm = useSendCcForm();
 
   function openClient(client: IClient, mode: ClientModalMode) {
-    setSelected({ client, mode });
+    setSelected({ clientId: client.id, mode });
   }
 
   const debouncedSearch = useDebounced(search, 300);
@@ -441,7 +448,7 @@ export function AdminClientsPage() {
       />
 
       <ClientDetailModal
-        client={selected?.client ?? null}
+        client={selectedClient ?? null}
         mode={selected?.mode}
         onClose={() => setSelected(null)}
       />
