@@ -96,8 +96,21 @@ export interface IClient {
   is_active: boolean;
   deactivated_at: IsoDateTime | null;
   deactivated_by: string | null;
+  /** When an admin last sent the Credit Card Authorization Form to this client. */
+  cc_form_sent_at: IsoDateTime | null;
+  cc_form_sent_by: string | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
+}
+
+/** The single active Credit Card Authorization Form template for a tenant. */
+export interface ICcAuthorizationForm {
+  id: string;
+  file_name: string;
+  file_type: string;
+  file_size_bytes: number;
+  uploaded_by: string;
+  uploaded_at: IsoDateTime;
 }
 
 /**
