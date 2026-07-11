@@ -73,6 +73,8 @@ interface JobTableProps {
   compact?: boolean;
   /** Number of columns for large screens in grid view */
   gridCols?: 3 | 4;
+  /** Table view only: hide the Job ref, Created date, and Action columns — dashboard widgets only. */
+  minimalColumns?: boolean;
 }
 
 /**
@@ -96,6 +98,7 @@ export function JobTable({
   onInitialOpenHandled,
   compact = false,
   gridCols = 4,
+  minimalColumns = false,
 }: JobTableProps) {
   const [view, setView] = useState<JobView>(defaultView);
   const [query, setQuery] = useState('');
@@ -221,6 +224,7 @@ export function JobTable({
             onOpen={handleOpen}
             renderRowActions={renderRowActions}
             className={cn(view === 'table' ? 'hidden md:block' : 'hidden')}
+            minimalColumns={minimalColumns}
           />
           <GridView
             jobs={filtered}
@@ -539,26 +543,29 @@ function TableView({
   onOpen,
   renderRowActions,
   className,
+  minimalColumns = false,
 }: {
   jobs: Job[];
   onOpen?: (job: Job) => void;
   renderRowActions?: (job: Job) => ReactNode;
   className?: string;
+  /** Hide the Job ref, Created date, and Action columns — dashboard widgets only. */
+  minimalColumns?: boolean;
 }) {
   return (
-    <div className={cn("table-view", className)}>
+    <div className={cn("table-view", minimalColumns && "minimal-columns", className)}>
       <table className="data-table">
         <thead>
           <tr>
             <th>Job</th>
             <th>Design Name</th>
-            <th>Preview</th>
+            {/* <th>Preview</th> */}
             <th>Order</th>
             <th>Type</th>
-            <th>Priority</th>
+            <th>Priority</th> 
             <th>Status</th>
-            <th>Created</th>
-            <th>Action</th>
+            {!minimalColumns && <th>Created</th>}
+            {!minimalColumns && <th>Action</th>}
           </tr>
         </thead>
         <tbody>
@@ -567,8 +574,7 @@ function TableView({
               <td>
                 <div className="job-cell">
                   <div>
-                    <span className="ref-code">{j.id}</span>
-                    <div className="text-[10.5px] text-text-muted font-medium mt-0.5">{j.ref}</div>
+                    <span className="ref-code">{j.ref}</span>
                   </div>
                 </div>
               </td>
@@ -586,7 +592,7 @@ function TableView({
                   {j.design}
                 </span>
               </td>
-              <td>
+              {/* <td>
                 <img
                   className="table-preview"
                   src={jobImage(j, 0, 220, 160)}
@@ -595,36 +601,40 @@ function TableView({
                   referrerPolicy="no-referrer"
                   onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                 />
-              </td>
+              </td> */}
               <td><Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge></td>
               <td><Badge accent={projectTypeBadgeAccent(j.project)}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</Badge></td>
               <td><PriorityChip priority={j.priority} /></td>
               <td><Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge></td>
-              <td className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</td>
-              <td onClick={(e) => e.stopPropagation()}>
-                {renderRowActions ? renderRowActions(j) : (
-                  j.stage === 'delivered' ? (
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      style={{ fontSize: 12, padding: '5px 12px', gap: 5 }}
-                      onClick={() => onOpen?.(j)}
-                    >
-                      <Download className="w-3.5 h-3.5" aria-hidden />
-                      Download
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-outline"
-                      style={{ fontSize: 12, padding: '5px 12px' }}
-                      onClick={() => onOpen?.(j)}
-                    >
-                      View
-                    </button>
-                  )
-                )}
-              </td>
+              {!minimalColumns && (
+                <td className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</td>
+              )}
+              {!minimalColumns && (
+                <td onClick={(e) => e.stopPropagation()}>
+                  {renderRowActions ? renderRowActions(j) : (
+                    j.stage === 'delivered' ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        style={{ fontSize: 12, padding: '5px 12px', gap: 5 }}
+                        onClick={() => onOpen?.(j)}
+                      >
+                        <Download className="w-3.5 h-3.5" aria-hidden />
+                        Download
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        style={{ fontSize: 12, padding: '5px 12px' }}
+                        onClick={() => onOpen?.(j)}
+                      >
+                        View
+                      </button>
+                    )
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -789,10 +799,7 @@ function ListView({
               <span className="list-ref">{j.ref || j.id}</span>
               <PriorityChip priority={j.priority} />
               {j.specificType && (
-                <>
-                  <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>·</span>
-                  <span className="list-meta">{j.specificType}</span>
-                </>
+                <Badge accent={orderBadgeAccent(j.order)}>{j.specificType}</Badge>
               )}
             </div>
 

@@ -42,7 +42,13 @@ function mapPriority(display: string): string | undefined {
   }
 }
 
-function mapStatusFilter(display: string): { status?: string; stage?: string; statuses?: string; unacknowledged?: boolean } {
+function mapStatusFilter(display: string): {
+  status?: string;
+  stage?: string;
+  statuses?: string;
+  unacknowledged?: boolean;
+  include_ack_placed?: boolean;
+} {
   switch (display) {
     case 'Order Placed':
       return { status: 'JOB_PLACED' };
@@ -50,9 +56,13 @@ function mapStatusFilter(display: string): { status?: string; stage?: string; st
       // JOB_PLACED jobs that haven't been acknowledged yet (display as "Pending" in the adapter)
       return { status: 'JOB_PLACED', unacknowledged: true };
     case 'In Production':
-      // Statuses that always display as "In Production" — excludes JOB_PLACED which
-      // shows as "Pending" until the CS acknowledgement is sent.
-      return { statuses: 'CS_APPROVED,ASSIGNED,IN_PROGRESS,SENIOR_REJECTED,QC_REJECTED' };
+      // Matches the adapter's "In Production" label: the non-JOB_PLACED junior
+      // stages, PLUS JOB_PLACED rows that HAVE been acknowledged (JOB_PLACED
+      // without acknowledgement displays as "Pending" instead — see below).
+      return {
+        statuses: 'CS_APPROVED,ASSIGNED,IN_PROGRESS,SENIOR_REJECTED,QC_REJECTED',
+        include_ack_placed: true,
+      };
     case 'Senior Review':
       return { stage: 'senior' };
     case 'Sewout':
@@ -87,6 +97,15 @@ export function AdminJobsPage() {
 
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<JobFilters>({ ...EMPTY_FILTERS, status: initialStatus });
+
+  // Keep the filter bar's status in sync if the URL's ?filter= changes —
+  // e.g. navigating here again from a different dashboard stat card while
+  // this route is already mounted, which does not re-run the useState
+  // initializer above.
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, status: initialStatus }));
+    setPage(1);
+  }, [initialStatus]);
 
   const debouncedSearch = useDebounced(filters.search, 300);
   // per_page: 500 — needed to populate the client filter dropdown with all client names.
@@ -126,6 +145,14 @@ export function AdminJobsPage() {
   function handleFiltersChange(next: JobFilters) {
     setFilters(next);
     setPage(1);
+    // Once the user picks a different status than whatever ?filter= seeded
+    // it with, drop the URL param so the title/subtitle (and the resync
+    // effect above) stop referring to the old status.
+    if (next.status !== initialStatus) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('filter');
+      setSearchParams(nextParams, { replace: true });
+    }
   }
 
   if (isError) {

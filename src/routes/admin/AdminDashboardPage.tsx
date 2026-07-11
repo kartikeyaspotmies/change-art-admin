@@ -294,7 +294,7 @@ export function AdminDashboardPage() {
           {isLoading ? (
             <div className="flex items-center justify-center py-8 text-text-faint text-sm">Loading…</div>
           ) : (
-            <JobTable jobs={newJobs} defaultView="table" showActions gridCols={3} />
+            <JobTable jobs={newJobs} defaultView="grid" showActions gridCols={3} minimalColumns />
           )}
 
           <div className="mt-7">
@@ -305,7 +305,7 @@ export function AdminDashboardPage() {
             {isLoading ? (
               <div className="flex items-center justify-center py-8 text-text-faint text-sm">Loading…</div>
             ) : (
-              <JobTable jobs={newQuotes} defaultView="table" showActions quoteView gridCols={3} />
+              <JobTable jobs={newQuotes} defaultView="grid" showActions quoteView gridCols={3} minimalColumns />
             )}
           </div>
         </div>
