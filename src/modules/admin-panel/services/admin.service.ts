@@ -56,6 +56,7 @@ export interface JobCardFilters {
   pipeline?: string;
   exclude_stage?: string;
   unacknowledged?: boolean;
+  include_ack_placed?: boolean;
 }
 
 export interface ClientFilters {
