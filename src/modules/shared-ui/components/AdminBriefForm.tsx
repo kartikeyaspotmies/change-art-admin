@@ -413,9 +413,9 @@ export function AdminBriefForm({
       }
     } else {
       window.setTimeout(() => {
-        window.history.pushState({ briefStep: 2 }, '');
         setPhase(2);
         document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 220);
     }
   }
@@ -439,36 +439,10 @@ export function AdminBriefForm({
     [previews],
   );
 
-  useEffect(() => {
-    if (window.history.state?.briefStep === 3) {
-      setPhase(3);
-    } else if (window.history.state?.briefStep === 2) {
-      setPhase(2);
-    } else {
-      window.history.replaceState({ briefStep: 1 }, '');
-    }
-
-    const handlePop = (e: PopStateEvent) => {
-      if (e.state?.briefStep === 3) {
-        setPhase(3);
-        document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
-      } else if (e.state?.briefStep === 2) {
-        setPhase(2);
-        document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        setPhase(1);
-        document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-    };
-
-    window.addEventListener('popstate', handlePop);
-    return () => window.removeEventListener('popstate', handlePop);
-  }, []);
-
   function advanceToPhase3() {
-    window.history.pushState({ briefStep: 3 }, '');
     setPhase(3);
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function goToPhase2() {
@@ -477,14 +451,9 @@ export function AdminBriefForm({
       return;
     }
     const services = SPECIFIC_SERVICES[orderType] ?? [];
-    if (services.length === 0) {
-      window.history.pushState({ briefStep: 3 }, '');
-      setPhase(3);
-    } else {
-      window.history.pushState({ briefStep: 2 }, '');
-      setPhase(2);
-    }
+    setPhase(services.length === 0 ? 3 : 2);
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function goToPhase3() {
@@ -492,13 +461,24 @@ export function AdminBriefForm({
       toast.error('Please select a specific service to continue.');
       return;
     }
-    window.history.pushState({ briefStep: 3 }, '');
     setPhase(3);
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function goToPhase1() {
-    window.history.back();
+    setPhase(1);
+    document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goToPhase(target: 1 | 2 | 3) {
+    if (target === phase) return;
+    if (target === 2 && !hasSelection) return;
+    if (target === 3 && needsService && !specificService) return;
+    setPhase(target);
+    document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function resolveOrderType(service: string): OrderType {
@@ -807,60 +787,92 @@ export function AdminBriefForm({
   return (
     <>
       <form ref={formRef} onSubmit={handleSubmit} className="max-w-[920px] mx-auto">
-        <div className="qf-card">
-          {/* ── Phase stepper ─────────────────────────────────────── */}
-          <div className="form-phase-stepper">
-            <div className="fps-title-block">
-              {phase === 2 && (specificService || selectedService) ? (
-                <>
-                  <span className="fps-mode-label">{specificService || selectedService}</span>
-                  <span className="fps-service-label">
-                    {ORDER_TYPES.find((t) => t.id === orderType)?.label ?? ''}
-                  </span>
-                </>
-              ) : (
-                <span className="fps-mode-label">
-                  {isOrder ? 'Place New Order' : 'Request Quote'}
-                </span>
-              )}
-            </div>
-
-            <div className="fps-right-col">
-              <div className="fps-tracker">
-                <div className={cn('fps-step', phase === 1 && 'active', phase >= 2 && 'done')}>
-                  <div className="fps-num">
-                    {phase >= 2 ? <Check className="w-3 h-3" strokeWidth={3} aria-hidden /> : '1'}
-                  </div>
-                  <span>Service Type</span>
-                </div>
-                <div className={cn('fps-connector', phase >= 2 && 'done')} />
-                <div className={cn('fps-step', phase === 2 && 'active', phase >= 3 && 'done')}>
-                  <div className="fps-num">
-                    {phase >= 3 ? <Check className="w-3 h-3" strokeWidth={3} aria-hidden /> : '2'}
-                  </div>
-                  <span>Specific Service</span>
-                </div>
-                <div className={cn('fps-connector', phase >= 3 && 'done')} />
-                <div className={cn('fps-step', phase === 3 && 'active')}>
-                  <div className="fps-num">3</div>
-                  <span>Project Details</span>
-                </div>
+        {/* ── Phase stepper (separate bar card) ─────────────────── */}
+        <div className="form-phase-stepper">
+          <div className="fps-tracker">
+            {/* Step 1 — Service Type */}
+            <button
+              type="button"
+              className={cn('fps-step', phase === 1 && 'active', phase >= 2 && 'done')}
+              onClick={() => goToPhase(1)}
+              disabled={phase < 2}
+              aria-current={phase === 1 ? 'step' : undefined}
+            >
+              <div className="fps-num">
+                {phase >= 2 ? <Check className="w-3 h-3" strokeWidth={3} aria-hidden /> : '1'}
               </div>
-              <div className="fps-required-note">
-                All fields marked <span style={{ color: 'var(--color-crimson)', margin: '0 2px' }}>*</span> are required
+              <div className="fps-step-info">
+                <span className="fps-step-label">Service Type</span>
+                <span className="fps-step-status">
+                  {phase >= 2 ? 'Completed' : 'InProgress'}
+                </span>
+              </div>
+            </button>
+
+            <div className={cn('fps-connector', phase >= 2 && 'done')} />
+
+            {/* Step 2 — Specific Service */}
+            <button
+              type="button"
+              className={cn('fps-step', phase === 2 && 'active', phase >= 3 && 'done')}
+              onClick={() => goToPhase(2)}
+              disabled={!(phase >= 3 || (phase === 1 && hasSelection))}
+              aria-current={phase === 2 ? 'step' : undefined}
+            >
+              <div className="fps-num">
+                {phase >= 3 ? <Check className="w-3 h-3" strokeWidth={3} aria-hidden /> : '2'}
+              </div>
+              <div className="fps-step-info">
+                <span className="fps-step-label">Specific Service</span>
+                <span className="fps-step-status">
+                  {phase >= 3 ? 'Completed' : phase === 2 ? 'InProgress' : 'Pending'}
+                </span>
+              </div>
+            </button>
+
+            <div className={cn('fps-connector', phase >= 3 && 'done')} />
+
+            {/* Step 3 — Project Details */}
+            <div className={cn('fps-step', phase === 3 && 'active')}>
+              <div className="fps-num">3</div>
+              <div className="fps-step-info">
+                <span className="fps-step-label">Project Details</span>
+                <span className="fps-step-status">
+                  {phase === 3 ? 'InProgress' : 'Pending'}
+                </span>
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="qf-card">
+          {/* Back link inside main card — visible on phases 2 & 3 */}
+          {phase > 1 && (
+            <div className="fps-back-row">
+              <button
+                type="button"
+                className="fps-back-link"
+                onClick={() => {
+                  if (phase === 3 && needsService) {
+                    goToPhase(2);
+                  } else {
+                    goToPhase(1);
+                  }
+                }}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Back to {phase === 3 && needsService ? 'Specific Service' : 'Service Type'}
+              </button>
+            </div>
+          )}
 
           <div className="qf-body">
             {/* ── PHASE 1 — Service Type ──────────────────────────── */}
             {phase === 1 && (
-              <div className="qf-section" style={{ borderBottom: 'none', marginBottom: 0 }}>
-                <div className="qf-section-header">
-                  <div className="qf-step-num">1</div>
-                  <span className="qf-section-title">
-                    {isOrder ? 'Place New Order' : 'New Quote Request'} — Select Service Type
-                  </span>
+              <div className="qf-phase-panel">
+                <div className="qf-phase-heading">
+                  <div className="qf-step-bubble">1</div>
+                  <h2 className="qf-phase-title">Select Service Type</h2>
+                  <p className="qf-phase-sub">Please select the type of service you need. You will choose the specific service in the next step.</p>
                 </div>
 
                 <div className="qf-order-grid">
@@ -879,8 +891,20 @@ export function AdminBriefForm({
                   ))}
                 </div>
 
-                <div className="phase-nav" style={{ marginTop: 28 }}>
-                  <button type="button" className="btn btn-navy" onClick={goToPhase2}>
+                {/* Help banner */}
+                <div className="qf-help-banner">
+                  <div className="qf-help-inner">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-crimson)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
+                    <div>
+                      <div className="qf-help-title">Need help choosing?</div>
+                      <div className="qf-help-desc">Our team is here to help you select the right service for your requirement. You can discuss after submitting your request.</div>
+                    </div>
+                  </div>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.15)" strokeWidth="1.5" aria-hidden><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 11.6 19.79 19.79 0 0 1 1.58 3a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" /></svg>
+                </div>
+
+                <div className="phase-nav" style={{ marginTop: 24 }}>
+                  <button type="button" className="btn btn-crimson" onClick={goToPhase2}>
                     Continue
                     <ArrowRight aria-hidden className="w-3.5 h-3.5" />
                   </button>
@@ -890,20 +914,17 @@ export function AdminBriefForm({
 
             {/* ── PHASE 2 — Specific Service ──────────────────────────── */}
             {phase === 2 && (
-              <div className="qf-section" style={{ borderBottom: 'none', marginBottom: 0 }}>
-                <div className="qf-section-header">
-                  <div className="qf-step-num">2</div>
-                  <span className="qf-section-title">
-                    Select Specific Service
-                  </span>
+              <div className="qf-phase-panel">
+                <div className="qf-phase-heading">
+                  <div className="qf-step-bubble">2</div>
+                  <h2 className="qf-phase-title">Select Specific Service</h2>
+                  <p className="qf-phase-sub">
+                    Choose the {ORDER_TYPES.find((t) => t.id === orderType)?.label} service you need.<br />
+                    Each service is designed to meet your specific requirements.
+                  </p>
                 </div>
 
-                <div style={{ textAlign: 'center', marginBottom: 20, color: 'var(--text-muted)', fontSize: 13 }}>
-                  Choose the {ORDER_TYPES.find((t) => t.id === orderType)?.label.toLowerCase()} service you need.<br />
-                  Each service is designed to meet your specific requirements.
-                </div>
-
-                <div className="qf-order-grid qf-order-grid--services" style={{ maxHeight: '290px', overflowY: 'auto', padding: '8px', marginTop: '-8px', marginLeft: '-8px', marginRight: '-8px', marginBottom: '12px' }}>
+                <div className="qf-services-grid">
                   {SPECIFIC_SERVICES[orderType]?.map((s) => (
                     <button
                       key={s.label}
@@ -912,21 +933,18 @@ export function AdminBriefForm({
                         setSpecificService(s.label);
                         window.setTimeout(advanceToPhase3, 220);
                       }}
-                      className={cn('qf-order-card', specificService === s.label && 'active')}
+                      className={cn('qf-service-card', specificService === s.label && 'active')}
                       aria-pressed={specificService === s.label}
                     >
                       <span className="qf-order-icon">{s.icon}</span>
-                      <div className="qf-order-label">{s.label}</div>
-                      <div className="qf-order-sub">{s.sub}</div>
+                      <div className="qf-service-label">{s.label}</div>
+                      <div className="qf-service-sub">{s.sub}</div>
                     </button>
                   ))}
                 </div>
 
-                <div className="phase-nav" style={{ marginTop: 28 }}>
-                  <button type="button" style={{ border: '1px solid var(--glass-border)', padding: '10px 20px', borderRadius: '8px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }} onClick={() => { window.history.back(); }}>
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Service Type
-                  </button>
-                  <button type="button" className="btn btn-navy" onClick={goToPhase3}>
+                <div className="phase-nav" style={{ marginTop: 24, justifyContent: 'center' }}>
+                  <button type="button" className="btn btn-crimson" onClick={goToPhase3}>
                     Continue to Project Details <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
