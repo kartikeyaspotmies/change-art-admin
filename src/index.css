@@ -4325,6 +4325,20 @@ html[data-theme='light'] .mb-track {
     }
   }
 
+  /* Specific-service grid can have anywhere from 1 to 10+ cards — a fixed
+     5-column grid leaves a lopsided, left-aligned row when there are few.
+     Flex + centered wrap keeps a short list centered instead. */
+  .qf-order-grid--services {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .qf-order-grid--services .qf-order-card {
+    flex: 0 0 auto;
+    width: 200px;
+  }
+
   .qf-order-card {
     position: relative;
     text-align: center;

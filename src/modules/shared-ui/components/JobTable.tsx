@@ -657,7 +657,7 @@ function GridView({
   gridCols?: 3 | 4;
 }) {
   return (
-    <div className={cn("grid-view grid grid-cols-2 md:grid-cols-3 gap-2.5 py-2", gridCols === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4", className)}>
+    <div className={cn("grid-view grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 py-2 min-w-0", gridCols === 3 ? "2xl:grid-cols-3" : "2xl:grid-cols-4", className)}>
       {jobs.map((j) => {
         const actionRequired = j.status === 'Pending Client Confirm' || j.status === 'Quote Approved';
         const agencyPrice = j.negotiation?.agencyOffer ?? j.adminPrice ?? null;
@@ -667,7 +667,7 @@ function GridView({
         return (
           <article
             key={j.id}
-            className={cn('job-card', priorityCardClass(j.priority), actionRequired && 'job-card-attention')}
+            className={cn('job-card min-w-0', priorityCardClass(j.priority), actionRequired && 'job-card-attention')}
             onClick={() => onOpen?.(j)}
             role="button"
             tabIndex={0}
@@ -698,14 +698,14 @@ function GridView({
                 <div className="w-full h-[160px]" />
               )}
             </div>
-            <div className="jc-body">
+            <div className="jc-body flex flex-col flex-1">
               <div className={cn('jc-subtitle', projectTypeBadgeAccent(j.project))}>
                 <span className="jc-subtitle-dot" aria-hidden />
                 {sourceSubtitleFor(j.project, j.modificationCount)}
               </div>
               <div className="jc-title" title={j.design}>{j.design}</div>
               {category ? <div className="jc-category">{category}</div> : null}
-              <div className="jc-info-rows">
+              <div className="jc-info-rows mt-auto">
                 <InfoRow icon={DeptIcon} label="Department" accent={orderBadgeAccent(j.order)}>
                   <Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge>
                 </InfoRow>
