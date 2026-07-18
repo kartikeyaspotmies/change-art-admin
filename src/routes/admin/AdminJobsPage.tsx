@@ -50,6 +50,13 @@ function mapStatusFilter(display: string): {
   include_ack_placed?: boolean;
 } {
   switch (display) {
+    case 'In Review':
+      return { status: 'DRAFT' };
+    case 'Quote Submitted':
+      // Quote sent to the client, awaiting their approval/rejection —
+      // JobStatus.QUOTE_SUBMITTED specifically, not the whole 'quote' stage
+      // (which would also pull in DRAFT/'In Review' rows).
+      return { status: 'QUOTE_SUBMITTED' };
     case 'Order Placed':
       return { status: 'JOB_PLACED' };
     case 'Pending':
@@ -145,12 +152,18 @@ export function AdminJobsPage() {
   function handleFiltersChange(next: JobFilters) {
     setFilters(next);
     setPage(1);
-    // Once the user picks a different status than whatever ?filter= seeded
-    // it with, drop the URL param so the title/subtitle (and the resync
-    // effect above) stop referring to the old status.
-    if (next.status !== initialStatus) {
+    // Keep the URL's ?filter= in sync with whatever status the user just
+    // picked (not just cleared) — so the resync effect above sees the same
+    // value it's about to be set to (a no-op) instead of snapping back to
+    // empty and undoing the user's selection on the very next render.
+    const currentFilterParam = searchParams.get('filter') ?? '';
+    if (next.status !== currentFilterParam) {
       const nextParams = new URLSearchParams(searchParams);
-      nextParams.delete('filter');
+      if (next.status) {
+        nextParams.set('filter', next.status);
+      } else {
+        nextParams.delete('filter');
+      }
       setSearchParams(nextParams, { replace: true });
     }
   }
@@ -159,18 +172,23 @@ export function AdminJobsPage() {
     return (
       <div className="page">
         <GreetingHero title="All Jobs" subtitle="Every job across the platform." />
-        <div className="flex items-center justify-center py-16 text-[var(--crimson)] text-sm">
+        <div className="flex items-center justify-center py-16 text-[var(--color-crimson)] text-sm">
           Failed to load jobs. Please refresh and try again.
         </div>
       </div>
     );
   }
 
+  // Drives the heading off the filter that's actually applied right now
+  // (not just whatever ?filter= the page was seeded with), and uses its
+  // display label so e.g. 'Ready to Deliver' reads as "Ready to Dispatch".
+  const activeStatusLabel = JOB_STATUS_OPTIONS.find((o) => o.value === filters.status)?.label ?? '';
+
   return (
     <div className="page">
       <GreetingHero
-        title={initialStatus ? `${initialStatus} Jobs` : 'All Jobs'}
-        subtitle={`${initialStatus ? `Showing ${initialStatus.toLowerCase()} jobs.` : 'Every job across the platform — search, filter by type, priority, client, or date.'}${total > 0 ? ` ${total} total.` : ''}`}
+        title={activeStatusLabel ? `${activeStatusLabel} Jobs` : 'All Jobs'}
+        subtitle={`${activeStatusLabel ? `Showing ${activeStatusLabel.toLowerCase()} jobs.` : 'Every job across the platform — search, filter by type, priority, client, or date.'}${total > 0 ? ` ${total} total.` : ''}`}
       />
 
       {isFirstLoad ? (
