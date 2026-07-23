@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Upload, Loader2 } from 'lucide-react';
 import { uploadCompletedFile } from '@modules/cs-panel/services/cs-quote.service';
 import toast from 'react-hot-toast';
@@ -10,6 +11,10 @@ interface ProducerSubmitModalProps {
   confirmLabel: string;
   /** Sewout submission requires a mandatory stitch count (backend-enforced > 0). */
   requireStitchCount?: boolean;
+  /** Client-requested output format(s), e.g. ['pdf', 'cdr'] — see @lib/utils
+   *  `getAllowedFormats`. When set, only files with these extensions can be
+   *  picked; omit/null to accept any file type. */
+  allowedFormats?: string[] | null;
   onClose: () => void;
   /** Called with uploaded file IDs (may be empty) and stitch count (if required) after files finish uploading. */
   onSubmit: (uploadedFileIds: string[], stitchCount?: number) => Promise<void>;
@@ -26,6 +31,7 @@ export function ProducerSubmitModal({
   title,
   confirmLabel,
   requireStitchCount = false,
+  allowedFormats,
   onClose,
   onSubmit,
 }: ProducerSubmitModalProps) {
@@ -35,11 +41,38 @@ export function ProducerSubmitModal({
   const [uploadIndex, setUploadIndex] = useState(0);
 
   const stitchValid = !requireStitchCount || (Number(stitchCount) > 0 && Number.isFinite(Number(stitchCount)));
-  const canSubmit = !uploading && stitchValid;
+  const hasFormatRestriction = !!allowedFormats && allowedFormats.length > 0;
+
+  const presentExtensions = new Set(
+    files.map((f) => {
+      const dotIdx = f.name.lastIndexOf('.');
+      return dotIdx !== -1 ? f.name.slice(dotIdx + 1).toLowerCase() : '';
+    }),
+  );
+  const missingFormats = hasFormatRestriction
+    ? allowedFormats!.filter((ext) => !presentExtensions.has(ext))
+    : [];
+  const hasAllRequiredFormats = missingFormats.length === 0;
+
+  const canSubmit = !uploading && stitchValid && hasAllRequiredFormats;
 
   const handleFilePick = (list: FileList | null) => {
     if (!list) return;
-    setFiles((prev) => [...prev, ...Array.from(list)]);
+    const incoming = Array.from(list);
+
+    if (hasFormatRestriction) {
+      const invalid = incoming.filter((f) => {
+        const dotIdx = f.name.lastIndexOf('.');
+        const ext = dotIdx !== -1 ? f.name.slice(dotIdx + 1).toLowerCase() : '';
+        return !allowedFormats!.includes(ext);
+      });
+      if (invalid.length > 0) {
+        toast.error(`Only ${allowedFormats!.map((e) => e.toUpperCase()).join(', ')} format${allowedFormats!.length > 1 ? 's' : ''} can be uploaded for this job.`);
+        return;
+      }
+    }
+
+    setFiles((prev) => [...prev, ...incoming]);
   };
 
   const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
@@ -63,7 +96,7 @@ export function ProducerSubmitModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/55"
       onClick={(e) => { if (e.target === e.currentTarget && !uploading) onClose(); }}
@@ -87,13 +120,27 @@ export function ProducerSubmitModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <label className="block text-[10px] font-bold uppercase tracking-wide text-text-muted mb-1.5">
-            Completed Files {files.length === 0 ? '(optional)' : `(${files.length})`}
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-wide text-text-muted">
+              Completed Files {files.length === 0 && !hasFormatRestriction ? '(optional)' : `(${files.length})`}
+            </label>
+            {hasFormatRestriction ? (
+              <span className="text-[10.5px] font-semibold text-amber-600">
+                Expected format: {allowedFormats!.map((f) => f.toUpperCase()).join(', ')}
+              </span>
+            ) : null}
+          </div>
           <label className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg py-6 cursor-pointer text-[12px] text-text-muted">
             <Upload className="w-4 h-4" aria-hidden />
             Click to select files
-            <input type="file" multiple className="hidden" onChange={(e) => handleFilePick(e.target.files)} disabled={uploading} />
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              accept={hasFormatRestriction ? allowedFormats!.map((ext) => `.${ext}`).join(',') : undefined}
+              onChange={(e) => handleFilePick(e.target.files)}
+              disabled={uploading}
+            />
           </label>
 
           {files.length > 0 ? (
@@ -127,22 +174,30 @@ export function ProducerSubmitModal({
           ) : null}
         </div>
 
-        <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 py-3.5 border-t border-border">
-          <button type="button" className="btn btn-outline" onClick={onClose} disabled={uploading}>
-            Cancel
-          </button>
-          <button type="button" className="btn btn-crimson" onClick={handleSubmit} disabled={!canSubmit}>
-            {uploading ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
-                Uploading {uploadIndex}/{files.length}…
-              </>
-            ) : (
-              confirmLabel
-            )}
-          </button>
+        <div className="flex-shrink-0 flex items-center justify-between gap-3 px-6 py-3.5 border-t border-border">
+          {!hasAllRequiredFormats ? (
+            <span className="text-[11px] font-semibold text-amber-600">
+              Missing {missingFormats.map((f) => f.toUpperCase()).join(', ')} — upload before submitting.
+            </span>
+          ) : <span />}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button type="button" className="btn btn-outline" onClick={onClose} disabled={uploading}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-crimson" onClick={handleSubmit} disabled={!canSubmit}>
+              {uploading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  Uploading {uploadIndex}/{files.length}…
+                </>
+              ) : (
+                confirmLabel
+              )}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

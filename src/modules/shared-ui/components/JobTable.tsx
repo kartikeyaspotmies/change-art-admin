@@ -23,6 +23,8 @@ import {
   Hash,
 } from 'lucide-react';
 import { useAdminJobById } from '@modules/admin-panel/hooks/use-admin-jobs';
+import { useSessionUser } from '@modules/auth/stores/auth-store';
+import { UserRole } from '@contracts';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -100,6 +102,12 @@ export function JobTable({
   gridCols = 4,
   minimalColumns = false,
 }: JobTableProps) {
+  const viewer = useSessionUser();
+  // Only Team Lead/CS/Admin assign or reassign jobs — Designer, Digitator,
+  // Sewout, and QC only ever view job details, so the fallback modal below
+  // must not offer them an Assign Job action just because it happens to
+  // reuse the same shared JobDetailModal as everyone else.
+  const canAssignJobs = viewer?.role === UserRole.TEAM_LEAD || viewer?.role === UserRole.CS || viewer?.role === UserRole.ADMIN;
   const [view, setView] = useState<JobView>(defaultView);
   const [query, setQuery] = useState('');
   // Store only the identifier. The modal uses a live detail fetch (useAdminJobById)
@@ -250,7 +258,7 @@ export function JobTable({
           job={viewJob}
           onClose={() => setViewJobId(null)}
           onEdit={(j) => { setViewJobId(null); setEditJob(j); }}
-          onAssign={(j) => { setViewJobId(null); setAssignJob(j); }}
+          onAssign={canAssignJobs ? (j) => { setViewJobId(null); setAssignJob(j); } : undefined}
           quoteView={quoteView}
         />
       )}
@@ -396,7 +404,7 @@ function statusBadgeAccent(status: string): string {
     'In QC': 'teal',
     'In Production': 'amber',
     Pending: 'blue',
-    'Senior Review': 'purple',
+    'TL Review': 'purple',
     Sewout: 'purple',
     'Ready to Deliver': 'teal',
     Dispatched: 'green',
@@ -494,7 +502,7 @@ function departmentIconFor(order: string) {
 
 /** Icon for the Status info row, keyed by pipeline stage. */
 function statusIconFor(status: string) {
-  const inProduction = new Set(['In Production', 'Senior Review', 'Sewout', 'In QC']);
+  const inProduction = new Set(['In Production', 'TL Review', 'Sewout', 'In QC']);
   if (status === 'Dispatched' || status === 'Ready to Deliver') return Truck;
   if (inProduction.has(status)) return Settings;
   if (status === 'On Hold') return Clock;

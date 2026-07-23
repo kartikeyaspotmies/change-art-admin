@@ -21,6 +21,10 @@ function DeepLinkModal() {
   const openId = searchParams.get('open') ?? '';
   const { data: job } = useAdminJobById(openId);
   const [editJob, setEditJob] = useState<Job | null>(null);
+  const viewer = useSessionUser();
+  // Only Team Lead/CS/Admin assign or reassign jobs — a deep-linked job
+  // opened by Designer/Digitator/Sewout/QC must not show an Assign Job button.
+  const canAssignJobs = viewer?.role === UserRole.TEAM_LEAD || viewer?.role === UserRole.CS || viewer?.role === UserRole.ADMIN;
 
   return (
     <>
@@ -28,7 +32,7 @@ function DeepLinkModal() {
         job={openId && job ? job : null}
         onClose={() => setSearchParams((p) => { p.delete('open'); return p; })}
         onEdit={(j) => setEditJob(j)}
-        onAssign={() => setSearchParams((p) => { p.delete('open'); return p; })}
+        onAssign={canAssignJobs ? () => setSearchParams((p) => { p.delete('open'); return p; }) : undefined}
       />
       {editJob && (
         <EditJobModal

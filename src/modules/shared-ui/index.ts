@@ -48,6 +48,8 @@ export { AssignJobModal } from './components/AssignJobModal';
 export { ProducerSubmitModal } from './components/ProducerSubmitModal';
 export type { EditFields } from './components/EditJobModal';
 export { RequestModificationModal } from './components/RequestModificationModal';
+export { FilePreviewModal } from './components/FilePreviewModal';
+export type { PreviewSource } from './components/FilePreviewModal';
 
 // Nav config
 export { NAV_CONFIG } from './nav-config';

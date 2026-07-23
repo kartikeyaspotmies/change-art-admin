@@ -52,7 +52,7 @@ export function FilePreviewModal({ source, loading, onClose }: FilePreviewModalP
   const type = source?.kind === 'local' ? source.file.type : source?.type ?? '';
   const url = source?.kind === 'local' ? objectUrl : source?.url ?? null;
 
-  const isImage = type.startsWith('image/');
+  const isImage = type.startsWith('image/') || /\.(jpe?g|png|gif|webp|svg|bmp)$/i.test(name);
   const isPdf = type === 'application/pdf' || name.toLowerCase().endsWith('.pdf');
 
   return (

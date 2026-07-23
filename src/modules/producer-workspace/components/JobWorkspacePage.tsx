@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Play, Send, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Play, Send, RotateCcw, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { GreetingHero, Panel, ProducerSubmitModal } from '@modules/shared-ui';
+import { GreetingHero, Panel, ProducerSubmitModal, FilePreviewModal, type PreviewSource } from '@modules/shared-ui';
 import { useAdminJobById, useAdminJobFiles, useAdminJobImageUrls, isAdminViewableImage } from '@modules/admin-panel/hooks/use-admin-jobs';
 import { RejectionFeedback } from '@modules/admin-panel/components/RejectionFeedback';
 import { adminService } from '@modules/admin-panel/services/admin.service';
 import { toastApiError } from '@lib/toast-error';
+import { getAllowedFormats } from '@lib/utils';
 import { queryKeys } from '@lib/query-keys';
 import { useQueryClient } from '@tanstack/react-query';
 import { FileCategory } from '@contracts';
@@ -27,20 +28,33 @@ export function JobWorkspacePage() {
   const queryClient = useQueryClient();
   const [showSubmit, setShowSubmit] = useState(false);
   const [pending, setPending] = useState(false);
+  const [previewSource, setPreviewSource] = useState<PreviewSource | null>(null);
 
   const { data: job, isLoading } = useAdminJobById(jobId ?? '');
   const { data: files } = useAdminJobFiles(job?.uuid);
 
   const originalFiles = useMemo(() => (files ?? []).filter((f) => f.file_category === FileCategory.ORIGINAL), [files]);
-  const completedFiles = useMemo(
-    () => (files ?? []).filter((f) => f.file_category === FileCategory.COMPLETED).sort((a, b) => b.version_number - a.version_number),
-    [files],
-  );
   const originalImageFiles = useMemo(() => originalFiles.filter(isAdminViewableImage), [originalFiles]);
-  const completedImageFiles = useMemo(() => completedFiles.filter(isAdminViewableImage), [completedFiles]);
 
   const { data: originalUrls } = useAdminJobImageUrls(job?.uuid, originalImageFiles);
-  const { data: completedUrls } = useAdminJobImageUrls(job?.uuid, completedImageFiles);
+
+  // Team Lead's manual assignment IS the decision — a Designer/Digitator never
+  // gets a choice to accept or decline. New assignments already land in
+  // IN_PROGRESS (assignments.service.ts), but any job still sitting in ASSIGNED
+  // (e.g. from before this change) is silently carried forward with no
+  // button/toast. Sewout's separate 'sewout_accept' step is untouched.
+  const autoAcceptedRef = useRef(false);
+  useEffect(() => {
+    if (job?.rawStatus === 'ASSIGNED' && job.uuid && job.version != null && !autoAcceptedRef.current) {
+      autoAcceptedRef.current = true;
+      adminService.transitionJob(job.uuid, 'accept', job.version)
+        .then(() => {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.byId(job.uuid!) });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+        })
+        .catch(() => { autoAcceptedRef.current = false; });
+    }
+  }, [job?.rawStatus, job?.uuid, job?.version, queryClient]);
 
   if (isLoading || !job || !job.uuid) {
     return (
@@ -55,6 +69,18 @@ export function JobWorkspacePage() {
   const isRework = !!job.rawStatus && REWORK_STATUSES.has(job.rawStatus);
   const isJuniorAssigned = job.subType === 'Junior';
   const isSewoutStage = job.rawStatus === 'SUBMITTED_TO_SEWOUT' || job.rawStatus === 'SEWOUT_IN_PROGRESS';
+
+  const summaryText = job.summary || job.notes || '';
+  const metadataRegex = /\[(.*?):\s*(.*?)\]/g;
+  const summaryMetadata: { key: string; value: string }[] = [];
+  let cleanedSummary = summaryText;
+  let match;
+  while ((match = metadataRegex.exec(summaryText)) !== null) {
+    summaryMetadata.push({ key: match[1].trim(), value: match[2].trim() });
+    cleanedSummary = cleanedSummary.replace(match[0], '');
+  }
+  cleanedSummary = cleanedSummary.trim();
+  const allowedFormats = getAllowedFormats(job);
 
   const handleAccept = async () => {
     if (job.version == null) return;
@@ -103,6 +129,60 @@ export function JobWorkspacePage() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
   };
 
+  const handleDownloadFile = async (id: string, name: string) => {
+    const toastId = toast.loading(`Downloading ${name}…`);
+    try {
+      const res = await adminService.getDownloadUrl(id);
+      const fileRes = await fetch(res.url);
+      if (!fileRes.ok) throw new Error('Download failed');
+      const blob = await fileRes.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      toast.success('Downloaded.', { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to download file.', { id: toastId });
+    }
+  };
+
+  const handleDownloadAllOriginals = async () => {
+    if (!originalFiles || originalFiles.length === 0) return;
+    const toastId = toast.loading(`Preparing zip of ${originalFiles.length} file(s)…`);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      await Promise.all(
+        originalFiles.map(async (f) => {
+          const res = await adminService.getDownloadUrl(f.id);
+          const fileRes = await fetch(res.url);
+          if (!fileRes.ok) throw new Error(`Failed to fetch ${f.file_name}`);
+          const blob = await fileRes.blob();
+          zip.file(f.file_name, blob);
+        })
+      );
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `${job?.ref || 'Job'}_Originals.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      toast.success('Zip file downloaded successfully.', { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to create zip file.', { id: toastId });
+    }
+  };
+
   return (
     <div className="page">
       <button type="button" className="btn btn-outline mb-3" onClick={() => navigate(-1)}>
@@ -116,58 +196,86 @@ export function JobWorkspacePage() {
 
       <div className="two-col">
         <div className="flex flex-col gap-3">
-          <Panel title="Brief">
-            <dl className="text-[12.5px] space-y-2">
-              <div className="flex justify-between gap-2">
-                <dt className="text-text-muted">Priority</dt>
-                <dd className="font-semibold">{job.priority}</dd>
+          <Panel title="Brief" className="panel-crimson shadow-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50">
+                <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">Priority</div>
+                <div className="text-[13px] font-semibold text-text-main truncate">{job.priority}</div>
               </div>
               {job.etaHours != null ? (
-                <div className="flex justify-between gap-2">
-                  <dt className="text-text-muted">ETA</dt>
-                  <dd className="font-semibold">{job.etaHours}h</dd>
+                <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">ETA</div>
+                  <div className="text-[13px] font-semibold text-text-main truncate">{job.etaHours}h</div>
                 </div>
               ) : null}
               {job.placement ? (
-                <div className="flex justify-between gap-2">
-                  <dt className="text-text-muted">Placement</dt>
-                  <dd className="font-semibold">{job.placement}</dd>
+                <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">Placement</div>
+                  <div className="text-[13px] font-semibold text-text-main truncate">{job.placement}</div>
                 </div>
               ) : null}
               {job.width != null && job.height != null ? (
-                <div className="flex justify-between gap-2">
-                  <dt className="text-text-muted">Dimensions</dt>
-                  <dd className="font-semibold">{job.width}&quot; × {job.height}&quot;</dd>
+                <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">Dimensions</div>
+                  <div className="text-[13px] font-semibold text-text-main truncate">{job.width}&quot; × {job.height}&quot;</div>
                 </div>
               ) : null}
               {job.fabric ? (
-                <div className="flex justify-between gap-2">
-                  <dt className="text-text-muted">Fabric</dt>
-                  <dd className="font-semibold">{job.fabric}</dd>
+                <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">Fabric</div>
+                  <div className="text-[13px] font-semibold text-text-main truncate">{job.fabric}</div>
                 </div>
               ) : null}
               {job.colors != null ? (
-                <div className="flex justify-between gap-2">
-                  <dt className="text-text-muted">Colors</dt>
-                  <dd className="font-semibold">{job.colors}</dd>
+                <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">Colors</div>
+                  <div className="text-[13px] font-semibold text-text-main truncate">{job.colors}</div>
                 </div>
               ) : null}
               {job.stitchCount != null ? (
-                <div className="flex justify-between gap-2">
-                  <dt className="text-text-muted">Stitch Count</dt>
-                  <dd className="font-semibold">{job.stitchCount.toLocaleString()}</dd>
+                <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50">
+                  <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5">Stitches</div>
+                  <div className="text-[13px] font-semibold text-text-main truncate">{job.stitchCount.toLocaleString()}</div>
                 </div>
               ) : null}
-            </dl>
-            {job.summary || job.notes ? (
-              <div className="mt-3 pt-3 border-t border-border text-[12px] text-text-muted whitespace-pre-wrap">
-                {job.summary || job.notes}
+            </div>
+            {summaryText ? (
+              <div className="mt-4 pt-4 border-t border-border/50 px-2 flex flex-col gap-3.5">
+                {cleanedSummary ? (
+                  <div>
+                    <div className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1">
+                      Description
+                    </div>
+                    <div className="text-[12.5px] leading-relaxed text-text-main whitespace-pre-wrap bg-black/5 dark:bg-white/5 p-3 rounded-lg border border-border/50">
+                      {cleanedSummary}
+                    </div>
+                  </div>
+                ) : null}
+                {summaryMetadata.length > 0 ? (
+                  <div>
+                    <div className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+                      Specifications
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {summaryMetadata.map((m, i) => (
+                        <div key={i} className="bg-black/5 dark:bg-white/5 p-2.5 rounded-lg border border-border/50 min-w-0">
+                          <div className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-0.5 truncate">
+                            {m.key}
+                          </div>
+                          <div className="text-[13px] font-medium text-text-main break-words">
+                            {m.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </Panel>
 
           <div className="job-actions flex-wrap">
-            {job.rawStatus === 'ASSIGNED' || (isSewoutStage && job.rawStatus === 'SUBMITTED_TO_SEWOUT') ? (
+            {isSewoutStage && job.rawStatus === 'SUBMITTED_TO_SEWOUT' ? (
               <button type="button" className="btn btn-crimson" disabled={pending} onClick={handleAccept}>
                 <Play className="w-3.5 h-3.5" aria-hidden />
                 Accept
@@ -189,44 +297,39 @@ export function JobWorkspacePage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <Panel title="Original Files">
+          <Panel 
+            title="Original Files" 
+            className="panel-amber shadow-sm"
+            action={
+              originalFiles.length > 0 ? (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold text-text-muted hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors"
+                  onClick={handleDownloadAllOriginals}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download All
+                </button>
+              ) : null
+            }
+          >
             <FileGrid
               imageFiles={originalImageFiles}
               imageUrls={originalUrls ?? []}
               otherFiles={originalFiles.filter((f) => !isAdminViewableImage(f))}
+              onPreview={(url, name) => setPreviewSource({ kind: 'remote', url, name })}
+              onDownload={handleDownloadFile}
             />
-          </Panel>
-
-          <Panel title={`Completed Files${completedFiles.length ? ` (v${completedFiles[0]?.version_number ?? 1})` : ''}`}>
-            {completedFiles.length === 0 ? (
-              <div className="text-[12px] text-text-faint italic">No completed files uploaded yet.</div>
-            ) : (
-              <>
-                <FileGrid
-                  imageFiles={completedImageFiles}
-                  imageUrls={completedUrls ?? []}
-                  otherFiles={completedFiles.filter((f) => !isAdminViewableImage(f))}
-                />
-                {completedFiles.length > 1 ? (
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted mb-1.5">
-                      Version History
-                    </div>
-                    <ul className="text-[11.5px] text-text-muted space-y-1">
-                      {completedFiles.map((f) => (
-                        <li key={f.id} className="flex items-center justify-between gap-2">
-                          <span className="truncate">v{f.version_number} — {f.file_name}</span>
-                          <span className="shrink-0">{new Date(f.created_at).toLocaleDateString()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </>
-            )}
           </Panel>
         </div>
       </div>
+
+      {previewSource && (
+        <FilePreviewModal
+          source={previewSource}
+          onClose={() => setPreviewSource(null)}
+        />
+      )}
 
       {showSubmit ? (
         <ProducerSubmitModal
@@ -235,6 +338,7 @@ export function JobWorkspacePage() {
           title={isSewoutStage ? 'Submit Sewout to QC' : 'Submit Completed Work'}
           confirmLabel={isSewoutStage ? 'Submit to QC' : 'Submit'}
           requireStitchCount={isSewoutStage}
+          allowedFormats={allowedFormats}
           onClose={() => setShowSubmit(false)}
           onSubmit={handleSubmit}
         />

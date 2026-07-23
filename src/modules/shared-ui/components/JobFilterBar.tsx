@@ -43,7 +43,7 @@ export const JOB_STATUS_OPTIONS = [
   { value: 'Order Placed',     label: 'Order Placed' },
   { value: 'Pending',          label: 'Pending' },
   { value: 'In Production',    label: 'In Production' },
-  { value: 'Senior Review',    label: 'Senior Review' },
+  { value: 'TL Review',    label: 'TL Review' },
   { value: 'Sewout',           label: 'Sewout' },
   { value: 'In QC',            label: 'In QC' },
   { value: 'Ready to Deliver', label: 'Ready to Dispatch' },

@@ -5,6 +5,7 @@ import {
   GreetingHero,
   JobTable,
   StatGrid,
+  JobDetailModal,
   type Job,
 } from '@modules/shared-ui';
 import { useAdminJobViews } from '@modules/admin-panel/hooks/use-admin-jobs';
@@ -25,6 +26,7 @@ import toast from 'react-hot-toast';
  * then the decision transition.
  */
 export function TeamLeadReviewPage() {
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const { jobs: submissions, isLoading } = useAdminJobViews({
     statuses: 'SUBMITTED_TO_TEAM_LEAD,TEAM_LEAD_REVIEW',
     per_page: 100,
@@ -53,9 +55,17 @@ export function TeamLeadReviewPage() {
           jobs={submissions}
           defaultView="grid"
           renderActions={(j) => <ReviewActions job={j} />}
+          onOpen={setSelectedJob}
           emptyLabel={isLoading ? 'Loading…' : 'Nothing awaiting review.'}
         />
       </div>
+
+      {selectedJob ? (
+        <JobDetailModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -118,7 +118,7 @@ function displayStatus(status: string): string {
 
 function statusAccent(status: string): string {
   const map: Record<string, string> = {
-    'In QC': 'teal', 'In Production': 'amber', Pending: 'blue', 'Senior Review': 'purple',
+    'In QC': 'teal', 'In Production': 'amber', Pending: 'blue', 'TL Review': 'purple',
     Sewout: 'purple', 'Ready to Deliver': 'teal', Dispatched: 'green',
     'Quote Submitted': 'blue', 'Quote Approved': 'amber',
     'Pending Client Confirm': 'amber', Cancelled: 'gray',
@@ -256,6 +256,11 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
   const [unholdBusy, setUnholdBusy] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [tlReviewBusy, setTlReviewBusy] = useState<'approve' | 'reject' | null>(null);
+  const [showTlRejectDialog, setShowTlRejectDialog] = useState(false);
+  const [tlRejectReason, setTlRejectReason] = useState('');
+  const [showTlApproveConfirm, setShowTlApproveConfirm] = useState(false);
+  const [tlApproveConfirmText, setTlApproveConfirmText] = useState('');
   const [ackEtaHours, setAckEtaHours] = useState(() =>
     job?.etaHours != null ? String(job.etaHours) : '',
   );
@@ -330,6 +335,9 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
   const approveJob = useApproveJob();
   const viewer = useSessionUser();
   const isCsOrAdmin = viewer?.role === UserRole.CS || viewer?.role === UserRole.ADMIN;
+  // Team Lead review decision (team_lead_approve/reject) is Team Lead/Admin
+  // only per state-machine.ts — CS never touches this step.
+  const canReviewAsTeamLead = viewer?.role === UserRole.TEAM_LEAD || viewer?.role === UserRole.ADMIN;
   // const { data: bypassSetting } = useBypassSetting(isCsOrAdmin);
   // const bypassDisabled = bypassSetting?.enabled === false;
   const isSubmitting = sendPrice.isPending || rejectQuote.isPending;
@@ -531,8 +539,15 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
   const isAcknowledged = !!job.acknowledgedAt;
   const isDelivered = normalizedStatus(job) === 'DELIVERED';
   // CS/Admin and Team Leads can assign or reassign a job until it is QC Approved
-  // (which transitions the job to READY_TO_DELIVER).
-  const canAssign = isAcknowledged && !isReadyToDeliver && !isDelivered && normalizedStatus(job) !== 'CANCELLED';
+  // (which transitions the job to READY_TO_DELIVER). Prevent reassigning while it's actively under review.
+  const isReviewStatus = [
+    'SUBMITTED_TO_TEAM_LEAD',
+    'TEAM_LEAD_REVIEW',
+    'SUBMITTED_TO_QC',
+    'QC_REVIEW'
+  ].includes(normalizedStatus(job) || '');
+  const canAssign = isAcknowledged && !isReadyToDeliver && !isDelivered && normalizedStatus(job) !== 'CANCELLED' && !isReviewStatus;
+  const isTeamLeadReviewStatus = normalizedStatus(job) === 'SUBMITTED_TO_TEAM_LEAD' || normalizedStatus(job) === 'TEAM_LEAD_REVIEW';
   const cardExpiryStatus = getCardExpiryStatus(
     job.clientCardExpMonth != null && job.clientCardExpYear != null
       ? { exp_month: job.clientCardExpMonth, exp_year: job.clientCardExpYear }
@@ -584,6 +599,54 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
       toast.error('Failed to reject amendment. Please try again.');
     } finally {
       setAmendBusy(null);
+    }
+  }
+
+  /** Job may still be SUBMITTED_TO_TEAM_LEAD (not yet opened) when acted on
+   *  from outside the Junior Review queue — open it first so the decision
+   *  transition below has the right `from` status and version. */
+  async function ensureTlReviewOpened(id: string, version: number): Promise<number> {
+    if (normalizedStatus(job!) === 'SUBMITTED_TO_TEAM_LEAD') {
+      const updated = await adminService.transitionJob(id, 'team_lead_open_review', version);
+      return updated.version;
+    }
+    return version;
+  }
+
+  async function handleApproveTeamLeadReview() {
+    const id = requireUuid('approve submission');
+    if (!id || !job || job.version === undefined) return;
+    setTlReviewBusy('approve');
+    try {
+      const nextVersion = await ensureTlReviewOpened(id, job.version);
+      const action = job.order === 'Digitizing + Sewout' ? 'team_lead_approve_to_sewout' : 'team_lead_approve';
+      await adminService.transitionJob(id, action, nextVersion);
+      toast.success(action === 'team_lead_approve_to_sewout' ? 'Approved — routed to Sewout.' : 'Approved — forwarded to QC.');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      handleClose();
+    } catch (err) {
+      toastApiError(err);
+    } finally {
+      setTlReviewBusy(null);
+    }
+  }
+
+  async function handleRejectTeamLeadReview() {
+    const id = requireUuid('reject submission');
+    if (!id || !job || job.version === undefined) return;
+    setTlReviewBusy('reject');
+    try {
+      const nextVersion = await ensureTlReviewOpened(id, job.version);
+      await adminService.transitionJob(id, 'team_lead_reject', nextVersion, undefined, tlRejectReason.trim());
+      toast.success('Returned to junior with feedback.');
+      setShowTlRejectDialog(false);
+      setTlRejectReason('');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      handleClose();
+    } catch (err) {
+      toastApiError(err);
+    } finally {
+      setTlReviewBusy(null);
     }
   }
 
@@ -1003,6 +1066,34 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
                   <X className="w-4 h-4" />
                 </button>
               </div>
+
+              {allCompletedFiles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadAllFiles}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors font-semibold shadow-sm"
+                  style={{
+                    background: '#fff',
+                    border: '1px solid #E2E8F0',
+                    color: '#64748B',
+                    fontSize: 11,
+                  }}
+                  onMouseOver={(e) => {
+                    const btn = e.currentTarget as HTMLButtonElement;
+                    btn.style.background = '#F8FAFC';
+                    btn.style.color = '#334155';
+                  }}
+                  onMouseOut={(e) => {
+                    const btn = e.currentTarget as HTMLButtonElement;
+                    btn.style.background = '#fff';
+                    btn.style.color = '#64748B';
+                  }}
+                  aria-label="Download files"
+                >
+                  <Download className="w-3 h-3" />
+                  Download Files
+                </button>
+              )}
 
               {/* Trigger button — opens the ack popover. While pending: show spinner chip instead. */}
               {canAcknowledge ? (
@@ -2473,6 +2564,30 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
               </button>
             </>
           ) : null}
+          {!isQuote && isTeamLeadReviewStatus && canReviewAsTeamLead ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ fontSize: 12, padding: '7px 13px', gap: 6, borderColor: '#e11d48', color: '#e11d48' }}
+                disabled={tlReviewBusy !== null}
+                onClick={() => { setTlRejectReason(''); setShowTlRejectDialog(true); }}
+              >
+                <X className="w-3.5 h-3.5" aria-hidden />
+                Reject
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+                disabled={tlReviewBusy !== null}
+                onClick={() => { setTlApproveConfirmText(''); setShowTlApproveConfirm(true); }}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                {tlReviewBusy === 'approve' ? 'Approving…' : 'Approve'}
+              </button>
+            </>
+          ) : null}
           {!isQuote && isJobPlaced && isAcknowledged && isCsOrAdmin ? (
             <button
               type="button"
@@ -2493,7 +2608,7 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
               onClick={() => onAssign(job)}
             >
               <Send className="w-3.5 h-3.5" aria-hidden />
-              Assign Job
+              {job.assignedTo ? 'Reassign Job' : 'Assign Job'}
             </button>
           ) : null}
           {/* {!isQuote && isCsApproved && isCsOrAdmin ? (
@@ -2581,6 +2696,134 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
                 disabled={amendBusy !== null}
               >
                 {amendBusy === 'reject' ? 'Rejecting…' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {showTlRejectDialog && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/55 anim-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget && tlReviewBusy === null) setShowTlRejectDialog(false); }}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Reject Submission"
+            className="glass-heavy rounded-2xl w-full max-w-[420px] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[15px] font-bold mb-1 text-text-main">Reject This Submission?</h2>
+            <p className="text-[12.5px] text-text-muted leading-relaxed mb-4">
+              It returns to the junior with your feedback so they can revise and resubmit.
+            </p>
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted mb-1.5">
+              Feedback <span className="font-normal normal-case text-text-faint">(required)</span>
+            </label>
+            <textarea
+              className="w-full rounded-xl border border-[var(--glass-border)] bg-transparent text-[13px] text-text-main p-3 outline-none focus:border-[#e11d48] transition resize-none mb-4 placeholder:text-text-faint"
+              rows={3}
+              placeholder="e.g. Logo placement doesn't match the brief — please re-center it."
+              value={tlRejectReason}
+              onChange={(e) => setTlRejectReason(e.target.value)}
+              disabled={tlReviewBusy !== null}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowTlRejectDialog(false)}
+                disabled={tlReviewBusy !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                onClick={handleRejectTeamLeadReview}
+                disabled={tlReviewBusy !== null || !tlRejectReason.trim()}
+              >
+                {tlReviewBusy === 'reject' ? 'Rejecting…' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* ── TEAM LEAD APPROVE — 2-STEP (type CONFIRM) ── */}
+      {showTlApproveConfirm && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/55 anim-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget && tlReviewBusy === null) setShowTlApproveConfirm(false); }}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm Approval"
+            className="rounded-2xl w-full max-w-[420px] p-6"
+            style={{ background: '#E9EDF3', border: '1px solid #D3DAE6', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[15px] font-bold mb-1 text-text-main">Approve This Submission?</h2>
+            <p className="text-[12.5px] text-text-muted leading-relaxed mb-4">
+              It will move on to {job.order === 'Digitizing + Sewout' ? 'Sewout' : 'QC'} for review. This can't be undone from here.
+            </p>
+
+            <div className="flex flex-col gap-1.5 mb-4">
+              <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted">
+                Type to Confirm
+              </label>
+              <div className="text-[11px] text-text-faint">
+                Type <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono">CONFIRM</code> below to enable the button
+              </div>
+              <input
+                type="text"
+                value={tlApproveConfirmText}
+                onChange={(e) => setTlApproveConfirmText(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && tlApproveConfirmText.trim().toUpperCase() === 'CONFIRM' && tlReviewBusy === null) {
+                    void handleApproveTeamLeadReview().then(() => setShowTlApproveConfirm(false));
+                  }
+                }}
+                placeholder="CONFIRM"
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                disabled={tlReviewBusy !== null}
+                className="w-full text-center font-bold tracking-wider uppercase rounded-xl px-4 py-3 outline-none font-mono text-[14px] transition"
+                style={{
+                  border: `1.5px solid ${tlApproveConfirmText.trim().toUpperCase() === 'CONFIRM' ? '#22C55E' : 'var(--glass-border)'}`,
+                  background: 'transparent',
+                  color: 'var(--text-main)',
+                  boxShadow: tlApproveConfirmText.trim().toUpperCase() === 'CONFIRM' ? '0 0 0 3px rgba(34,197,94,0.15)' : 'none',
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowTlApproveConfirm(false)}
+                disabled={tlReviewBusy !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                onClick={async () => {
+                  await handleApproveTeamLeadReview();
+                  setShowTlApproveConfirm(false);
+                }}
+                disabled={tlReviewBusy !== null || tlApproveConfirmText.trim().toUpperCase() !== 'CONFIRM'}
+              >
+                {tlReviewBusy === 'approve' ? 'Approving…' : 'Confirm Approve'}
               </button>
             </div>
           </div>

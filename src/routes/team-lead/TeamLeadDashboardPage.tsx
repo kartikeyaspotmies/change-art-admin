@@ -23,8 +23,9 @@ export function TeamLeadDashboardPage() {
 
   const [pageUnassigned, setPageUnassigned] = useState(1);
   const [pageInProgress, setPageInProgress] = useState(1);
+  const [pageReview, setPageReview] = useState(1);
   const [pageInQc, setPageInQc] = useState(1);
-  const perPage = 10;
+  const perPage = 5;
   
   // Store only the identifier and re-fetch the live copy on open (same pattern
   // as JobTable.tsx) — the kanban's list queries are 30s-stale and don't
@@ -35,11 +36,12 @@ export function TeamLeadDashboardPage() {
   const [assignJob, setAssignJob] = useState<Job | null>(null);
 
   const { jobs: unassigned, total: unassignedTotal } = useAdminJobViews({ statuses: 'CS_APPROVED', page: pageUnassigned, per_page: perPage });
-  const { jobs: inProgress, total: inProgressTotal } = useAdminJobViews({ statuses: 'ASSIGNED,IN_PROGRESS,SUBMITTED_TO_TEAM_LEAD,TEAM_LEAD_REVIEW,TEAM_LEAD_REJECTED,QC_REJECTED,MODIFICATION_REQUESTED,SUBMITTED_TO_SEWOUT,SEWOUT_IN_PROGRESS', page: pageInProgress, per_page: perPage });
+  const { jobs: inProgress, total: inProgressTotal } = useAdminJobViews({ statuses: 'ASSIGNED,IN_PROGRESS,TEAM_LEAD_REJECTED,QC_REJECTED,MODIFICATION_REQUESTED,SUBMITTED_TO_SEWOUT,SEWOUT_IN_PROGRESS', page: pageInProgress, per_page: perPage });
+  const { jobs: reviewJobs, total: reviewTotal } = useAdminJobViews({ statuses: 'SUBMITTED_TO_TEAM_LEAD,TEAM_LEAD_REVIEW', page: pageReview, per_page: perPage });
   const { jobs: inQc, total: inQcTotal } = useAdminJobViews({ statuses: 'SUBMITTED_TO_QC,QC_REVIEW', page: pageInQc, per_page: perPage });
 
   const listJob = selectedJobId
-    ? [...unassigned, ...inProgress, ...inQc].find((j) => (j.uuid ?? j.id) === selectedJobId) ?? null
+    ? [...unassigned, ...inProgress, ...reviewJobs, ...inQc].find((j) => (j.uuid ?? j.id) === selectedJobId) ?? null
     : null;
   const { data: detailJob } = useAdminJobById(selectedJobId ?? '');
   const selectedJob = detailJob ?? listJob;
@@ -61,6 +63,7 @@ export function TeamLeadDashboardPage() {
             deltaDirection: unassignedTotal ? 'down' : 'up',
           },
           { accent: 'blue', label: 'In Progress', value: inProgressTotal },
+          { accent: 'purple', label: 'Review Needed', value: reviewTotal },
           { accent: 'teal', label: 'In QC', value: inQcTotal },
         ]}
       />
@@ -84,6 +87,16 @@ export function TeamLeadDashboardPage() {
           page={pageInProgress}
           perPage={perPage}
           onPageChange={setPageInProgress}
+          onJobClick={(j) => setSelectedJobId(j.uuid ?? j.id)}
+        />
+        <KanbanColumn 
+          title="Review Needed" 
+          color="#a855f7" 
+          jobs={reviewJobs} 
+          total={reviewTotal}
+          page={pageReview}
+          perPage={perPage}
+          onPageChange={setPageReview}
           onJobClick={(j) => setSelectedJobId(j.uuid ?? j.id)}
         />
         <KanbanColumn 

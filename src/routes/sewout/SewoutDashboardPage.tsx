@@ -14,6 +14,7 @@ import { useAdminJobViews } from '@modules/admin-panel/hooks/use-admin-jobs';
 import { adminService } from '@modules/admin-panel/services/admin.service';
 import { queryKeys } from '@lib/query-keys';
 import { toastApiError } from '@lib/toast-error';
+import { getAllowedFormats } from '@lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
@@ -110,6 +111,7 @@ function SewoutActions({ job }: { job: Job }) {
           title="Submit Sewout to QC"
           confirmLabel="Submit to QC"
           requireStitchCount
+          allowedFormats={getAllowedFormats(job)}
           onClose={() => setShowSubmit(false)}
           onSubmit={handleSubmit}
         />

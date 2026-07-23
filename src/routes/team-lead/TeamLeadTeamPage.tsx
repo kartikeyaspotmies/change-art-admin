@@ -93,27 +93,27 @@ export function TeamLeadTeamPage() {
           ) : !performance || performance.length === 0 ? (
             <div className="text-[12.5px] text-text-faint italic">No performance data yet.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-[12.5px]">
+            <div className="overflow-x-auto -mx-1">
+              <table className="w-full text-[12.5px] border-separate border-spacing-0">
                 <thead>
-                  <tr className="text-left text-text-muted border-b border-border">
-                    <th className="py-2 pr-3">Staff</th>
-                    <th className="py-2 pr-3">Completed</th>
-                    <th className="py-2 pr-3">Avg. Turnaround</th>
-                    <th className="py-2 pr-3">QC Reject Rate</th>
-                    <th className="py-2 pr-3">Team Lead Reject Rate</th>
+                  <tr>
+                    <th className="text-left font-semibold uppercase tracking-wide text-[10px] text-text-faint py-2 px-3 border-b border-border">Staff</th>
+                    <th className="text-right font-semibold uppercase tracking-wide text-[10px] text-text-faint py-2 px-3 border-b border-border">Completed</th>
+                    <th className="text-right font-semibold uppercase tracking-wide text-[10px] text-text-faint py-2 px-3 border-b border-border">Avg. Turnaround</th>
+                    <th className="text-right font-semibold uppercase tracking-wide text-[10px] text-text-faint py-2 px-3 border-b border-border">QC Reject Rate</th>
+                    <th className="text-right font-semibold uppercase tracking-wide text-[10px] text-text-faint py-2 px-3 border-b border-border">Team Lead Reject Rate</th>
                   </tr>
                 </thead>
                 <tbody>
                   {performance
                     .filter((p) => p.role !== UserRole.CS && p.role !== UserRole.ADMIN && p.role !== UserRole.TEAM_LEAD && p.role !== UserRole.QC)
-                    .map((p) => (
-                      <tr key={p.user_id} className="border-b border-border/60">
-                        <td className="py-2 pr-3 font-semibold">{p.name}</td>
-                        <td className="py-2 pr-3">{p.completed}</td>
-                        <td className="py-2 pr-3">{p.avg_turnaround_hours != null ? `${p.avg_turnaround_hours}h` : '—'}</td>
-                        <td className="py-2 pr-3">{pct(p.qc_rejection_rate)}</td>
-                        <td className="py-2 pr-3">{pct(p.team_lead_rejection_rate)}</td>
+                    .map((p, i) => (
+                      <tr key={p.user_id} className={i % 2 === 1 ? 'bg-black/[0.015] dark:bg-white/[0.02]' : undefined}>
+                        <td className="py-2.5 px-3 font-semibold text-text-main border-b border-border/60 truncate max-w-[220px]">{p.name}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums border-b border-border/60">{p.completed}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums text-text-muted border-b border-border/60">{p.avg_turnaround_hours != null ? `${p.avg_turnaround_hours}h` : '—'}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums text-text-muted border-b border-border/60">{pct(p.qc_rejection_rate)}</td>
+                        <td className="py-2.5 px-3 text-right tabular-nums text-text-muted border-b border-border/60">{pct(p.team_lead_rejection_rate)}</td>
                       </tr>
                     ))}
                 </tbody>

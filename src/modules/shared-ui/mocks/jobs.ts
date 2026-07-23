@@ -21,7 +21,7 @@ export type JobStatus =
   | 'In QC'
   | 'In Production'
   | 'Pending'
-  | 'Senior Review'
+  | 'TL Review'
   | 'Sewout'
   | 'Ready to Deliver'
   | 'Dispatched'
@@ -173,7 +173,7 @@ export const JOBS: Job[] = [
     process: null,
     priority: 'Super Rush',
     etaHours: 6,
-    status: 'Senior Review',
+    status: 'TL Review',
     stage: 'senior',
     assignedTo: 'Arjun Patel',
     subType: 'Junior',
@@ -427,7 +427,7 @@ export const JOBS: Job[] = [
     process: null,
     priority: 'Rush',
     etaHours: 9,
-    status: 'Senior Review',
+    status: 'TL Review',
     stage: 'senior',
     assignedTo: 'Kavya Reddy',
     subType: 'Senior',
@@ -709,7 +709,7 @@ export const JOBS: Job[] = [
     process: null,
     priority: 'Rush',
     etaHours: 10,
-    status: 'Senior Review',
+    status: 'TL Review',
     stage: 'senior',
     assignedTo: 'Kavya Reddy',
     subType: 'Senior',
@@ -736,7 +736,7 @@ export const JOBS: Job[] = [
     process: null,
     priority: 'Normal',
     etaHours: 8,
-    status: 'Senior Review',
+    status: 'TL Review',
     stage: 'senior',
     assignedTo: 'Arjun Patel',
     subType: 'Senior',

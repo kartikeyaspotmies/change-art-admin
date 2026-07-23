@@ -112,7 +112,7 @@ const PRIORITY_TO_ENUM: Record<string, Priority> = {
 const PROCESS_OPTIONS = ['Screen Printing', 'Digital Printing', 'Offset Printing', 'Sublimation', 'Flex Printing', 'Others'];
 const COMPLEXITY_OPTIONS: JobComplexity[] = ['Simple', 'Medium', 'Super Medium', 'Complex', 'Super Complex'];
 const PRIORITY_OPTIONS: JobPriority[] = ['Normal', 'Rush', 'Super Rush'];
-const STATUS_OPTIONS: JobStatus[] = ['Quote Submitted', 'In Production', 'Senior Review', 'Sewout', 'In QC', 'Dispatched'];
+const STATUS_OPTIONS: JobStatus[] = ['Quote Submitted', 'In Production', 'TL Review', 'Sewout', 'In QC', 'Dispatched'];
 
 // ── Helper: map JobOrderType → client-form order id ─────────────────────────
 function getOrderTypeId(order: string): string {
@@ -304,7 +304,7 @@ function displayStatus(status: string): string {
 
 function statusAccent(status: string): string {
   const map: Record<string, string> = {
-    'In QC': 'teal', 'In Production': 'amber', 'Senior Review': 'purple',
+    'In QC': 'teal', 'In Production': 'amber', 'TL Review': 'purple',
     Sewout: 'purple', Dispatched: 'green', 'Quote Submitted': 'blue',
     'Quote Approved': 'amber', 'Pending Client Confirm': 'amber',
     Cancelled: 'gray', Amend: 'amber', 'In Review': 'purple',

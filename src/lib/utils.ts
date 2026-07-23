@@ -81,6 +81,48 @@ export function truncate(text: string, max = 40): string {
   return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
 }
 
+const KNOWN_FILE_EXTENSIONS = new Set([
+  'pdf', 'ai', 'eps', 'cdr', 'png', 'jpg', 'jpeg', 'svg', 'gif', 'tif', 'tiff',
+  'psd', 'zip', 'rar', 'dst', 'pxf', 'vip', 'hus', 'jef', 'sew', 'pes', 'exp',
+  'dsb', 'dsz', 'csd', 'pcs', 'vp3', 'xxx', 'bmp', 'webp', 'raw', 'dxf', 'dwg',
+]);
+
+/**
+ * The client-requested output file format(s) for a job (lowercase extensions,
+ * e.g. ['pdf', 'cdr']) — the single source of truth for "what am I allowed to
+ * upload here", used everywhere a producer or CS uploads completed work.
+ * Prefers the structured `finalFiles` field; falls back to parsing the
+ * `[Expected Output Format: ...]` tag CS embeds in the brief when the client
+ * picked "Others" and typed a custom format. Returns `null` when the job has
+ * no declared format (upload isn't restricted).
+ */
+export function getAllowedFormats(job: {
+  finalFiles?: string[] | null;
+  summary?: string | null;
+  notes?: string | null;
+}): string[] | null {
+  const finalFiles = job.finalFiles ?? [];
+  const knownFormats = finalFiles.filter(
+    (f) => f.toUpperCase() !== 'OTHERS' && f.toUpperCase() !== 'OTHER',
+  );
+  if (knownFormats.length > 0) {
+    return knownFormats.map((f) => f.toLowerCase());
+  }
+
+  const text = `${job.summary ?? ''}\n${job.notes ?? ''}`;
+  const match = text.match(/\[\s*Expected Output Format\s*:\s*([^\]]+?)\s*\]/i);
+  if (match?.[1]) {
+    const raw = match[1].replace(/^others:\s*/i, '').trim();
+    const parts = raw
+      .split(/[\s,;/\\|+]+/)
+      .map((s) => s.trim().replace(/^\./, '').toLowerCase())
+      .filter((s) => KNOWN_FILE_EXTENSIONS.has(s));
+    if (parts.length > 0) return parts;
+  }
+
+  return null;
+}
+
 /** Tailwind classname for a numeric trend delta. */
 export function deltaToneClass(delta: number): string {
   if (delta > 0) return 'text-status-green';
@@ -90,7 +132,7 @@ export function deltaToneClass(delta: number): string {
 
 const LEGACY_ETA_STATUSES = new Set([
   'In Production',
-  'Senior Review',
+  'TL Review',
   'Sewout',
   'In QC',
   'Ready to Deliver',

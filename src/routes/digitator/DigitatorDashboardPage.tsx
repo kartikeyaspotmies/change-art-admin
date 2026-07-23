@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSessionUser } from '@modules/auth/stores/auth-store';
-import { Send, Play, RotateCcw } from 'lucide-react';
+import { Send, RotateCcw } from 'lucide-react';
 import {
   GreetingHero,
   JobTable,
@@ -16,6 +16,7 @@ import { RejectionFeedback } from '@modules/admin-panel/components/RejectionFeed
 import { adminService } from '@modules/admin-panel/services/admin.service';
 import { queryKeys } from '@lib/query-keys';
 import { toastApiError } from '@lib/toast-error';
+import { getAllowedFormats } from '@lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
@@ -46,7 +47,7 @@ export function DigitatorDashboardPage() {
         subtitle={
           isSenior
             ? 'Your active digitising tasks — execute directly or dispatch to Sewout/QC.'
-            : 'Accept assigned briefs, cut stitch files, and submit to your Team Lead for review.'
+            : 'Cut your assigned stitch files and submit to your Team Lead for review.'
         }
       />
 
@@ -106,22 +107,21 @@ export function DigitatorDashboardPage() {
 function ActiveActions({ job }: { job: Job }) {
   const queryClient = useQueryClient();
   const [showSubmit, setShowSubmit] = useState(false);
-  const [pending, setPending] = useState(false);
   const isSewout = job.order === 'Digitizing + Sewout';
+  const acceptedRef = useRef(false);
 
-  const handleAccept = async () => {
-    if (!job.uuid || job.version == null) return;
-    setPending(true);
-    try {
-      await adminService.transitionJob(job.uuid, 'accept', job.version);
-      toast.success('Accepted — job moved to In Progress.');
-      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
-    } catch (err) {
-      toastApiError(err);
-    } finally {
-      setPending(false);
+  // Team Lead's manual assignment IS the decision — a digitizor never gets a
+  // choice to accept or decline. New assignments already land in IN_PROGRESS
+  // (assignments.service.ts), but any job still sitting in ASSIGNED (e.g. from
+  // before this change) is silently carried forward here with no button/toast.
+  useEffect(() => {
+    if (job.rawStatus === 'ASSIGNED' && job.uuid && job.version != null && !acceptedRef.current) {
+      acceptedRef.current = true;
+      adminService.transitionJob(job.uuid, 'accept', job.version)
+        .then(() => void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() }))
+        .catch(() => { acceptedRef.current = false; });
     }
-  };
+  }, [job.rawStatus, job.uuid, job.version, queryClient]);
 
   const handleSubmit = async (uploadedFileIds: string[]) => {
     if (!job.uuid || job.version == null) return;
@@ -135,23 +135,17 @@ function ActiveActions({ job }: { job: Job }) {
 
   return (
     <div className="job-actions" onClick={(e) => e.stopPropagation()}>
-      {job.rawStatus === 'ASSIGNED' ? (
-        <button type="button" className="btn btn-crimson" disabled={pending} onClick={handleAccept}>
-          <Play className="w-3.5 h-3.5" aria-hidden />
-          Accept
-        </button>
-      ) : (
-        <button type="button" className="btn btn-crimson" onClick={() => setShowSubmit(true)}>
-          <Send className="w-3.5 h-3.5" aria-hidden />
-          {isSewout ? 'To Sewout' : 'To QC'}
-        </button>
-      )}
+      <button type="button" className="btn btn-crimson" onClick={() => setShowSubmit(true)}>
+        <Send className="w-3.5 h-3.5" aria-hidden />
+        {isSewout ? 'To Sewout' : 'To QC'}
+      </button>
       {showSubmit && job.uuid ? (
         <ProducerSubmitModal
           jobUuid={job.uuid}
           jobLabel={job.id}
           title="Submit Completed Digitizing File"
           confirmLabel="Submit"
+          allowedFormats={getAllowedFormats(job)}
           onClose={() => setShowSubmit(false)}
           onSubmit={handleSubmit}
         />
