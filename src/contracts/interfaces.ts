@@ -172,6 +172,7 @@ export interface IJobCard {
   order_type: OrderType;
   project_type: ProjectType;
   eta_hours: number | null;
+  eta_locked_at: IsoDateTime | null;
   design_name: string;
   design_complexity: DesignComplexity | null;
   process_type: ProcessType | null;

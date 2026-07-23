@@ -1,9 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X, UserPlus, Users, AlertCircle } from 'lucide-react';
+import { X, UserPlus, Users, AlertCircle, AlertTriangle } from 'lucide-react';
 import { UserRole, UserSubType, type IUser } from '@contracts';
-import { useAdminUsers } from '@modules/admin-panel/hooks/use-admin-jobs';
+import { useStaffDirectory } from '@modules/team-lead/hooks/use-staff-directory';
+import type { StaffDirectoryEntry } from '@modules/team-lead/services/staff-directory.service';
 import { useAssignJob } from '@modules/admin-panel/hooks/use-assignments';
 import type { Job } from '../mocks/jobs';
+
+const AVAILABILITY_LABEL: Record<StaffDirectoryEntry['availability'], { label: string; accent: string }> = {
+  FREE: { label: 'Free', accent: 'green' },
+  BUSY: { label: 'Busy', accent: 'amber' },
+  OVERLOADED: { label: 'Overloaded', accent: 'red' },
+};
 
 interface AssignJobModalProps {
   job: Job | null;
@@ -24,11 +31,8 @@ export function AssignJobModal({ job, onClose, onAssigned }: AssignJobModalProps
   const [notes, setNotes] = useState('');
   const [isIn, setIsIn] = useState(false);
 
-  // Fetch internal staff once — exclude clients server-side.
-  // Backend caps per_page at 100 (see listUsersQuerySchema). For a small
-  // tenant 100 covers the entire internal staff list; if a deployment ever
-  // grows past 100 active users this should switch to a paginator.
-  const { data, isLoading, isError } = useAdminUsers({ is_active: true, per_page: 100 });
+  // Fetch internal staff directory showing workloads.
+  const { data, isLoading, isError } = useStaffDirectory();
   const assignMutation = useAssignJob();
 
   useEffect(() => {
@@ -52,21 +56,21 @@ export function AssignJobModal({ job, onClose, onAssigned }: AssignJobModalProps
 
   // Build role groups in the same display order as the v3 prototype.
   const groups = useMemo(() => {
-    const rows = data?.items ?? [];
-    const sortByName = (a: IUser, b: IUser) => a.name.localeCompare(b.name);
+    const rows = data ?? [];
+    const sortByName = (a: StaffDirectoryEntry, b: StaffDirectoryEntry) => a.user.name.localeCompare(b.user.name);
     const filter = (predicate: (u: IUser) => boolean) =>
-      rows.filter((u) => u.is_active && predicate(u)).sort(sortByName);
+      rows.filter((entry) => entry.user.is_active && predicate(entry.user)).sort(sortByName);
     return [
-      { label: 'Team Lead',        users: filter((u) => u.role === UserRole.TEAM_LEAD) },
-      { label: 'Senior Designer',  users: filter((u) => u.role === UserRole.DESIGNER && u.sub_type === UserSubType.SENIOR) },
-      { label: 'Junior Designer',  users: filter((u) => u.role === UserRole.DESIGNER && u.sub_type === UserSubType.JUNIOR) },
-      { label: 'Digitizor',        users: filter((u) => u.role === UserRole.DIGITATOR) },
-      { label: 'Sewout',           users: filter((u) => u.role === UserRole.SEWOUT) },
-      { label: 'QC Reviewer',      users: filter((u) => u.role === UserRole.QC) },
-      { label: 'Client Servicing', users: filter((u) => u.role === UserRole.CS) },
-      { label: 'Admin',            users: filter((u) => u.role === UserRole.ADMIN) },
-    ].filter((g) => g.users.length > 0);
-  }, [data?.items]);
+      { label: 'Team Lead',        staff: filter((u) => u.role === UserRole.TEAM_LEAD) },
+      { label: 'Senior Designer',  staff: filter((u) => u.role === UserRole.DESIGNER && u.sub_type === UserSubType.SENIOR) },
+      { label: 'Junior Designer',  staff: filter((u) => u.role === UserRole.DESIGNER && u.sub_type === UserSubType.JUNIOR) },
+      { label: 'Digitizor',        staff: filter((u) => u.role === UserRole.DIGITATOR) },
+      { label: 'Sewout',           staff: filter((u) => u.role === UserRole.SEWOUT) },
+      { label: 'QC Reviewer',      staff: filter((u) => u.role === UserRole.QC) },
+      { label: 'Client Servicing', staff: filter((u) => u.role === UserRole.CS) },
+      { label: 'Admin',            staff: filter((u) => u.role === UserRole.ADMIN) },
+    ].filter((g) => g.staff.length > 0);
+  }, [data]);
 
   if (!job) return null;
 
@@ -220,9 +224,13 @@ export function AssignJobModal({ job, onClose, onAssigned }: AssignJobModalProps
                   {g.label}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {g.users.map((u) => {
+                  {g.staff.map((entry) => {
+                    const u = entry.user;
                     const checked = selectedUserId === u.id;
                     const initials = (u.name || u.email).split(/\s+/).map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+                    const avail = AVAILABILITY_LABEL[entry.availability];
+                    const atRiskCount = entry.jobs.filter((j) => j.at_risk).length;
+
                     return (
                       <label
                         key={u.id}
@@ -248,18 +256,24 @@ export function AssignJobModal({ job, onClose, onAssigned }: AssignJobModalProps
                           style={{
                             width: 32, height: 32, borderRadius: '50%',
                             background: 'rgba(178,34,52,0.12)',
-                            border: '1px solid rgba(178,34,52,0.2)',
-                            fontSize: 10, fontWeight: 700, color: '#B22234',
+                            color: '#B22234', fontSize: 11, fontWeight: 800, letterSpacing: '0.02em',
                           }}
                         >
-                          {initials || '?'}
+                          {initials}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-[12.5px] truncate" style={{ color: '#0D1B2A' }}>
-                            {u.name || u.email}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-semibold text-[13px] text-[#0D1B2A] truncate">{u.name}</div>
+                            <span className={`badge ${avail.accent}`}>{avail.label}</span>
                           </div>
-                          <div className="text-[10.5px]" style={{ color: '#64748B' }}>
-                            {u.sub_type ? `${u.sub_type[0]}${u.sub_type.slice(1).toLowerCase()} · ` : ''}{u.email}
+                          <div className="flex items-center gap-2 mt-[2px] text-[11px] text-[#64748B]">
+                            <span>{entry.active_job_count}/{entry.capacity} active jobs</span>
+                            {atRiskCount > 0 ? (
+                              <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
+                                <AlertTriangle className="w-3 h-3" aria-hidden />
+                                {atRiskCount} at risk
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       </label>

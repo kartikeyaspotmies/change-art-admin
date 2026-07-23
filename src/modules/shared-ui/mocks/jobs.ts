@@ -79,6 +79,9 @@ export interface Job {
   stage: JobStage;
   assignedTo: string | null;
   subType: 'Senior' | 'Junior' | null;
+  /** True once QC has approved (IJobCard.is_locked). A DELIVERED/READY_TO_DELIVER
+   *  job that's still false reached delivery via the CS bypass, not real QC. */
+  isLocked?: boolean;
   notes: string;
   colors: number;
   created: string;

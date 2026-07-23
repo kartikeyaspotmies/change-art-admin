@@ -67,7 +67,7 @@ function mapStatusFilter(display: string): {
       // stages, PLUS JOB_PLACED rows that HAVE been acknowledged (JOB_PLACED
       // without acknowledgement displays as "Pending" instead — see below).
       return {
-        statuses: 'CS_APPROVED,ASSIGNED,IN_PROGRESS,SENIOR_REJECTED,QC_REJECTED',
+        statuses: 'CS_APPROVED,ASSIGNED,IN_PROGRESS,TEAM_LEAD_REJECTED,QC_REJECTED',
         include_ack_placed: true,
       };
     case 'Senior Review':

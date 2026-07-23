@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Download, FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ConfirmModal, GreetingHero, Panel, StatGrid } from '@modules/shared-ui';
@@ -6,6 +6,105 @@ import { formatDateTime } from '@lib/utils';
 import { toastApiError } from '@lib/toast-error';
 import { useCcForm, useDeleteCcForm, useUploadCcForm } from '../../modules/admin-panel/hooks/use-cc-form';
 import { settingsService } from '../../modules/admin-panel/services/settings.service';
+import { useCapacityThresholds, useUpdateCapacityThresholds } from '@modules/team-lead/hooks/use-capacity-thresholds';
+import type { CapacityThresholds } from '@modules/team-lead/services/staff-directory.service';
+import { useBypassSetting, useSetBypassSetting } from '@modules/cs-panel/hooks/use-cs-quote';
+
+const CAPACITY_FIELDS: { key: keyof CapacityThresholds; label: string }[] = [
+  { key: 'DESIGNER_JUNIOR', label: 'Junior Designer' },
+  { key: 'DESIGNER_SENIOR', label: 'Senior Designer' },
+  { key: 'DIGITATOR_JUNIOR', label: 'Junior Digitator' },
+  { key: 'DIGITATOR_SENIOR', label: 'Senior Digitator' },
+  { key: 'SEWOUT', label: 'Sewout' },
+];
+
+function CapacityThresholdsPanel() {
+  const { data, isLoading } = useCapacityThresholds();
+  const update = useUpdateCapacityThresholds();
+  const [draft, setDraft] = useState<CapacityThresholds | null>(null);
+
+  useEffect(() => {
+    if (data && !draft) setDraft(data);
+  }, [data, draft]);
+
+  const handleChange = (key: keyof CapacityThresholds, value: string) => {
+    if (!draft) return;
+    const n = Number(value);
+    setDraft({ ...draft, [key]: Number.isFinite(n) && n > 0 ? n : draft[key] });
+  };
+
+  const handleSave = () => {
+    if (!draft) return;
+    update.mutate(draft);
+  };
+
+  return (
+    <Panel title="Staff Capacity Thresholds">
+      <p className="text-[12.5px] text-text-muted mb-3">
+        Active job count at which the Staff Directory (§1.10) marks a producer "Overloaded" instead
+        of "Busy". Changes apply immediately to Team Lead and CS's assignment view.
+      </p>
+      {isLoading || !draft ? (
+        <div className="text-[12.5px] text-text-muted">Loading…</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
+            {CAPACITY_FIELDS.map((f) => (
+              <div key={f.key}>
+                <label className="block text-[10px] font-bold uppercase tracking-wide text-text-muted mb-1">
+                  {f.label}
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={draft[f.key]}
+                  onChange={(e) => handleChange(f.key, e.target.value)}
+                  disabled={update.isPending}
+                  className="w-full border border-border rounded-lg px-2.5 py-1.5 text-[13px]"
+                />
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn btn-crimson" onClick={handleSave} disabled={update.isPending}>
+            {update.isPending ? 'Saving…' : 'Save Thresholds'}
+          </button>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+function CsBypassSettingPanel() {
+  const { data, isLoading } = useBypassSetting();
+  const update = useSetBypassSetting();
+  const enabled = data?.enabled ?? true;
+
+  return (
+    <Panel title="CS Direct-Delivery Bypass">
+      <p className="text-[12.5px] text-text-muted mb-3">
+        "Mark Complete &amp; Notify Ready" lets CS jump a job straight to delivery, skipping Team
+        Lead assignment, Designer/Digitator work, and QC review (PRD §1.6). Disabling this forces
+        every job through the real production pipeline. Defaults to enabled.
+      </p>
+      {isLoading ? (
+        <div className="text-[12.5px] text-text-muted">Loading…</div>
+      ) : (
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={enabled}
+            disabled={update.isPending}
+            onChange={(e) => update.mutate(e.target.checked)}
+            className="w-4 h-4"
+          />
+          <span className="text-[13px] font-semibold">
+            {enabled ? 'Bypass enabled' : 'Bypass disabled'}
+          </span>
+        </label>
+      )}
+    </Panel>
+  );
+}
 
 const ACCEPTED_EXTENSIONS = ['pdf', 'doc', 'docx'];
 
@@ -219,6 +318,9 @@ export function AdminSettingsPage() {
             <li>• Better Auth — sessions</li>
           </ul>
         </Panel>
+
+        <CapacityThresholdsPanel />
+        <CsBypassSettingPanel />
 
         <div className="lg:col-span-2">
           <CcAuthorizationFormPanel />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { JobQueriesSection } from './JobQueriesSection';
-import { X, Download, Edit2, Send, AlertCircle, ChevronLeft, ChevronRight, Timer, CheckCircle2, PackageCheck, FileText, Upload, Loader2, Copy, CreditCard } from 'lucide-react';
+import { X, Download, Edit2, Send, AlertCircle, ChevronLeft, ChevronRight, Timer, CheckCircle2, FileText, Upload, Loader2, Copy, CreditCard } from 'lucide-react';
 import { getCardExpiryStatus } from '@lib/card-expiry';
 import { clientActivityAccent, formatClientActivityBucket, getClientActivityBucket } from '@lib/client-activity';
 import { MarkCompleteModal } from '@modules/cs-panel/components/MarkCompleteModal';
@@ -11,13 +11,14 @@ import toast from 'react-hot-toast';
 import { toastApiError } from '@lib/toast-error';
 import { cn } from '@lib/utils';
 import { type Job, jobImage } from '../mocks/jobs';
-import { useSendQuotePrice, useRejectQuote, useDispatchJob, useAcknowledgeJob, useNotifyOrderReady } from '@/modules/cs-panel/hooks/use-cs-quote';
+import { useSendQuotePrice, useRejectQuote, useDispatchJob, useAcknowledgeJob, useNotifyOrderReady, useApproveJob } from '@/modules/cs-panel/hooks/use-cs-quote';
 import { uploadCompletedFile } from '@modules/cs-panel/services/cs-quote.service';
 
 import { useJobRoom } from '@lib/use-job-room';
 import { useAdminJobById, useAdminJobFiles, useAdminJobImageUrls, isAdminViewableImage } from '@modules/admin-panel/hooks/use-admin-jobs';
 import { adminService } from '@modules/admin-panel/services/admin.service';
-import { FileCategory, JobStatus, type IFileVersion } from '@contracts';
+import { FileCategory, JobStatus, UserRole, type IFileVersion } from '@contracts';
+import { useSessionUser } from '@modules/auth/stores/auth-store';
 import { FilePreviewModal } from './FilePreviewModal';
 
 function formatBytes(bytes: number, decimals = 2) {
@@ -174,7 +175,7 @@ function isPriceAgreed(job: Job): boolean {
   return !!s && !QUOTE_UNRESOLVED_STATUSES.has(s);
 }
 
-export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobDetailModalProps) {
+export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = false }: JobDetailModalProps) {
   const queryClient = useQueryClient();
   const [isIn, setIsIn] = useState(false);
   const [agencyPrice, setAgencyPrice] = useState('');
@@ -193,6 +194,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [showDispatchConfirm, setShowDispatchConfirm] = useState(false);
+  const [showQcWarning, setShowQcWarning] = useState(false);
   const [showSendMailModal, setShowSendMailModal] = useState(false);
   const [sendMailConfirmText, setSendMailConfirmText] = useState('');
   const [sendMailFiles, setSendMailFiles] = useState<File[]>([]);
@@ -325,6 +327,11 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   const dispatchJob = useDispatchJob();
   const acknowledgeJob = useAcknowledgeJob();
   const notifyOrderReady = useNotifyOrderReady();
+  const approveJob = useApproveJob();
+  const viewer = useSessionUser();
+  const isCsOrAdmin = viewer?.role === UserRole.CS || viewer?.role === UserRole.ADMIN;
+  // const { data: bypassSetting } = useBypassSetting(isCsOrAdmin);
+  // const bypassDisabled = bypassSetting?.enabled === false;
   const isSubmitting = sendPrice.isPending || rejectQuote.isPending;
 
   const etaCountdown = useEtaCountdown(
@@ -429,7 +436,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   const hasAllRequiredFormats = useMemo(() => {
     if (!allowedFormats || allowedFormats.length === 0) return true;
     const presentExtensions = new Set<string>();
-    
+
     allCompletedFiles.forEach(f => {
       if (!excludedServerFileIds.has(f.id)) {
         const name = f.file_name || (f as any).name || '';
@@ -437,12 +444,12 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
         if (dotIdx !== -1) presentExtensions.add(name.slice(dotIdx + 1).toLowerCase());
       }
     });
-    
+
     sendMailFiles.forEach(f => {
       const dotIdx = f.name.lastIndexOf('.');
       if (dotIdx !== -1) presentExtensions.add(f.name.slice(dotIdx + 1).toLowerCase());
     });
-    
+
     return allowedFormats.every(ext => presentExtensions.has(ext));
   }, [allowedFormats, allCompletedFiles, excludedServerFileIds, sendMailFiles]);
 
@@ -518,10 +525,14 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   // pass it, but no longer required to unlock the pricing UI.
   const isQuote = quoteView || isQuoteStageStatus(job);
   const isReadyToDeliver = isReadyToDeliverStatus(job);
-  const isCsApproved = normalizedStatus(job) === 'CS_APPROVED';
-  const canAcknowledge = normalizedStatus(job) === 'JOB_PLACED' && !job.acknowledgedAt;
+  // const isCsApproved = normalizedStatus(job) === 'CS_APPROVED';
+  const isJobPlaced = normalizedStatus(job) === 'JOB_PLACED';
+  const canAcknowledge = isJobPlaced && !job.acknowledgedAt;
   const isAcknowledged = !!job.acknowledgedAt;
   const isDelivered = normalizedStatus(job) === 'DELIVERED';
+  // CS/Admin and Team Leads can assign or reassign a job until it is QC Approved
+  // (which transitions the job to READY_TO_DELIVER).
+  const canAssign = isAcknowledged && !isReadyToDeliver && !isDelivered && normalizedStatus(job) !== 'CANCELLED';
   const cardExpiryStatus = getCardExpiryStatus(
     job.clientCardExpMonth != null && job.clientCardExpYear != null
       ? { exp_month: job.clientCardExpMonth, exp_year: job.clientCardExpYear }
@@ -678,6 +689,16 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
       const etaHours = parsed != null && !isNaN(parsed) && parsed > 0 ? parsed : undefined;
       acknowledgeJob.mutate({ jobId: id, etaHours });
     }
+  };
+
+  const handleApprove = () => {
+    const id = requireUuid('approve job');
+    if (!id) return;
+    if (job?.etaHours == null || job.etaHours <= 0) {
+      toast.error('Send Acknowledgement first to set an ETA before approving.');
+      return;
+    }
+    approveJob.mutate({ jobId: id, body: { etaHours: job.etaHours } });
   };
 
   const handleSendMailSubmit = async () => {
@@ -912,6 +933,14 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                 )}
                 */}
                 <span className={cn('badge', statusAccent(job.status))}>{displayStatus(job.status)}</span>
+                {(isReadyToDeliver || isDelivered) && !job.isLocked ? (
+                  <span
+                    className="badge amber"
+                    title="Delivered via CS bypass — skipped Team Lead, producer, and QC review"
+                  >
+                    Bypassed QC
+                  </span>
+                ) : null}
               </div>
             </div>
             <div className="flex flex-col items-end gap-2.5 flex-shrink-0">
@@ -1081,7 +1110,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                     </span>
                   </div>
                 </div>
-              ) : !isDelivered && isAcknowledged && (!etaCountdown || etaCountdown.expired) && job?.project !== 'Amend' ? (
+              ) : !isDelivered && isAcknowledged && (!etaCountdown || etaCountdown.expired) && job?.project !== 'Amend' && isCsOrAdmin ? (
                 /* ETA expired (or no ETA set) — show Deliver Project button for non-amend jobs */
                 <button
                   type="button"
@@ -1539,6 +1568,74 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                         </button>
                       )}
                     </div>
+                    {totalImages > 0 && (
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-[11px] font-bold text-slate-500 tracking-wider">
+                            {totalImages} PREVIEW{totalImages === 1 ? '' : 'S'}
+                          </h3>
+                          {totalImages > 1 && (
+                            <button
+                              type="button"
+                              className="text-[11px] font-bold text-slate-500 hover:text-crimson flex items-center gap-1 transition"
+                              onClick={async () => {
+                                const imageFiles = viewMode === 'client' && !showCompare ? clientImageFiles : adminImageFiles;
+                                if (!imageFiles || imageFiles.length === 0) return;
+
+                                const toastId = toast.loading(`Preparing zip of ${imageFiles.length} image(s)…`);
+                                try {
+                                  const JSZip = (await import('jszip')).default;
+                                  const zip = new JSZip();
+
+                                  await Promise.all(
+                                    imageFiles.map(async (f) => {
+                                      const res = await adminService.getDownloadUrl(f.id);
+                                      const fileRes = await fetch(res.url);
+                                      if (!fileRes.ok) throw new Error(`Failed to fetch ${f.file_name}`);
+                                      const blob = await fileRes.blob();
+                                      zip.file(f.file_name, blob);
+                                    })
+                                  );
+
+                                  const content = await zip.generateAsync({ type: 'blob' });
+                                  const link = document.createElement('a');
+                                  link.href = URL.createObjectURL(content);
+                                  link.download = `${job?.ref || 'Images'}.zip`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                  URL.revokeObjectURL(link.href);
+
+                                  toast.success('Zip file downloaded successfully.', { id: toastId });
+                                } catch (err) {
+                                  console.error(err);
+                                  toast.error('Failed to create zip file.', { id: toastId });
+                                }
+                              }}
+                            >
+                              <Download className="w-3.5 h-3.5" /> Download All
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                          {images.map((src, i) => {
+                            return (
+                              <div
+                                key={`thumb-${i}`}
+                                className="w-16 h-16 shrink-0 rounded border border-slate-200 bg-slate-100 overflow-hidden cursor-pointer hover:opacity-80 hover:scale-105 transition-all"
+                                style={{
+                                  borderColor: (i >= carPage && i < carPage + 2) || (totalImages === 1) ? '#B22234' : '#E2E8F0',
+                                  boxShadow: (i >= carPage && i < carPage + 2) || (totalImages === 1) ? '0 0 0 1.5px #B22234' : 'none'
+                                }}
+                                onClick={() => setCarPage(Math.min(i, Math.max(0, totalImages - 2)))}
+                              >
+                                <img src={src} alt="Thumbnail" className="w-full h-full object-cover" />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* RIGHT — Review & Set Price card (quote view only) */}
@@ -2336,12 +2433,18 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
             <Edit2 className="w-3.5 h-3.5" aria-hidden />
             Edit Job
           </button>
-          {!isQuote && isAcknowledged && !isDelivered && job?.project !== 'Amend' ? (
+          {!isQuote && isAcknowledged && !isDelivered && job?.project !== 'Amend' && isCsOrAdmin ? (
             <button
               type="button"
               className="btn btn-crimson"
               style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
-              onClick={() => openSendMailModal()}
+              onClick={() => {
+                if (!isReadyToDeliver) {
+                  setShowQcWarning(true);
+                } else {
+                  openSendMailModal();
+                }
+              }}
             >
               <Send className="w-3.5 h-3.5" aria-hidden />
               Dispatch Project
@@ -2370,18 +2473,43 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
               </button>
             </>
           ) : null}
-          {!isQuote && isCsApproved ? (
+          {!isQuote && isJobPlaced && isAcknowledged && isCsOrAdmin ? (
+            <button
+              type="button"
+              className="btn btn-crimson"
+              style={{ fontSize: 12, padding: '7px 13px', gap: 6, opacity: approveJob.isPending ? 0.6 : 1 }}
+              disabled={approveJob.isPending}
+              onClick={handleApprove}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+              {approveJob.isPending ? 'Approving…' : 'Approve'}
+            </button>
+          ) : null}
+          {!isQuote && canAssign && onAssign ? (
             <button
               type="button"
               className="btn btn-crimson"
               style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+              onClick={() => onAssign(job)}
+            >
+              <Send className="w-3.5 h-3.5" aria-hidden />
+              Assign Job
+            </button>
+          ) : null}
+          {/* {!isQuote && isCsApproved && isCsOrAdmin ? (
+            <button
+              type="button"
+              className="btn btn-crimson"
+              style={{ fontSize: 12, padding: '7px 13px', gap: 6, opacity: bypassDisabled ? 0.5 : 1 }}
+              disabled={bypassDisabled}
+              title={bypassDisabled ? 'Disabled by Admin — route this job through Team Lead assignment instead.' : undefined}
               onClick={() => setShowMarkComplete(true)}
             >
               <PackageCheck className="w-3.5 h-3.5" aria-hidden />
               Mark Complete
             </button>
-          ) : null}
-          {!isQuote && isReadyToDeliver ? (
+          ) : null} */}
+          {!isQuote && isReadyToDeliver && isCsOrAdmin ? (
             <button
               type="button"
               className="btn btn-crimson"
@@ -3131,6 +3259,73 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
                   </button>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── QC WARNING MODAL ── */}
+      {showQcWarning ? (
+        <div
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{
+            background: 'rgba(15,23,42,0.55)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            zIndex: 60,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowQcWarning(false);
+          }}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Warning: Not QC Approved"
+            className="relative w-full max-w-[400px] rounded-2xl flex flex-col overflow-hidden"
+            style={{
+              background: '#fff',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.06)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div
+                  className="flex items-center justify-center shrink-0"
+                  style={{
+                    width: 40, height: 40, borderRadius: '50%',
+                    background: 'rgba(245,158,11,0.15)',
+                    color: '#D97706',
+                  }}
+                >
+                  <AlertCircle className="w-5 h-5" aria-hidden />
+                </div>
+                <h3 className="text-[16px] font-bold" style={{ color: '#0D1B2A' }}>Not QC Approved</h3>
+              </div>
+              <p className="text-[13px] leading-relaxed mb-6" style={{ color: '#475569' }}>
+                This project has not yet been approved by Quality Control. Are you sure you want to dispatch it to the client?
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setShowQcWarning(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-crimson"
+                  onClick={() => {
+                    setShowQcWarning(false);
+                    openSendMailModal();
+                  }}
+                >
+                  Continue Dispatching
+                </button>
+              </div>
             </div>
           </div>
         </div>

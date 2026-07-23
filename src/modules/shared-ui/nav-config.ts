@@ -217,6 +217,11 @@ export const NAV_CONFIG = {
           { id: 'amendments',  label: 'Amendments',      to: '/admin/amendments',  icon: PencilRuler, badgeAccent: 'amber' },
           { id: 'email-inbox', label: 'Email Inbox',     to: '/admin/email-inbox', icon: Mail },
           { id: 'jobs',       label: 'All Jobs',         to: '/admin/jobs',        icon: ClipboardList },
+          // Quick-nav shortcuts pre-applying AdminJobsPage's own ?filter= mapping
+          // (mapStatusFilter) — no new route/page, just a preset query param so
+          // Admin doesn't have to remember it. See Implementation Plan Phase 2.
+          { id: 'queue',      label: 'Job Queue',        to: '/admin/jobs?filter=In Production', icon: Gauge },
+          { id: 'deliver',    label: 'Ready to Dispatch', to: '/admin/jobs?filter=Ready to Deliver', icon: Truck },
           { id: 'clients',    label: 'Clients',          to: '/admin/clients',     icon: Users, persistentBadge: true },
           { id: 'users',      label: 'User Management',  to: '/admin/users',       icon: ShieldCheck },
           { id: 'notifications', label: 'Notifications', to: '/admin/notifications', icon: Bell },

@@ -31,25 +31,34 @@ import { TeamLeadQueuePage } from '@routes/team-lead/TeamLeadQueuePage';
 import { TeamLeadReviewPage } from '@routes/team-lead/TeamLeadReviewPage';
 import { TeamLeadSubmittedPage } from '@routes/team-lead/TeamLeadSubmittedPage';
 import { TeamLeadTeamPage } from '@routes/team-lead/TeamLeadTeamPage';
+import { TeamLeadProfilePage } from '@routes/team-lead/TeamLeadProfilePage';
 
 // Designer workspace
 import { DesignerDashboardPage } from '@routes/designer/DesignerDashboardPage';
 import { DesignerSubmittedPage } from '@routes/designer/DesignerSubmittedPage';
 import { DesignerAnalyticsPage } from '@routes/designer/DesignerAnalyticsPage';
+import { DesignerProfilePage } from '@routes/designer/DesignerProfilePage';
 
 // Digitator workspace
 import { DigitatorDashboardPage } from '@routes/digitator/DigitatorDashboardPage';
 import { DigitatorSubmittedPage } from '@routes/digitator/DigitatorSubmittedPage';
 import { DigitatorAnalyticsPage } from '@routes/digitator/DigitatorAnalyticsPage';
+import { DigitatorProfilePage } from '@routes/digitator/DigitatorProfilePage';
 
 // Sewout workspace
 import { SewoutDashboardPage } from '@routes/sewout/SewoutDashboardPage';
 import { SewoutHistoryPage } from '@routes/sewout/SewoutHistoryPage';
+import { SewoutProfilePage } from '@routes/sewout/SewoutProfilePage';
+
+// Producer job workspace — shared by Designer/Digitator/Sewout
+import { JobWorkspacePage } from '@modules/producer-workspace/components/JobWorkspacePage';
+import { QCReviewWorkspacePage } from '@modules/producer-workspace/components/QCReviewWorkspacePage';
 
 // QC panel
 import { QCDashboardPage } from '@routes/qc/QCDashboardPage';
 import { QCStatsPage } from '@routes/qc/QCStatsPage';
 import { QCHistoryPage } from '@routes/qc/QCHistoryPage';
+import { QCProfilePage } from '@routes/qc/QCProfilePage';
 
 // Admin panel
 import { AdminDashboardPage } from '@routes/admin/AdminDashboardPage';
@@ -134,6 +143,7 @@ export const router = createBrowserRouter([
       { path: 'review', element: <TeamLeadReviewPage /> },
       { path: 'submitted', element: <TeamLeadSubmittedPage /> },
       { path: 'team', element: <TeamLeadTeamPage /> },
+      { path: 'profile', element: <TeamLeadProfilePage /> },
     ],
   },
 
@@ -151,6 +161,8 @@ export const router = createBrowserRouter([
       { index: true, element: <DesignerDashboardPage /> },
       { path: 'submitted', element: <DesignerSubmittedPage /> },
       { path: 'analytics', element: <DesignerAnalyticsPage /> },
+      { path: 'profile', element: <DesignerProfilePage /> },
+      { path: 'job/:jobId', element: <JobWorkspacePage /> },
     ],
   },
 
@@ -168,6 +180,8 @@ export const router = createBrowserRouter([
       { index: true, element: <DigitatorDashboardPage /> },
       { path: 'submitted', element: <DigitatorSubmittedPage /> },
       { path: 'analytics', element: <DigitatorAnalyticsPage /> },
+      { path: 'profile', element: <DigitatorProfilePage /> },
+      { path: 'job/:jobId', element: <JobWorkspacePage /> },
     ],
   },
 
@@ -184,6 +198,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <SewoutDashboardPage /> },
       { path: 'history', element: <SewoutHistoryPage /> },
+      { path: 'profile', element: <SewoutProfilePage /> },
+      { path: 'job/:jobId', element: <JobWorkspacePage /> },
     ],
   },
 
@@ -201,6 +217,8 @@ export const router = createBrowserRouter([
       { index: true, element: <QCDashboardPage /> },
       { path: 'dashboard', element: <QCStatsPage /> },
       { path: 'history', element: <QCHistoryPage /> },
+      { path: 'profile', element: <QCProfilePage /> },
+      { path: 'job/:jobId', element: <QCReviewWorkspacePage /> },
     ],
   },
 

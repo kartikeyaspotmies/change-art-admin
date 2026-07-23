@@ -189,11 +189,47 @@ export const adminService = {
     return apiClient.get<Record<string, number>>('/api/v1/job-cards/badges');
   },
 
-  transitionJob(jobId: string, action: string, version: number, notes?: string): Promise<IJobCard> {
-    return apiClient.post<IJobCard, { action: string; version: number; data?: { notes: string } }>(
+  transitionJob(
+    jobId: string,
+    action: string,
+    version: number,
+    notes?: string,
+    feedback?: string,
+  ): Promise<IJobCard> {
+    const data = notes || feedback ? { ...(notes ? { notes } : {}), ...(feedback ? { feedback } : {}) } : undefined;
+    return apiClient.post<IJobCard, { action: string; version: number; data?: { notes?: string; feedback?: string } }>(
       `/api/v1/workflow/${jobId}/transition`,
-      { action, version, ...(notes ? { data: { notes } } : {}) },
+      { action, version, ...(data ? { data } : {}) },
     );
+  },
+
+  /** QC reject requires a structured reason + written feedback (ChangeArt-New-PRD.md §2.8). */
+  qcReject(jobId: string, version: number, rejectionReason: string, feedback: string): Promise<IJobCard> {
+    return apiClient.post<
+      IJobCard,
+      { action: string; version: number; data: { rejection_reason: string; feedback: string } }
+    >(`/api/v1/workflow/${jobId}/transition`, {
+      action: 'qc_reject',
+      version,
+      data: { rejection_reason: rejectionReason, feedback },
+    });
+  },
+
+  /** Sewout submit requires a mandatory stitch count — backend rejects without it. */
+  transitionJobWithStitchCount(
+    jobId: string,
+    action: string,
+    version: number,
+    stitchCount?: number,
+  ): Promise<IJobCard> {
+    return apiClient.post<
+      IJobCard,
+      { action: string; version: number; data?: { stitch_count: number } }
+    >(`/api/v1/workflow/${jobId}/transition`, {
+      action,
+      version,
+      ...(stitchCount != null ? { data: { stitch_count: stitchCount } } : {}),
+    });
   },
 
   getJobCard(id: string): Promise<IJobCard> {

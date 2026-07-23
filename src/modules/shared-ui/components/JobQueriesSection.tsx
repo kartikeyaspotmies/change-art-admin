@@ -35,9 +35,12 @@ export function JobQueriesSection({ jobId }: JobQueriesSectionProps) {
   const handleSubmit = () => {
     const msg = text.trim();
     if (!msg || !jobId || raiseQuery.isPending) return;
+    
+    // Optimistically clear the text box instantly
+    setText('');
+    
     raiseQuery.mutate(msg, {
       onSuccess: () => {
-        setText('');
         toast.success('Query sent to client.');
         setShowAll(true);
         setTimeout(() => {
@@ -46,7 +49,11 @@ export function JobQueriesSection({ jobId }: JobQueriesSectionProps) {
           }
         }, 100);
       },
-      onError: () => toast.error('Failed to send query. Please try again.'),
+      onError: () => {
+        // Revert on error
+        setText(msg);
+        toast.error('Failed to send query. Please try again.');
+      },
     });
   };
 

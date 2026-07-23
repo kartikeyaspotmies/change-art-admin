@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Upload, CheckCircle2, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { uploadCompletedFile } from '../services/cs-quote.service';
@@ -114,15 +115,20 @@ export function MarkCompleteModal({ jobId, jobDesign, orderType, allowedFormats,
     );
   }
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const phaseLabel =
     phase === 'uploading' ? `Uploading… ${uploadProgress}%` :
     phase === 'completing' ? 'Marking complete…' :
     phase === 'sending' ? 'Sending to client…' :
     null;
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[90] flex items-center justify-center p-4"
       style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
       onClick={(e) => { if (e.target === e.currentTarget && !isPending) onClose(); }}
       role="presentation"
@@ -161,6 +167,30 @@ export function MarkCompleteModal({ jobId, jobDesign, orderType, allowedFormats,
 
         {/* Body */}
         <div className="px-6 py-5 flex flex-col gap-4">
+
+          {/* Bypass warning — this is a production-pipeline shortcut, not the
+              default path, now that Team Lead/Designer/Digitator/Sewout/QC
+              panels are real (ChangeArt-New-PRD.md §1.6, §4 item 5). */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              padding: '10px 12px',
+              borderRadius: 8,
+              background: 'rgba(217,119,6,0.08)',
+              border: '1px solid rgba(217,119,6,0.25)',
+              fontSize: 11.5,
+              color: '#92400E',
+              lineHeight: 1.5,
+            }}
+          >
+            <span style={{ fontWeight: 700, flexShrink: 0 }}>Bypass:</span>
+            <span>
+              This skips Team Lead assignment, producer execution, and QC review entirely — the job
+              goes straight to delivery unlocked and unreviewed. Use only when the real pipeline
+              isn't appropriate for this job.
+            </span>
+          </div>
 
           {/* File upload */}
           <div>
@@ -454,6 +484,7 @@ export function MarkCompleteModal({ jobId, jobDesign, orderType, allowedFormats,
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
