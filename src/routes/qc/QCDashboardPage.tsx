@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Check, X } from 'lucide-react';
 import {
   Callout,
   GreetingHero,
   JobTable,
   StatGrid,
+  JobDetailModal,
   type Job,
 } from '@modules/shared-ui';
 import { useAdminJobViews } from '@modules/admin-panel/hooks/use-admin-jobs';
@@ -31,7 +31,7 @@ const REJECTION_REASONS = [
  * rather than server-side assignee scoping.
  */
 export function QCDashboardPage() {
-  const navigate = useNavigate();
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const { jobs, isLoading } = useAdminJobViews({ statuses: 'SUBMITTED_TO_QC,QC_REVIEW', per_page: 100 });
 
   return (
@@ -52,11 +52,18 @@ export function QCDashboardPage() {
         <JobTable
           jobs={jobs}
           defaultView="grid"
-          onOpen={(j) => navigate(`/qc/job/${j.uuid}`)}
+          onOpen={setSelectedJob}
           renderActions={(j) => <QCActions job={j} />}
           emptyLabel={isLoading ? 'Loading…' : 'Queue is empty.'}
         />
       </div>
+
+      {selectedJob ? (
+        <JobDetailModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+        />
+      ) : null}
     </div>
   );
 }

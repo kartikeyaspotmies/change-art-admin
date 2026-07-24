@@ -14,7 +14,7 @@ import { FileCategory } from '@contracts';
 import { FileGrid } from './FileGrid';
 
 const ACTIVE_STATUSES = new Set(['ASSIGNED', 'IN_PROGRESS']);
-const REWORK_STATUSES = new Set(['TEAM_LEAD_REJECTED', 'QC_REJECTED']);
+const REWORK_STATUSES = new Set(['TEAM_LEAD_REJECTED', 'SENIOR_REJECTED', 'QC_REJECTED']);
 
 /**
  * Per-job producer workspace — Designer/Digitator/Sewout share this one page
@@ -65,6 +65,9 @@ export function JobWorkspacePage() {
   }
 
   const isSewoutOrder = job.order === 'Digitizing + Sewout';
+  // Digitizing (with or without Sewout) routes Junior submissions to Senior
+  // Digitator review; Artwork/Print/Other still goes to Team Lead review.
+  const isDigitizingOrder = job.order === 'Digitizing' || job.order === 'Digitizing + Sewout';
   const isActive = !!job.rawStatus && ACTIVE_STATUSES.has(job.rawStatus);
   const isRework = !!job.rawStatus && REWORK_STATUSES.has(job.rawStatus);
   const isJuniorAssigned = job.subType === 'Junior';
@@ -121,9 +124,15 @@ export function JobWorkspacePage() {
       toast.success('Submitted to QC.');
     } else {
       const isJunior = isJuniorAssigned;
-      const action = isJunior ? 'submit_to_team_lead' : isSewoutOrder ? 'senior_direct_to_sewout' : 'senior_direct_submit';
+      const action = isJunior
+        ? (isDigitizingOrder ? 'submit_to_senior' : 'submit_to_team_lead')
+        : isSewoutOrder ? 'senior_direct_to_sewout' : 'senior_direct_submit';
       await adminService.transitionJob(job.uuid!, action, job.version);
-      toast.success(isJunior ? 'Submitted to Team Lead.' : isSewoutOrder ? 'Routed to Sewout.' : 'Submitted to QC.');
+      toast.success(
+        isJunior
+          ? (isDigitizingOrder ? 'Submitted to Senior Digitator for review.' : 'Submitted to Team Lead.')
+          : isSewoutOrder ? 'Routed to Sewout.' : 'Submitted to QC.',
+      );
     }
     void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.byId(job.uuid!) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });

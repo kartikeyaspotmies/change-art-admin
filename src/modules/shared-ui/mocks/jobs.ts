@@ -22,6 +22,7 @@ export type JobStatus =
   | 'In Production'
   | 'Pending'
   | 'TL Review'
+  | 'Senior Review'
   | 'Sewout'
   | 'Ready to Deliver'
   | 'Dispatched'

@@ -154,6 +154,7 @@ export const NAV_CONFIG = {
         label: 'Main',
         items: [
           { id: 'tasks', label: 'My Tasks', to: '/digitator', icon: ClipboardList },
+          { id: 'review', label: 'Senior Review', to: '/digitator/review', icon: FileCheck },
           { id: 'submitted', label: 'Submitted', to: '/digitator/submitted', icon: ScrollText },
           { id: 'analytics', label: 'My Analytics', to: '/digitator/analytics', icon: Gauge },
         ],
@@ -161,6 +162,7 @@ export const NAV_CONFIG = {
     ],
     mobile: [
       { id: 'tasks', label: 'Tasks', to: '/digitator', icon: ClipboardList },
+      { id: 'review', label: 'Review', to: '/digitator/review', icon: FileCheck },
       { id: 'submitted', label: 'Done', to: '/digitator/submitted', icon: ScrollText },
       { id: 'analytics', label: 'Stats', to: '/digitator/analytics', icon: Gauge },
     ],

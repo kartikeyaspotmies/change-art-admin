@@ -153,8 +153,8 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
     const subTypeValue: UserSubType | null = showSubType && form.subType ? (form.subType as UserSubType) : null;
 
     if (isCreate) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
-        return setError('A valid email is required.');
+      // if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      //   return setError('A valid email is required.');
       const passwordError = passwordStrengthError(form.password);
       if (passwordError) return setError(passwordError);
       create.mutate(
@@ -272,7 +272,7 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
                 <label className="fl">Email</label>
                 <input
                   className="fi"
-                  type="email"
+                  type="text"
                   value={form.email}
                   disabled={!isCreate}
                   onChange={(e) => set('email', e.target.value)}

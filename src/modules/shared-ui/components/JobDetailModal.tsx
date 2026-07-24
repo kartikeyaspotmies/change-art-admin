@@ -17,9 +17,10 @@ import { uploadCompletedFile } from '@modules/cs-panel/services/cs-quote.service
 import { useJobRoom } from '@lib/use-job-room';
 import { useAdminJobById, useAdminJobFiles, useAdminJobImageUrls, isAdminViewableImage } from '@modules/admin-panel/hooks/use-admin-jobs';
 import { adminService } from '@modules/admin-panel/services/admin.service';
-import { FileCategory, JobStatus, UserRole, type IFileVersion } from '@contracts';
+import { FileCategory, JobStatus, UserRole, UserSubType, type IFileVersion } from '@contracts';
 import { useSessionUser } from '@modules/auth/stores/auth-store';
 import { FilePreviewModal } from './FilePreviewModal';
+import { FileGrid } from '@modules/producer-workspace/components/FileGrid';
 
 function formatBytes(bytes: number, decimals = 2) {
   if (!bytes) return '0 Bytes';
@@ -119,6 +120,7 @@ function displayStatus(status: string): string {
 function statusAccent(status: string): string {
   const map: Record<string, string> = {
     'In QC': 'teal', 'In Production': 'amber', Pending: 'blue', 'TL Review': 'purple',
+    'Senior Review': 'purple',
     Sewout: 'purple', 'Ready to Deliver': 'teal', Dispatched: 'green',
     'Quote Submitted': 'blue', 'Quote Approved': 'amber',
     'Pending Client Confirm': 'amber', Cancelled: 'gray',
@@ -166,6 +168,16 @@ function isReadyToDeliverStatus(job: Job): boolean {
 const QUOTE_UNRESOLVED_STATUSES = new Set([
   'DRAFT', 'QUOTE_SUBMITTED', 'QUOTE_APPROVED', 'QUOTE_REJECTED', 'CANCELLED',
 ]);
+
+const QC_REJECTION_REASONS = [
+  { value: 'COLOUR', label: 'Colour' },
+  { value: 'ALIGNMENT', label: 'Alignment' },
+  { value: 'RESOLUTION', label: 'Resolution' },
+  { value: 'STITCH_ERROR', label: 'Stitch Error' },
+  { value: 'INCORRECT_BRIEF', label: 'Incorrect Brief' },
+  { value: 'FILE_FORMAT', label: 'File Format' },
+  { value: 'OTHER', label: 'Other' },
+];
 
 // The price is only truly "agreed" once the client has confirmed the quote
 // (action: place_job), moving the job out of the quote stage into JOB_PLACED+.
@@ -261,6 +273,17 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
   const [tlRejectReason, setTlRejectReason] = useState('');
   const [showTlApproveConfirm, setShowTlApproveConfirm] = useState(false);
   const [tlApproveConfirmText, setTlApproveConfirmText] = useState('');
+  const [srReviewBusy, setSrReviewBusy] = useState<'approve' | 'reject' | null>(null);
+  const [showSrRejectDialog, setShowSrRejectDialog] = useState(false);
+  const [srRejectReason, setSrRejectReason] = useState('');
+  const [showSrApproveConfirm, setShowSrApproveConfirm] = useState(false);
+  const [srApproveConfirmText, setSrApproveConfirmText] = useState('');
+  const [qcReviewBusy, setQcReviewBusy] = useState<'approve' | 'reject' | null>(null);
+  const [showQcRejectDialog, setShowQcRejectDialog] = useState(false);
+  const [qcRejectReason, setQcRejectReason] = useState('OTHER');
+  const [qcRejectFeedback, setQcRejectFeedback] = useState('');
+  const [showQcApproveConfirm, setShowQcApproveConfirm] = useState(false);
+  const [qcApproveConfirmText, setQcApproveConfirmText] = useState('');
   const [ackEtaHours, setAckEtaHours] = useState(() =>
     job?.etaHours != null ? String(job.etaHours) : '',
   );
@@ -302,6 +325,11 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
     () => (adminJobFiles ?? []).filter((f) => f.file_category === FileCategory.COMPLETED),
     [adminJobFiles],
   );
+  // Compare panel — original brief vs the finished work, split the same way
+  // the carousel splits ORIGINAL files (images vs everything else).
+  const completedImageFiles = useMemo(() => allCompletedFiles.filter(isAdminViewableImage), [allCompletedFiles]);
+  const completedOtherFiles = useMemo(() => allCompletedFiles.filter((f) => !isAdminViewableImage(f)), [allCompletedFiles]);
+  const { data: completedImageUrls } = useAdminJobImageUrls(job?.uuid, completedImageFiles);
 
   // Non-image reference files (PDF, AI, DST, ...) uploaded alongside the brief —
   // images render in the carousel, everything else is listed separately below it.
@@ -338,6 +366,13 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
   // Team Lead review decision (team_lead_approve/reject) is Team Lead/Admin
   // only per state-machine.ts — CS never touches this step.
   const canReviewAsTeamLead = viewer?.role === UserRole.TEAM_LEAD || viewer?.role === UserRole.ADMIN;
+  // Senior review decision (senior_approve/reject) is Senior Digitator/Admin
+  // only per state-machine.ts — Junior Digitators never touch this step.
+  const canReviewAsSenior =
+    (viewer?.role === UserRole.DIGITATOR && viewer?.sub_type === UserSubType.SENIOR) ||
+    viewer?.role === UserRole.ADMIN;
+  // QC decision (qc_approve/qc_reject) is QC/Admin only per state-machine.ts.
+  const canReviewAsQc = viewer?.role === UserRole.QC || viewer?.role === UserRole.ADMIN;
   // const { data: bypassSetting } = useBypassSetting(isCsOrAdmin);
   // const bypassDisabled = bypassSetting?.enabled === false;
   const isSubmitting = sendPrice.isPending || rejectQuote.isPending;
@@ -505,6 +540,28 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
       .finally(() => setPreviewLoading(false));
   };
 
+  /** Compare panel's FileGrid instances hand back (url, name) on click —
+   *  resolve `name` to the real file object so it can reuse the same
+   *  preview modal as everywhere else in this component. */
+  const makeCompareGridPreview = (files: IFileVersion[]) => (_url: string, name: string) => {
+    const file = files.find((f) => f.file_name === name);
+    if (file) handlePreviewFile(file);
+  };
+
+  const handleDownloadOneFile = async (id: string, name: string) => {
+    try {
+      const res = await adminService.getDownloadUrl(id);
+      const link = document.createElement('a');
+      link.href = res.url;
+      link.download = name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      toast.error(`Failed to download ${name}.`);
+    }
+  };
+
   const clientBudget = displayJob.negotiation?.clientOffer ?? displayJob.clientPrice ?? null;
   const adminCounter = displayJob.negotiation?.agencyOffer ?? displayJob.adminPrice ?? null;
   // Once the client has confirmed the quote (job moved past the quote stage),
@@ -548,6 +605,8 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
   ].includes(normalizedStatus(job) || '');
   const canAssign = isAcknowledged && !isReadyToDeliver && !isDelivered && normalizedStatus(job) !== 'CANCELLED' && !isReviewStatus;
   const isTeamLeadReviewStatus = normalizedStatus(job) === 'SUBMITTED_TO_TEAM_LEAD' || normalizedStatus(job) === 'TEAM_LEAD_REVIEW';
+  const isSeniorReviewStatus = normalizedStatus(job) === 'SUBMITTED_TO_SENIOR' || normalizedStatus(job) === 'SENIOR_REVIEW';
+  const isQcReviewStatus = normalizedStatus(job) === 'SUBMITTED_TO_QC' || normalizedStatus(job) === 'QC_REVIEW';
   const cardExpiryStatus = getCardExpiryStatus(
     job.clientCardExpMonth != null && job.clientCardExpYear != null
       ? { exp_month: job.clientCardExpMonth, exp_year: job.clientCardExpYear }
@@ -647,6 +706,100 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
       toastApiError(err);
     } finally {
       setTlReviewBusy(null);
+    }
+  }
+
+  /** Job may still be SUBMITTED_TO_SENIOR (not yet opened) when acted on
+   *  from outside the Senior Review queue — open it first so the decision
+   *  transition below has the right `from` status and version. */
+  async function ensureSrReviewOpened(id: string, version: number): Promise<number> {
+    if (normalizedStatus(job!) === 'SUBMITTED_TO_SENIOR') {
+      const updated = await adminService.transitionJob(id, 'senior_open_review', version);
+      return updated.version;
+    }
+    return version;
+  }
+
+  async function handleApproveSeniorReview() {
+    const id = requireUuid('approve submission');
+    if (!id || !job || job.version === undefined) return;
+    setSrReviewBusy('approve');
+    try {
+      const nextVersion = await ensureSrReviewOpened(id, job.version);
+      const action = job.order === 'Digitizing + Sewout' ? 'senior_approve_to_sewout' : 'senior_approve';
+      await adminService.transitionJob(id, action, nextVersion);
+      toast.success(action === 'senior_approve_to_sewout' ? 'Approved — routed to Sewout.' : 'Approved — forwarded to QC.');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      handleClose();
+    } catch (err) {
+      toastApiError(err);
+    } finally {
+      setSrReviewBusy(null);
+    }
+  }
+
+  async function handleRejectSeniorReview() {
+    const id = requireUuid('reject submission');
+    if (!id || !job || job.version === undefined) return;
+    setSrReviewBusy('reject');
+    try {
+      const nextVersion = await ensureSrReviewOpened(id, job.version);
+      await adminService.transitionJob(id, 'senior_reject', nextVersion, undefined, srRejectReason.trim());
+      toast.success('Returned to junior with feedback.');
+      setShowSrRejectDialog(false);
+      setSrRejectReason('');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      handleClose();
+    } catch (err) {
+      toastApiError(err);
+    } finally {
+      setSrReviewBusy(null);
+    }
+  }
+
+  /** Job may still be SUBMITTED_TO_QC (not yet opened) when acted on from
+   *  outside the QC Review Queue — open it first. */
+  async function ensureQcOpened(id: string, version: number): Promise<number> {
+    if (normalizedStatus(job!) === 'SUBMITTED_TO_QC') {
+      const updated = await adminService.transitionJob(id, 'qc_open', version);
+      return updated.version;
+    }
+    return version;
+  }
+
+  async function handleApproveQcReview() {
+    const id = requireUuid('approve submission');
+    if (!id || !job || job.version === undefined) return;
+    setQcReviewBusy('approve');
+    try {
+      const nextVersion = await ensureQcOpened(id, job.version);
+      await adminService.transitionJob(id, 'qc_approve', nextVersion);
+      toast.success('Approved — job locked and routed to CS for delivery.');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      handleClose();
+    } catch (err) {
+      toastApiError(err);
+    } finally {
+      setQcReviewBusy(null);
+    }
+  }
+
+  async function handleRejectQcReview() {
+    const id = requireUuid('reject submission');
+    if (!id || !job || job.version === undefined) return;
+    setQcReviewBusy('reject');
+    try {
+      const nextVersion = await ensureQcOpened(id, job.version);
+      await adminService.qcReject(id, nextVersion, qcRejectReason, qcRejectFeedback.trim());
+      toast.success('Rejected — returned with feedback.');
+      setShowQcRejectDialog(false);
+      setQcRejectFeedback('');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      handleClose();
+    } catch (err) {
+      toastApiError(err);
+    } finally {
+      setQcReviewBusy(null);
     }
   }
 
@@ -2027,6 +2180,43 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
               );
             })()}
 
+            {/* COMPARE — original brief vs the finished work, side by side.
+                Shows once there's actually a completed submission to compare
+                against; this is the main tool QC uses to judge a submission. */}
+            {allCompletedFiles.length > 0 && (
+              <div className="mb-5">
+                <SectionLabel>COMPARE — ORIGINAL VS COMPLETED</SectionLabel>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                      Original ({clientImageFiles.length + clientOtherFiles.length})
+                    </div>
+                    <FileGrid
+                      imageFiles={clientImageFiles}
+                      imageUrls={clientImageUrls ?? []}
+                      otherFiles={clientOtherFiles}
+                      onPreview={makeCompareGridPreview(clientImageFiles)}
+                      onDownload={handleDownloadOneFile}
+                      maxHeightPx={220}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                      Completed ({allCompletedFiles.length})
+                    </div>
+                    <FileGrid
+                      imageFiles={completedImageFiles}
+                      imageUrls={completedImageUrls ?? []}
+                      otherFiles={completedOtherFiles}
+                      onPreview={makeCompareGridPreview(completedImageFiles)}
+                      onDownload={handleDownloadOneFile}
+                      maxHeightPx={220}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* REFERENCE FILES — non-image uploads (PDF, AI, DST, ...) */}
             {referenceFiles.length > 0 && (
               <div className="mb-5">
@@ -2588,6 +2778,54 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
               </button>
             </>
           ) : null}
+          {!isQuote && isSeniorReviewStatus && canReviewAsSenior ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ fontSize: 12, padding: '7px 13px', gap: 6, borderColor: '#e11d48', color: '#e11d48' }}
+                disabled={srReviewBusy !== null}
+                onClick={() => { setSrRejectReason(''); setShowSrRejectDialog(true); }}
+              >
+                <X className="w-3.5 h-3.5" aria-hidden />
+                Reject
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+                disabled={srReviewBusy !== null}
+                onClick={() => { setSrApproveConfirmText(''); setShowSrApproveConfirm(true); }}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                {srReviewBusy === 'approve' ? 'Approving…' : 'Approve'}
+              </button>
+            </>
+          ) : null}
+          {!isQuote && isQcReviewStatus && canReviewAsQc ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ fontSize: 12, padding: '7px 13px', gap: 6, borderColor: '#e11d48', color: '#e11d48' }}
+                disabled={qcReviewBusy !== null}
+                onClick={() => { setQcRejectReason('OTHER'); setQcRejectFeedback(''); setShowQcRejectDialog(true); }}
+              >
+                <X className="w-3.5 h-3.5" aria-hidden />
+                Reject
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
+                disabled={qcReviewBusy !== null}
+                onClick={() => { setQcApproveConfirmText(''); setShowQcApproveConfirm(true); }}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                {qcReviewBusy === 'approve' ? 'Approving…' : 'Approve'}
+              </button>
+            </>
+          ) : null}
           {!isQuote && isJobPlaced && isAcknowledged && isCsOrAdmin ? (
             <button
               type="button"
@@ -2824,6 +3062,275 @@ export function JobDetailModal({ job, onClose, onEdit, onAssign, quoteView = fal
                 disabled={tlReviewBusy !== null || tlApproveConfirmText.trim().toUpperCase() !== 'CONFIRM'}
               >
                 {tlReviewBusy === 'approve' ? 'Approving…' : 'Confirm Approve'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {showSrRejectDialog && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/55 anim-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget && srReviewBusy === null) setShowSrRejectDialog(false); }}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Reject Submission"
+            className="glass-heavy rounded-2xl w-full max-w-[420px] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[15px] font-bold mb-1 text-text-main">Reject This Submission?</h2>
+            <p className="text-[12.5px] text-text-muted leading-relaxed mb-4">
+              It returns to the junior with your feedback so they can revise and resubmit.
+            </p>
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted mb-1.5">
+              Feedback <span className="font-normal normal-case text-text-faint">(required)</span>
+            </label>
+            <textarea
+              className="w-full rounded-xl border border-[var(--glass-border)] bg-transparent text-[13px] text-text-main p-3 outline-none focus:border-[#e11d48] transition resize-none mb-4 placeholder:text-text-faint"
+              rows={3}
+              placeholder="e.g. Stitch density is off — please rework and resubmit."
+              value={srRejectReason}
+              onChange={(e) => setSrRejectReason(e.target.value)}
+              disabled={srReviewBusy !== null}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowSrRejectDialog(false)}
+                disabled={srReviewBusy !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                onClick={handleRejectSeniorReview}
+                disabled={srReviewBusy !== null || !srRejectReason.trim()}
+              >
+                {srReviewBusy === 'reject' ? 'Rejecting…' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* ── SENIOR REVIEW APPROVE — 2-STEP (type CONFIRM) ── */}
+      {showSrApproveConfirm && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/55 anim-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget && srReviewBusy === null) setShowSrApproveConfirm(false); }}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm Approval"
+            className="rounded-2xl w-full max-w-[420px] p-6"
+            style={{ background: '#E9EDF3', border: '1px solid #D3DAE6', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[15px] font-bold mb-1 text-text-main">Approve This Submission?</h2>
+            <p className="text-[12.5px] text-text-muted leading-relaxed mb-4">
+              It will move on to {job.order === 'Digitizing + Sewout' ? 'Sewout' : 'QC'} for review. This can't be undone from here.
+            </p>
+
+            <div className="flex flex-col gap-1.5 mb-4">
+              <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted">
+                Type to Confirm
+              </label>
+              <div className="text-[11px] text-text-faint">
+                Type <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono">CONFIRM</code> below to enable the button
+              </div>
+              <input
+                type="text"
+                value={srApproveConfirmText}
+                onChange={(e) => setSrApproveConfirmText(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && srApproveConfirmText.trim().toUpperCase() === 'CONFIRM' && srReviewBusy === null) {
+                    void handleApproveSeniorReview().then(() => setShowSrApproveConfirm(false));
+                  }
+                }}
+                placeholder="CONFIRM"
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                disabled={srReviewBusy !== null}
+                className="w-full text-center font-bold tracking-wider uppercase rounded-xl px-4 py-3 outline-none font-mono text-[14px] transition"
+                style={{
+                  border: `1.5px solid ${srApproveConfirmText.trim().toUpperCase() === 'CONFIRM' ? '#22C55E' : 'var(--glass-border)'}`,
+                  background: 'transparent',
+                  color: 'var(--text-main)',
+                  boxShadow: srApproveConfirmText.trim().toUpperCase() === 'CONFIRM' ? '0 0 0 3px rgba(34,197,94,0.15)' : 'none',
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowSrApproveConfirm(false)}
+                disabled={srReviewBusy !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                onClick={async () => {
+                  await handleApproveSeniorReview();
+                  setShowSrApproveConfirm(false);
+                }}
+                disabled={srReviewBusy !== null || srApproveConfirmText.trim().toUpperCase() !== 'CONFIRM'}
+              >
+                {srReviewBusy === 'approve' ? 'Approving…' : 'Confirm Approve'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {showQcRejectDialog && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/55 anim-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget && qcReviewBusy === null) setShowQcRejectDialog(false); }}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Reject Submission"
+            className="glass-heavy rounded-2xl w-full max-w-[420px] p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[15px] font-bold mb-1 text-text-main">Reject This Submission?</h2>
+            <p className="text-[12.5px] text-text-muted leading-relaxed mb-4">
+              It returns to the producer with a structured reason so they can self-serve the fix.
+            </p>
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted mb-1.5">
+              Reason
+            </label>
+            <select
+              value={qcRejectReason}
+              onChange={(e) => setQcRejectReason(e.target.value)}
+              className="w-full rounded-xl border border-[var(--glass-border)] bg-transparent text-[13px] text-text-main p-3 outline-none mb-4"
+              disabled={qcReviewBusy !== null}
+            >
+              {QC_REJECTION_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+            <label className="block text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted mb-1.5">
+              Feedback <span className="font-normal normal-case text-text-faint">(required)</span>
+            </label>
+            <textarea
+              className="w-full rounded-xl border border-[var(--glass-border)] bg-transparent text-[13px] text-text-main p-3 outline-none resize-none mb-4 placeholder:text-text-faint"
+              rows={3}
+              placeholder="Describe what needs to change…"
+              value={qcRejectFeedback}
+              onChange={(e) => setQcRejectFeedback(e.target.value)}
+              disabled={qcReviewBusy !== null}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowQcRejectDialog(false)}
+                disabled={qcReviewBusy !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                onClick={handleRejectQcReview}
+                disabled={qcReviewBusy !== null || !qcRejectFeedback.trim()}
+              >
+                {qcReviewBusy === 'reject' ? 'Rejecting…' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {/* ── QC APPROVE — 2-STEP (type CONFIRM) ── */}
+      {showQcApproveConfirm && createPortal(
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/55 anim-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget && qcReviewBusy === null) setShowQcApproveConfirm(false); }}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm Approval"
+            className="rounded-2xl w-full max-w-[420px] p-6"
+            style={{ background: '#E9EDF3', border: '1px solid #D3DAE6', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[15px] font-bold mb-1 text-text-main">Approve This Submission?</h2>
+            <p className="text-[12.5px] text-text-muted leading-relaxed mb-4">
+              The job will be locked from the producer and routed to CS for delivery. This can't be undone from here.
+            </p>
+
+            <div className="flex flex-col gap-1.5 mb-4">
+              <label className="text-[11px] font-bold uppercase tracking-[0.08em] text-text-muted">
+                Type to Confirm
+              </label>
+              <div className="text-[11px] text-text-faint">
+                Type <code className="px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 font-mono">CONFIRM</code> below to enable the button
+              </div>
+              <input
+                type="text"
+                value={qcApproveConfirmText}
+                onChange={(e) => setQcApproveConfirmText(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && qcApproveConfirmText.trim().toUpperCase() === 'CONFIRM' && qcReviewBusy === null) {
+                    void handleApproveQcReview().then(() => setShowQcApproveConfirm(false));
+                  }
+                }}
+                placeholder="CONFIRM"
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                disabled={qcReviewBusy !== null}
+                className="w-full text-center font-bold tracking-wider uppercase rounded-xl px-4 py-3 outline-none font-mono text-[14px] transition"
+                style={{
+                  border: `1.5px solid ${qcApproveConfirmText.trim().toUpperCase() === 'CONFIRM' ? '#22C55E' : 'var(--glass-border)'}`,
+                  background: 'transparent',
+                  color: 'var(--text-main)',
+                  boxShadow: qcApproveConfirmText.trim().toUpperCase() === 'CONFIRM' ? '0 0 0 3px rgba(34,197,94,0.15)' : 'none',
+                }}
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setShowQcApproveConfirm(false)}
+                disabled={qcReviewBusy !== null}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-crimson"
+                onClick={async () => {
+                  await handleApproveQcReview();
+                  setShowQcApproveConfirm(false);
+                }}
+                disabled={qcReviewBusy !== null || qcApproveConfirmText.trim().toUpperCase() !== 'CONFIRM'}
+              >
+                {qcReviewBusy === 'approve' ? 'Approving…' : 'Confirm Approve'}
               </button>
             </div>
           </div>

@@ -44,6 +44,7 @@ import { DigitatorDashboardPage } from '@routes/digitator/DigitatorDashboardPage
 import { DigitatorSubmittedPage } from '@routes/digitator/DigitatorSubmittedPage';
 import { DigitatorAnalyticsPage } from '@routes/digitator/DigitatorAnalyticsPage';
 import { DigitatorProfilePage } from '@routes/digitator/DigitatorProfilePage';
+import { SeniorReviewPage } from '@routes/digitator/SeniorReviewPage';
 
 // Sewout workspace
 import { SewoutDashboardPage } from '@routes/sewout/SewoutDashboardPage';
@@ -178,6 +179,7 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <DigitatorDashboardPage /> },
+      { path: 'review', element: <SeniorReviewPage /> },
       { path: 'submitted', element: <DigitatorSubmittedPage /> },
       { path: 'analytics', element: <DigitatorAnalyticsPage /> },
       { path: 'profile', element: <DigitatorProfilePage /> },

@@ -6,12 +6,16 @@ export function FileGrid({
   otherFiles,
   onPreview,
   onDownload,
+  maxHeightPx = 380,
 }: {
   imageFiles: { id: string; file_name: string }[];
   imageUrls: string[];
   otherFiles: { id: string; file_name: string }[];
   onPreview?: (url: string, name: string) => void;
   onDownload?: (id: string, name: string) => void;
+  /** Cap the internal scroll area's height — smaller when nesting this grid
+   *  inside an already-long panel (e.g. the job detail modal's Compare tab). */
+  maxHeightPx?: number;
 }) {
   if (imageFiles.length === 0 && otherFiles.length === 0) {
     return (
@@ -22,7 +26,10 @@ export function FileGrid({
     );
   }
   return (
-    <div className="space-y-5 max-h-[380px] overflow-y-auto custom-scrollbar pr-2 -mr-2 pb-2">
+    <div
+      className="space-y-5 overflow-y-auto custom-scrollbar pr-2 -mr-2 pb-2"
+      style={{ maxHeight: maxHeightPx }}
+    >
       {imageFiles.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {imageFiles.map((f, i) => (

@@ -21,8 +21,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 const ACTIVE_STATUSES = new Set(['ASSIGNED', 'IN_PROGRESS']);
-const AWAITING_STATUSES = new Set(['SUBMITTED_TO_TEAM_LEAD', 'TEAM_LEAD_REVIEW', 'SUBMITTED_TO_SEWOUT', 'SEWOUT_IN_PROGRESS', 'SUBMITTED_TO_QC', 'QC_REVIEW']);
-const REWORK_STATUSES = new Set(['TEAM_LEAD_REJECTED', 'QC_REJECTED']);
+const AWAITING_STATUSES = new Set(['SUBMITTED_TO_SENIOR', 'SENIOR_REVIEW', 'SUBMITTED_TO_SEWOUT', 'SEWOUT_IN_PROGRESS', 'SUBMITTED_TO_QC', 'QC_REVIEW']);
+const REWORK_STATUSES = new Set(['SENIOR_REJECTED', 'QC_REJECTED']);
 
 /**
  * Real Digitator (Junior + Senior) workspace — same shape as Designer
@@ -123,13 +123,17 @@ function ActiveActions({ job }: { job: Job }) {
     }
   }, [job.rawStatus, job.uuid, job.version, queryClient]);
 
+  const isJunior = job.subType === 'Junior';
+
   const handleSubmit = async (uploadedFileIds: string[]) => {
     if (!job.uuid || job.version == null) return;
     void uploadedFileIds;
-    const isJunior = job.subType === 'Junior';
-    const action = isJunior ? 'submit_to_team_lead' : isSewout ? 'senior_direct_to_sewout' : 'senior_direct_submit';
+    // Junior Digitator's work always goes to Senior review first (per the
+    // Digitizing workflow — Team Lead review is Artwork/Print-only). Only a
+    // Senior working solo (no Junior in the loop) routes straight out.
+    const action = isJunior ? 'submit_to_senior' : isSewout ? 'senior_direct_to_sewout' : 'senior_direct_submit';
     await adminService.transitionJob(job.uuid, action, job.version);
-    toast.success(isJunior ? 'Submitted to Team Lead.' : isSewout ? 'Routed to Sewout.' : 'Submitted to QC.');
+    toast.success(isJunior ? 'Submitted to Senior Digitator for review.' : isSewout ? 'Routed to Sewout.' : 'Submitted to QC.');
     void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
   };
 
@@ -137,7 +141,7 @@ function ActiveActions({ job }: { job: Job }) {
     <div className="job-actions" onClick={(e) => e.stopPropagation()}>
       <button type="button" className="btn btn-crimson" onClick={() => setShowSubmit(true)}>
         <Send className="w-3.5 h-3.5" aria-hidden />
-        {isSewout ? 'To Sewout' : 'To QC'}
+        {isJunior ? 'Submit to Senior' : isSewout ? 'To Sewout' : 'To QC'}
       </button>
       {showSubmit && job.uuid ? (
         <ProducerSubmitModal
