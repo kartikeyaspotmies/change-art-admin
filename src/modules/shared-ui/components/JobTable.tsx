@@ -9,8 +9,6 @@ import {
   Download,
   Search,
   X,
-  Mail,
-  MailOpen,
   Paintbrush,
   Sparkles,
   Layers,
@@ -20,7 +18,6 @@ import {
   Truck,
   RefreshCw,
   XCircle,
-  Hash,
 } from 'lucide-react';
 import { useAdminJobById } from '@modules/admin-panel/hooks/use-admin-jobs';
 
@@ -30,6 +27,18 @@ function formatDate(dateStr: string): string {
     month: 'short',
     day: '2-digit',
   });
+}
+
+/** Compact relative timestamp for job cards, e.g. "5m ago" / "3h ago" / "2d ago". */
+function relativeTimeShort(dateStr: string): string {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 import { cn, briefText } from '@lib/utils';
 import { jobImage, type Job } from '../mocks/jobs';
@@ -128,18 +137,77 @@ export function JobTable({
     if (onOpen) { onOpen(job); } else { setViewJobId(job.uuid ?? job.id); }
   }, [onOpen]);
 
-  const builtInActions = useCallback((j: Job) => (
-    <div className="job-actions" onClick={(e) => e.stopPropagation()}>
-      <button
-        type="button"
-        className="btn btn-outline"
-        onClick={() => setViewJobId(j.uuid ?? j.id)}
-        aria-label={`View ${j.id}`}
-      >
-        View
-      </button>
-    </div>
-  ), []);
+  const builtInActions = useCallback((j: Job) => {
+    const showAssign = !j.assignedTo && j.stage !== 'delivered' && j.stage !== 'quote';
+    const isReadyToDispatch = j.status === 'Ready to Deliver';
+    // A brand-new quote request that CS hasn't priced yet — needs a
+    // "Prepare Quote" action (opens the modal, which auto-shows the
+    // Review & Set Price card for Quote Submitted jobs).
+    const needsQuotePrep = j.status === 'Quote Submitted';
+    const isQuoteAwaiting = j.project === 'Quote' || j.status === 'Quote Submitted';
+    // Dispatch stays available on every non-delivered card (not just
+    // "Ready to Deliver") as a manual fallback — assignment is its own
+    // phase, dispatch is a separate one CS/Admin can trigger any time.
+    // It's styled as primary once the job is genuinely ready, outline
+    // otherwise; the modal itself is the real gate on the actual send.
+    const showDispatch = j.stage !== 'delivered' && j.stage !== 'quote';
+    return (
+      <div className="job-actions" onClick={(e) => e.stopPropagation()}>
+        {showAssign ? (
+          <button
+            type="button"
+            className="btn btn-crimson"
+            onClick={() => setAssignJob(j)}
+            aria-label={`Assign ${j.id}`}
+          >
+            Assign
+          </button>
+        ) : null}
+        {needsQuotePrep ? (
+          <button
+            type="button"
+            className="btn btn-crimson"
+            onClick={() => setViewJobId(j.uuid ?? j.id)}
+            aria-label={`Prepare quote for ${j.id}`}
+          >
+            Prepare Quote
+          </button>
+        ) : null}
+        {isReadyToDispatch ? (
+          <button
+            type="button"
+            className="btn"
+            style={{ background: '#059669', color: '#fff', border: 'none' }}
+            onClick={() => setViewJobId(j.uuid ?? j.id)}
+            aria-label={`Upload files for ${j.id}`}
+          >
+            Upload Files
+          </button>
+        ) : null}
+        {showDispatch ? (
+          <button
+            type="button"
+            className={isReadyToDispatch ? 'btn' : 'btn btn-outline'}
+            style={isReadyToDispatch ? { background: '#059669', color: '#fff', border: 'none' } : undefined}
+            onClick={() => setViewJobId(j.uuid ?? j.id)}
+            aria-label={`Dispatch ${j.id}`}
+          >
+            Dispatch
+          </button>
+        ) : null}
+        {isReadyToDispatch ? null : (
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => setViewJobId(j.uuid ?? j.id)}
+            aria-label={`${isQuoteAwaiting ? 'Reply' : 'View'} ${j.id}`}
+          >
+            {isQuoteAwaiting ? 'Reply' : 'View'}
+          </button>
+        )}
+      </div>
+    );
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -461,25 +529,7 @@ function PriorityChip({ priority }: { priority: string }) {
   return <span className={cn('priority-badge', priorityClass(priority))}>{priority}</span>;
 }
 
-const ORDINALS = ['Zeroth', 'First', 'Second', 'Third', 'Fourth', 'Fifth'];
 
-/** Subtitle line under the image explaining how this card entered the pipeline. */
-function sourceSubtitleFor(project: string, modificationCount?: number | null): string {
-  switch (project) {
-    case 'Quote':
-      return 'New Quote';
-    case 'Live Quote':
-      return 'Live Quote (Quote Converted)';
-    case 'Amend': {
-      const n = modificationCount && modificationCount > 0 ? modificationCount : 1;
-      const ordinal = ORDINALS[n] ?? `${n}th`;
-      return `Amend R${n} (${ordinal} Amendment)`;
-    }
-    case 'Live':
-    default:
-      return 'Live Job (Direct)';
-  }
-}
 
 /** Icon for the Department info row, keyed by order/department type. */
 function departmentIconFor(order: string) {
@@ -503,39 +553,20 @@ function statusIconFor(status: string) {
   return Clock;
 }
 
-function ReadBadge({ isRead }: { isRead?: boolean }) {
-  const Icon = isRead ? MailOpen : Mail;
-  return (
-    <span className={cn('jc-read-badge', isRead ? 'is-read' : 'is-unread')}>
-      <Icon className="w-3 h-3" aria-hidden />
-      {isRead ? 'READ' : 'UNREAD'}
-    </span>
-  );
-}
-
-/** Icon-labelled info row (Department / Priority / Status / Job ID) used in the redesigned card. */
-function InfoRow({
-  icon: Icon,
-  label,
-  children,
-  accent,
-}: {
-  icon: typeof Hash;
-  label: string;
-  children: ReactNode;
-  accent?: string;
-}) {
-  return (
-    <div className="jc-info-row">
-      <span className="jc-info-label">
-        <span className={cn('jc-info-icon', accent)}>
-          <Icon className="w-3 h-3" aria-hidden />
-        </span>
-        {label}
-      </span>
-      {children}
-    </div>
-  );
+/**
+ * Deterministic "how far through the pipeline" percentage, derived from the
+ * job's real stage — there's no stored progress field on the backend model,
+ * so this is computed rather than read off a (nonexistent) `job.progress`.
+ */
+function stageProgressPercent(stage: Job['stage']): number | null {
+  switch (stage) {
+    case 'junior': return 25;
+    case 'senior': return 50;
+    case 'qc': return 75;
+    case 'sewout': return 90;
+    case 'delivered': return 100;
+    default: return null;
+  }
 }
 
 function TableView({
@@ -562,7 +593,7 @@ function TableView({
             {/* <th>Preview</th> */}
             <th>Order</th>
             <th>Type</th>
-            <th>Priority</th> 
+            <th>Priority</th>
             <th>Status</th>
             {!minimalColumns && <th>Created</th>}
             {!minimalColumns && <th>Action</th>}
@@ -648,7 +679,6 @@ function GridView({
   onOpen,
   renderRowActions,
   className,
-  gridCols = 4,
 }: {
   jobs: Job[];
   onOpen?: (job: Job) => void;
@@ -657,17 +687,23 @@ function GridView({
   gridCols?: 3 | 4;
 }) {
   return (
-    <div className={cn("grid-view grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 py-2 min-w-0", gridCols === 3 ? "2xl:grid-cols-3" : "2xl:grid-cols-4", className)}>
+    <div className={cn("grid-view grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 py-2 min-w-0", className)}>
       {jobs.map((j) => {
         const actionRequired = j.status === 'Pending Client Confirm' || j.status === 'Quote Approved';
         const agencyPrice = j.negotiation?.agencyOffer ?? j.adminPrice ?? null;
         const DeptIcon = departmentIconFor(j.order);
         const StatusIcon = statusIconFor(j.status);
-        const category = [j.order, j.process ?? j.complexity].filter(Boolean).join(' • ');
+
+        const isInProd = j.status === 'In Production' || j.stage === 'junior' || j.stage === 'senior' || j.stage === 'qc' || j.stage === 'sewout';
+        const isReadyDispatch = j.status === 'Ready to Deliver';
+        const titleClass = getTitleColorClass(j.project, j.status);
+        const stageCardClass = getStageCardClass(j.project, j.status);
+        const progress = stageProgressPercent(j.stage);
+
         return (
           <article
             key={j.id}
-            className={cn('job-card min-w-0', priorityCardClass(j.priority), actionRequired && 'job-card-attention')}
+            className={cn('job-card min-w-0', stageCardClass, priorityCardClass(j.priority), actionRequired && 'job-card-attention')}
             onClick={() => onOpen?.(j)}
             role="button"
             tabIndex={0}
@@ -678,49 +714,71 @@ function GridView({
               }
             }}
           >
+            {/* Card Header: Project type badge + Job Ref + timestamp */}
             <div className="jc-header">
-              <span className={cn('badge whitespace-nowrap', projectTypeBadgeAccent(j.project))}>
-                {projectTypeBadgeLabel(j.project, j.modificationCount)}
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                <span className={cn('badge whitespace-nowrap flex-shrink-0', projectTypeBadgeAccent(j.project))}>
+                  {projectTypeBadgeLabel(j.project, j.modificationCount)}
+                </span>
+                {j.ref && (
+                  <span
+                    className="text-[9.5px] font-mono font-bold text-text-faint truncate"
+                    title={j.ref}
+                  >
+                    {j.ref}
+                  </span>
+                )}
+              </div>
+              <span className="jc-header-meta flex-shrink-0">
+                <span className="jc-time">{relativeTimeShort(j.created)}</span>
               </span>
-              <ReadBadge isRead={j.isRead} />
             </div>
-            <div className="jc-img">
-              {j.images?.length ? (
-                <img
-                  className="w-full h-[90px] md:h-[110px] object-contain block"
-                  src={j.images[0]}
-                  alt={j.design}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
-                />
-              ) : (
-                <div className="w-full h-[160px]" />
-              )}
-            </div>
-            <div className="jc-body flex flex-col flex-1">
-              <div className={cn('jc-subtitle', projectTypeBadgeAccent(j.project))}>
-                <span className="jc-subtitle-dot" aria-hidden />
-                {sourceSubtitleFor(j.project, j.modificationCount)}
+
+
+            {/* Card Body - Top Metadata Section */}
+            <div className="jc-body flex flex-col flex-1 pb-1">
+              {/* Job title — colored by project type */}
+              <div className={cn('jc-title', titleClass)} title={j.design}>{j.design}</div>
+
+              {/* Client name */}
+              {j.client ? <div className="jc-client font-semibold mb-1 text-[#0D1B2A]">{j.client}</div> : null}
+
+              {/* Info rows: Dept + Priority */}
+              <div className="flex items-center gap-2.5 mb-1 text-[10.5px] font-semibold">
+                <div className="flex items-center gap-1 text-text-main">
+                  <DeptIcon className="w-3.5 h-3.5 text-text-muted shrink-0" aria-hidden />
+                  {j.order}
+                </div>
+                <div className={cn('flex items-center gap-1', priorityCardClass(j.priority) === 'job-card-rush' ? 'text-amber-600' : priorityCardClass(j.priority) === 'job-card-super-rush' ? 'text-red-600' : 'text-blue-600')}>
+                  <Flag className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                  {j.priority}
+                </div>
               </div>
-              <div className="jc-title" title={j.design}>{j.design}</div>
-              {category ? <div className="jc-category">{category}</div> : null}
-              <div className="jc-info-rows mt-auto">
-                <InfoRow icon={DeptIcon} label="Department" accent={orderBadgeAccent(j.order)}>
-                  <Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge>
-                </InfoRow>
-                <InfoRow icon={Flag} label="Priority">
-                  <PriorityChip priority={j.priority} />
-                </InfoRow>
-                <InfoRow icon={StatusIcon} label="Status">
-                  <Badge accent={statusBadgeAccent(j.status)}>{statusDisplay(j.status)}</Badge>
-                </InfoRow>
-                <InfoRow icon={Hash} label="Job ID">
-                  <span className="jc-id">{j.id}</span>
-                </InfoRow>
+
+              {/* Info row: Status */}
+              <div className="flex items-center gap-1 text-[10.5px] font-semibold text-text-muted mb-1">
+                <StatusIcon className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                <span className={cn(statusBadgeAccent(j.status) === 'green' ? 'text-green-600' : statusBadgeAccent(j.status) === 'amber' ? 'text-amber-600' : statusBadgeAccent(j.status) === 'red' ? 'text-red-600' : 'text-text-main')}>
+                  {statusDisplay(j.status)}
+                </span>
               </div>
+
+              {/* ETA / Progress section if needed */}
+              {isInProd && progress != null ? (
+                <div className="mt-1">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>Progress</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)' }}>{progress}%</span>
+                  </div>
+                  <div className="jc-progress-bar mb-1">
+                    <div className="jc-progress-fill" style={{ width: `${progress}%` }} />
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Action-required callout */}
               {actionRequired ? (
-                <div className="jc-action">
+                <div className="jc-action mt-1">
                   <CheckCircle2 aria-hidden className="w-3.5 h-3.5 mt-px shrink-0" />
                   <span>
                     Quote sent{agencyPrice ? ` — $${agencyPrice}` : ''} ·{' '}
@@ -728,20 +786,107 @@ function GridView({
                   </span>
                 </div>
               ) : null}
-              <div className="jc-footer">
-                {renderRowActions ? renderRowActions(j) : (
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpen?.(j);
-                    }}
-                  >
-                    View
-                  </button>
-                )}
-              </div>
+            </div>
+
+            {/* Image area - Middle */}
+            <div className="jc-img" style={{ padding: '6px 10px 4px' }}>
+              {j.images?.length ? (
+                <img
+                  className="w-full object-cover block rounded-lg border border-[rgba(0,0,0,0.05)]"
+                  style={{ height: 110 }}
+                  src={j.images[0]}
+                  alt={j.design}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
+                />
+              ) : (
+                <div className="w-full" style={{ height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            {/* Footer actions */}
+            <div className="jc-footer flex gap-1.5 p-2 bg-white border-t border-[rgba(0,0,0,0.06)]" onClick={(e) => e.stopPropagation()}>
+              {renderRowActions ? renderRowActions(j) : (
+                <div className="flex gap-1.5 flex-wrap flex-1 items-center">
+                  {/* Assign button */}
+                  {!j.assignedTo && j.stage !== 'delivered' && j.stage !== 'quote' && (
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ fontSize: 11, padding: '4px 9px', background: '#059669', color: '#fff', border: 'none', height: 26, borderRadius: 6 }}
+                      onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
+                    >
+                      Assign
+                    </button>
+                  )}
+                  {/* Upload Files button — ready-to-dispatch jobs only. */}
+                  {isReadyDispatch && (
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ fontSize: 11, padding: '4px 9px', background: '#059669', color: '#fff', border: 'none', height: 26, borderRadius: 6 }}
+                      onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
+                    >
+                      Upload Files
+                    </button>
+                  )}
+                  {/* Dispatch button */}
+                  {j.stage !== 'delivered' && j.stage !== 'quote' && (
+                    <button
+                      type="button"
+                      className={isReadyDispatch ? 'btn' : 'btn btn-outline'}
+                      style={
+                        isReadyDispatch
+                          ? { fontSize: 11, padding: '4px 9px', background: '#059669', color: '#fff', border: 'none', height: 26, borderRadius: 6 }
+                          : { fontSize: 11, padding: '4px 9px', height: 26, borderRadius: 6 }
+                      }
+                      onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
+                    >
+                      Dispatch
+                    </button>
+                  )}
+                  {/* Prepare Quote button */}
+                  {(j.project === 'Quote' && (j.status === 'Pending' || j.stage === 'quote')) && (
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ fontSize: 11, padding: '4px 9px', background: '#4F46E5', color: '#fff', border: 'none', height: 26, borderRadius: 6 }}
+                      onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
+                    >
+                      Prepare Quote
+                    </button>
+                  )}
+                  {/* Reply button */}
+                  {(j.project === 'Quote' || j.status === 'Quote Submitted' || j.project === 'Amend') && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ fontSize: 11, padding: '4px 9px', height: 26, borderRadius: 6 }}
+                      onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
+                    >
+                      Reply
+                    </button>
+                  )}
+                  {/* View / View Progress button */}
+                  {!isReadyDispatch && (
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ fontSize: 11, padding: '4px 9px', height: 26, borderRadius: 6 }}
+                      onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
+                    >
+                      {isInProd ? 'View Progress' : 'View'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </article>
         );
@@ -749,6 +894,29 @@ function GridView({
     </div>
   );
 }
+
+/** Returns the CSS class for colored job title based on project type (Quote/Live Quote/Live/Amend). */
+function getTitleColorClass(project: string, _status: string): string {
+  switch (project) {
+    case 'Live': return 'jc-title-live';
+    case 'Live Quote': return 'jc-title-live-quote';
+    case 'Quote': return 'jc-title-quote';
+    case 'Amend': return 'jc-title-amend';
+    default: return '';
+  }
+}
+
+/** Returns the CSS class that tints the whole job card by project type — always matches the title/badge colour, regardless of stage/status. */
+function getStageCardClass(project: string, _status: string): string {
+  switch (project) {
+    case 'Live': return 'job-card-stage-live';
+    case 'Live Quote': return 'job-card-stage-live-quote';
+    case 'Quote': return 'job-card-stage-quote';
+    case 'Amend': return 'job-card-stage-amend';
+    default: return '';
+  }
+}
+
 
 function ListView({
   jobs,

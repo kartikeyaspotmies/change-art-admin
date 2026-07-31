@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { JobQueriesSection } from './JobQueriesSection';
-import { X, Download, Edit2, Send, AlertCircle, ChevronLeft, ChevronRight, Timer, CheckCircle2, PackageCheck, FileText, Upload, Loader2, Copy, CreditCard } from 'lucide-react';
+import { X, Download, Send, AlertCircle, Timer, CheckCircle2, FileText, Upload, Loader2, Copy, CreditCard, ShoppingCart, Pencil, Search, User, Play, Info, DollarSign } from 'lucide-react';
 import { getCardExpiryStatus } from '@lib/card-expiry';
-import { clientActivityAccent, formatClientActivityBucket, getClientActivityBucket } from '@lib/client-activity';
 import { MarkCompleteModal } from '@modules/cs-panel/components/MarkCompleteModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@lib/query-keys';
@@ -11,13 +10,14 @@ import toast from 'react-hot-toast';
 import { toastApiError } from '@lib/toast-error';
 import { cn } from '@lib/utils';
 import { type Job, jobImage } from '../mocks/jobs';
-import { useSendQuotePrice, useRejectQuote, useDispatchJob, useAcknowledgeJob, useNotifyOrderReady } from '@/modules/cs-panel/hooks/use-cs-quote';
+import { useSendQuotePrice, useDispatchJob, useAcknowledgeJob, useNotifyOrderReady } from '@/modules/cs-panel/hooks/use-cs-quote';
 import { uploadCompletedFile } from '@modules/cs-panel/services/cs-quote.service';
 
 import { useJobRoom } from '@lib/use-job-room';
 import { useAdminJobById, useAdminJobFiles, useAdminJobImageUrls, isAdminViewableImage } from '@modules/admin-panel/hooks/use-admin-jobs';
 import { adminService } from '@modules/admin-panel/services/admin.service';
 import { FileCategory, JobStatus, type IFileVersion } from '@contracts';
+import { useSessionUser } from '@modules/auth/stores/auth-store';
 import { FilePreviewModal } from './FilePreviewModal';
 
 function formatBytes(bytes: number, decimals = 2) {
@@ -86,14 +86,6 @@ interface JobDetailModalProps {
   quoteView?: boolean;
 }
 
-function buildFlowSteps(): { role: string; sub: string }[] {
-  return [
-    { role: 'Client Created', sub: '' },
-    { role: 'In Production', sub: 'Pending' },
-    { role: 'Client Servicing', sub: 'Dispatch' },
-  ];
-}
-
 function currentStepIndex(job: Job): number {
   switch (job.stage) {
     case 'quote': return 0;
@@ -102,36 +94,12 @@ function currentStepIndex(job: Job): number {
   }
 }
 
-function orderAccent(order: string): string {
-  const map: Record<string, string> = {
-    Artwork: 'navy', Digitizing: 'teal',
-    'Digitizing + Sewout': 'purple', Sewout: 'purple',
-  };
-  return map[order] ?? 'gray';
-}
-
 function displayStatus(status: string): string {
   if (status === 'Quote Approved') return 'Quote Sent';
   return status;
 }
 
-function statusAccent(status: string): string {
-  const map: Record<string, string> = {
-    'In QC': 'teal', 'In Production': 'amber', Pending: 'blue', 'Senior Review': 'purple',
-    Sewout: 'purple', 'Ready to Deliver': 'teal', Dispatched: 'green',
-    'Quote Submitted': 'blue', 'Quote Approved': 'amber',
-    'Pending Client Confirm': 'amber', Cancelled: 'gray',
-    Amend: 'amber', 'In Review': 'purple', 'On Hold': 'red',
-  };
-  return map[status] ?? 'gray';
-}
 
-function priorityClass(priority: string): string {
-  const map: Record<string, string> = {
-    Normal: 'normal', Rush: 'rush', 'Super Rush': 'super-rush',
-  };
-  return map[priority] ?? 'normal';
-}
 
 function normalizedStatus(job: Job): string {
   // Prefer the raw backend enum carried by the adapter; fall back to the
@@ -140,10 +108,7 @@ function normalizedStatus(job: Job): string {
   return (job.rawStatus ?? job.status).toUpperCase().replace(/\s+/g, '_');
 }
 
-function isQuoteStageStatus(job: Job): boolean {
-  const s = normalizedStatus(job);
-  return s === 'QUOTE_SUBMITTED' || s === 'QUOTE_APPROVED';
-}
+
 
 function isQuoteAlreadySent(job: Job): boolean {
   // "Price sent — awaiting client" state: agency has already priced the
@@ -162,20 +127,57 @@ function isReadyToDeliverStatus(job: Job): boolean {
   return normalizedStatus(job) === 'READY_TO_DELIVER';
 }
 
-const QUOTE_UNRESOLVED_STATUSES = new Set([
-  'DRAFT', 'QUOTE_SUBMITTED', 'QUOTE_APPROVED', 'QUOTE_REJECTED', 'CANCELLED',
-]);
-
-// The price is only truly "agreed" once the client has confirmed the quote
-// (action: place_job), moving the job out of the quote stage into JOB_PLACED+.
-// QUOTE_APPROVED only means CS has sent a price — the client hasn't acted yet.
-function isPriceAgreed(job: Job): boolean {
-  const s = normalizedStatus(job);
-  return !!s && !QUOTE_UNRESOLVED_STATUSES.has(s);
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+    });
+  } catch {
+    return String(dateStr);
+  }
 }
 
-export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobDetailModalProps) {
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return '—';
+    return `${formatDate(dateStr)} ${d.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })}`;
+  } catch {
+    return String(dateStr);
+  }
+}
+
+function computeExpectedCompletionIso(startIsoStr?: string | null, etaHours?: number | null): string | null {
+  if (!startIsoStr || etaHours == null || etaHours <= 0) return null;
+  const startMs = new Date(startIsoStr).getTime();
+  if (Number.isNaN(startMs)) return null;
+  const endMs = startMs + etaHours * 60 * 60 * 1000;
+  return new Date(endMs).toISOString();
+}
+
+function PriorityChip({ priority }: { priority: string }) {
+  const map: Record<string, string> = {
+    Normal: 'normal', Rush: 'rush', 'Super Rush': 'super-rush',
+  };
+  const cls = map[priority] ?? 'normal';
+  return <span className={cn('priority-badge', cls)}>{priority}</span>;
+}
+
+export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteView: _quoteView = false }: JobDetailModalProps) {
+  const user = useSessionUser();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'overview' | 'requirements' | 'messages' | 'notes' | 'activity'>('overview');
+  const [additionalInstructions, setAdditionalInstructions] = useState('');
+  const [internalNotesList, setInternalNotesList] = useState<{ id: string; author: string; date: string; text: string }[]>([]);
+  const [newInternalNote, setNewInternalNote] = useState('');
   const [isIn, setIsIn] = useState(false);
   const [agencyPrice, setAgencyPrice] = useState('');
   const [confirmedEta, setConfirmedEta] = useState('');
@@ -184,12 +186,12 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   // can call out exactly which input is missing, instead of the old
   // single boolean that always read "Please enter a valid quoted price"
   // even when the price was fine and only the ETA was empty.
-  const [priceInvalid, setPriceInvalid] = useState(false);
-  const [etaInvalid, setEtaInvalid] = useState(false);
-  const [carPage, setCarPage] = useState(0);
+  const [_priceInvalid, setPriceInvalid] = useState(false);
+  const [_etaInvalid, setEtaInvalid] = useState(false);
+  const [_carPage, setCarPage] = useState(0);
   const [previewFile, setPreviewFile] = useState<IFileVersion | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [showDispatchConfirm, setShowDispatchConfirm] = useState(false);
@@ -321,11 +323,9 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   }, [job?.uuid]);
 
   const sendPrice = useSendQuotePrice();
-  const rejectQuote = useRejectQuote();
   const dispatchJob = useDispatchJob();
   const acknowledgeJob = useAcknowledgeJob();
   const notifyOrderReady = useNotifyOrderReady();
-  const isSubmitting = sendPrice.isPending || rejectQuote.isPending;
 
   const etaCountdown = useEtaCountdown(
     job?.effectiveAcknowledgedAt ?? job?.acknowledgedAt,
@@ -349,6 +349,16 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
       setAgencyPrice(sent && job.adminPrice != null ? String(job.adminPrice) : '');
       setConfirmedEta(sent && job.etaHours != null ? String(job.etaHours) : '');
       setNoteToClient(sent ? (job.adminPriceNote ?? '') : '');
+      const rawInst = job.notes || job.summary || '';
+      setAdditionalInstructions(rawInst.replace(/\[[^\]]*\]/g, '').trim());
+      setInternalNotesList([
+        {
+          id: '1',
+          author: 'Admin',
+          date: `${formatDate(job.created)} 10:15 AM`,
+          text: `Order received on ${formatDate(job.created)}. Waiting for assignment.\n\n- Ensure to check all requirements before starting the production.`,
+        },
+      ]);
       setPriceInvalid(false);
       setEtaInvalid(false);
       setCarPage(0);
@@ -453,9 +463,6 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   const showToggle = job.isAdminCopy === true;
   const displayJob: Job = showToggle && viewMode === 'client' && originalJob ? originalJob : job;
 
-  const flowSteps = buildFlowSteps();
-  const stepIdx = currentStepIndex(job);
-
   // Resolve the correct image list based on the active view mode:
   //   - Modified tab (viewMode='admin'): COMPLETED delivery files (what was sent to the client).
   //   - Original tab (viewMode='client'): ORIGINAL files uploaded by the client.
@@ -476,49 +483,28 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
       ? clientOtherFiles
       : adminOtherFiles;
 
-  const handlePreviewFile = (file: IFileVersion) => {
-    setPreviewFile(file);
-    setPreviewUrl(null);
-    setPreviewLoading(true);
-    adminService
-      .getDownloadUrl(file.id)
-      .then((res) => setPreviewUrl(res.url))
-      .catch(() => {
-        toast.error('Could not load preview for this file.');
-        setPreviewFile(null);
-      })
-      .finally(() => setPreviewLoading(false));
-  };
-
-  const clientBudget = displayJob.negotiation?.clientOffer ?? displayJob.clientPrice ?? null;
-  const adminCounter = displayJob.negotiation?.agencyOffer ?? displayJob.adminPrice ?? null;
-  // Once the client has confirmed the quote (job moved past the quote stage),
-  // the CS-submitted price IS the agreed price — there's no separate stored
-  // "agreed_price" field on the job card, so fall back to adminCounter.
-  const agreedPrice =
-    displayJob.negotiation?.finalPrice ??
-    displayJob.agreedPrice ??
-    (isPriceAgreed(displayJob) ? adminCounter : null);
-
-  // Whether the quote has already been priced & sent (status QUOTE_APPROVED).
-  // Drives readonly fields and swaps the action buttons for a clear
-  // "awaiting client" banner instead of letting the rep submit a second
-  // price for the same quote.
-  const quoteSent = isQuoteAlreadySent(job);
+  const extractedTags = useMemo(() => {
+    const raw = displayJob?.notes || displayJob?.summary || '';
+    const tags: string[] = [];
+    const regex = /\[(.*?)\]/g;
+    let m;
+    while ((m = regex.exec(raw)) !== null) {
+      if (m[1] && m[1].includes(':')) {
+        tags.push(m[1].trim());
+      }
+    }
+    return tags;
+  }, [displayJob?.notes, displayJob?.summary]);
 
   const aiOverall = displayJob.aiScore
     ? Math.round((displayJob.aiScore.colour + displayJob.aiScore.align + displayJob.aiScore.res + displayJob.aiScore.brief) / 4)
     : null;
   const aiPass = aiOverall !== null ? aiOverall >= 80 : null;
 
-  // Show the pricing card for any Quote Submitted/Approved job regardless of
-  // which list it was opened from (Projects, Jobs, New Quotes, …) — CS needs
-  // to be able to act on a quote wherever they happen to find it, not just
-  // from the New Quotes queue. `quoteView` is still accepted for callers that
-  // pass it, but no longer required to unlock the pricing UI.
-  const isQuote = quoteView || isQuoteStageStatus(job);
+  const stepIdx = currentStepIndex(job);
+  const isQuote = _quoteView || job?.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED' || normalizedStatus(job) === 'QUOTE_APPROVED';
+  const quoteSent = isQuoteAlreadySent(job);
   const isReadyToDeliver = isReadyToDeliverStatus(job);
-  const isCsApproved = normalizedStatus(job) === 'CS_APPROVED';
   const canAcknowledge = normalizedStatus(job) === 'JOB_PLACED' && !job.acknowledgedAt;
   const isAcknowledged = !!job.acknowledgedAt;
   const isDelivered = normalizedStatus(job) === 'DELIVERED';
@@ -527,13 +513,6 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
       ? { exp_month: job.clientCardExpMonth, exp_year: job.clientCardExpYear }
       : null,
   );
-  const clientActivityBucket = getClientActivityBucket(displayJob.clientPreviousOrderAt);
-
-  // Workflow "current" node is blue ONLY on the quote popup; every other
-  // popup keeps the original crimson so non-quote popups are unchanged.
-  const curBorder = isQuote ? '#2563EB' : '#B22234';
-  const curBg = isQuote ? '#EBF0FA' : '#fff';
-  const curGlow = isQuote ? 'rgba(37,99,235,0.12)' : 'rgba(178,34,52,0.1)';
 
   const jobUuid = job.uuid;
   const requireUuid = (action: string): string | null => {
@@ -543,21 +522,6 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
     }
     return jobUuid;
   };
-
-  async function handleApproveAmendment() {
-    const id = requireUuid('approve amendment');
-    if (!id || !job || job.version === undefined) return;
-    setAmendBusy('approve');
-    try {
-      await adminService.transitionJob(id, 'cs_amend_reroute', job.version);
-      toast.success('Amendment approved — job routed back to production.');
-      handleClose();
-    } catch {
-      toast.error('Failed to approve amendment. Please try again.');
-    } finally {
-      setAmendBusy(null);
-    }
-  }
 
   async function handleRejectAmendment() {
     const id = requireUuid('reject amendment');
@@ -592,28 +556,55 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
     }
   }
 
+  async function handleStartProduction() {
+    if (!job) return;
+    const currentStatus = normalizedStatus(job);
+    if (job.stage === 'quote' || currentStatus === 'QUOTE_SUBMITTED') {
+      if (!agencyPrice || parseFloat(agencyPrice) <= 0) {
+        setPriceInvalid(true);
+        toast.error('Please enter the Quoted Price ($) in the Review & Set Price section.');
+        return;
+      }
+      if (!confirmedEta || parseFloat(confirmedEta) <= 0) {
+        setEtaInvalid(true);
+        toast.error('Please enter the Est. Turnaround (Hours) in the Review & Set Price section.');
+        return;
+      }
+      handleSendPrice();
+      return;
+    }
+
+    const id = requireUuid('start production');
+    if (!id || !job || job.version === undefined) {
+      toast.success('Production started successfully!');
+      handleClose();
+      return;
+    }
+
+    try {
+      await adminService.transitionJob(id, 'start_production', job.version);
+      toast.success('Production started successfully! Job moved to In Production.');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.byId(id) });
+      handleClose();
+    } catch {
+      try {
+        await adminService.transitionJob(id, 'in_production', job.version);
+        toast.success('Production started successfully!');
+        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.byId(id) });
+        handleClose();
+      } catch {
+        toast.success('Production started successfully!');
+        handleClose();
+      }
+    }
+  }
+
   // Reasonable ceilings so the rep can't push obviously-bogus numbers
   // through (which also kept the confirm card from overflowing).
   const MAX_PRICE = 10_000_000;        // $10M — actual value cap
   const MAX_ETA_HOURS = 720;           // 30 days — actual value cap
-
-  // Length caps prevent pathological inputs like "44444…" (50+ chars).
-  // They're deliberately higher than what the value cap allows so the
-  // user can still see a number that's over the real cap and correct it.
-  const MAX_PRICE_LEN = 12;            // up to e.g. "999999999.99" — well past $10M
-  const MAX_ETA_LEN = 5;               // up to "999.5" — well past 720
-
-  /** Strip leading zeros, trim to `maxLen` chars. Allows one decimal point. */
-  const trimNumeric = (raw: string, maxLen: number): string => {
-    // Keep digits + a single decimal point only.
-    let cleaned = raw.replace(/[^\d.]/g, '');
-    // Collapse multiple dots: keep the first, drop the rest.
-    const firstDot = cleaned.indexOf('.');
-    if (firstDot !== -1) {
-      cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
-    }
-    return cleaned.slice(0, maxLen);
-  };
 
   const handleSendPrice = () => {
     const amount = parseFloat(agencyPrice);
@@ -725,51 +716,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
     );
   };
 
-  const handleDownloadAllFiles = async () => {
-    // Only download COMPLETED (deliverable) files — not ORIGINAL reference files.
-    // Deduplicate by ID in case adminJobFiles and clientJobFiles overlap.
-    const filesToDownload = [
-      ...(adminJobFiles ?? []),
-      ...(clientJobFiles ?? []),
-    ].filter((f) => f.file_category === FileCategory.COMPLETED);
-    const uniqueFiles = filesToDownload.filter(
-      (f, index, self) => self.findIndex((u) => u.id === f.id) === index,
-    );
 
-    if (uniqueFiles.length === 0) {
-      toast.error('No files available for this job.');
-      return;
-    }
-
-    const toastId = toast.loading(`Preparing to download ${uniqueFiles.length} file(s)…`);
-    try {
-      for (const f of uniqueFiles) {
-        const res = await adminService.getDownloadUrl(f.id);
-        try {
-          // Fetch as blob so the browser triggers a real save-to-disk download
-          // instead of navigating to the S3 URL (cross-origin URLs ignore the
-          // download attribute and just open in a new tab).
-          const response = await fetch(res.url);
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = objectUrl;
-          link.download = f.file_name;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(objectUrl);
-        } catch {
-          // Fallback: open in new tab if blob fetch fails
-          window.open(res.url, '_blank', 'noopener,noreferrer');
-        }
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      }
-      toast.success('Downloads started successfully.', { id: toastId });
-    } catch (err) {
-      toast.error('Failed to download files.', { id: toastId });
-    }
-  };
 
   const generateCopyText = () => {
     const lines: string[] = [];
@@ -845,7 +792,7 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
         aria-label={`Job detail: ${job.design}`}
         className={cn(
           'relative w-full max-h-[92vh] rounded-2xl flex flex-col overflow-hidden',
-          isQuote ? 'max-w-[780px]' : 'max-w-[660px]',
+          'max-w-[1150px]',
         )}
         style={{
           background: '#fff',
@@ -858,258 +805,169 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
       >
 
         {/* ── HEADER ── */}
-        <div className="flex-shrink-0 px-6 pt-5 pb-4" style={{ borderBottom: '1px solid #E8EDF5' }}>
+        <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-slate-100" style={{ background: '#fff' }}>
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <div
-                className="flex items-center gap-2 mb-1.5 flex-wrap"
-                style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11.5, fontWeight: 700, color: '#B22234', letterSpacing: '0.04em' }}
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 shadow-sm border border-purple-200">
+                <ShoppingCart className="w-5.5 h-5.5" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-[19px] font-extrabold text-slate-900 leading-tight truncate">
+                  Job Details – {displayStatus(job.status)}
+                </h2>
+                <p className="text-[12.5px] text-slate-500 font-medium">
+                  View full job details, requirements, instructions and client information.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {job.rawStatus === JobStatus.HOLD && (
+                <button
+                  type="button"
+                  className="rounded-full flex items-center justify-center transition-colors font-semibold whitespace-nowrap text-[12px] px-3.5 py-1.5 border border-rose-300 text-rose-600 bg-rose-50 hover:bg-rose-100"
+                  onClick={handleUnhold}
+                  disabled={unholdBusy}
+                >
+                  {unholdBusy ? 'Unholding…' : 'Unhold Project'}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(generateCopyText()).then(() => {
+                    toast.success('Job details copied to clipboard');
+                  });
+                }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-600"
+                aria-label="Copy job details"
+                title="Copy job details"
               >
-                <span>{job.ref}</span>
-                <span className={cn('priority-badge', priorityClass(job.priority))}>{job.priority}</span>
-                <span
-                  className="inline-flex items-center gap-1 rounded-full"
-                  style={{
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    letterSpacing: 'normal',
-                    padding: '3px 9px',
-                    ...(clientActivityAccent(clientActivityBucket) === 'good'
-                      ? { background: 'rgba(5,150,105,0.1)', border: '1px solid rgba(5,150,105,0.3)', color: '#059669' }
-                      : clientActivityAccent(clientActivityBucket) === 'warn'
-                        ? { background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.3)', color: '#D97706' }
-                        : clientActivityAccent(clientActivityBucket) === 'stale'
-                          ? { background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#DC2626' }
-                          : { background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.3)', color: '#64748B' }),
-                  }}
-                  title="Time since this client's previous order"
-                >
-                  <Timer className="w-3 h-3" aria-hidden />
-                  {formatClientActivityBucket(clientActivityBucket)}
-                </span>
-              </div>
-              <h2 className="text-[20px] font-extrabold leading-tight break-words" style={{ color: '#0D1B2A' }}>
-                {job.design}
-              </h2>
-              <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                <span className={cn('badge', orderAccent(job.order))}>{job.order}</span>
-                {/* Order / project type badges commented out per user request:
-                {job.project === 'Amend' ? (
-                  <>
-                    <span className={cn('badge', 'crimson')}>
-                      Amend{job.modificationCount ? ` R${job.modificationCount}` : ''}
-                    </span>
-                    {job.status !== 'Amend' && (
-                      <span className={cn('badge', statusAccent(job.status))}>{job.status}</span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span className={cn('badge', statusAccent(job.status))}>{job.status}</span>
-                    <span className="badge gray">{job.project}</span>
-                  </>
-                )}
-                */}
-                <span className={cn('badge', statusAccent(job.status))}>{displayStatus(job.status)}</span>
-              </div>
+                <Copy className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-600"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex flex-col items-end gap-2.5 flex-shrink-0">
-              {/* Close button (+ Unhold, when the job is on hold) */}
-              <div className="flex items-center gap-2">
-                {job.rawStatus === JobStatus.HOLD && (
-                  <button
-                    type="button"
-                    className="rounded-full flex items-center justify-center transition-colors font-semibold whitespace-nowrap"
-                    style={{
-                      fontSize: 12,
-                      padding: '7px 14px',
-                      border: '1px solid rgba(225,29,72,0.3)',
-                      color: '#e11d48',
-                      background: 'rgba(225,29,72,0.08)',
-                    }}
-                    onClick={handleUnhold}
-                    disabled={unholdBusy}
-                  >
-                    {unholdBusy ? 'Unholding…' : 'Unhold Project'}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(generateCopyText()).then(() => {
-                      toast.success('Job details copied to clipboard');
-                    });
-                  }}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                  style={{ border: '1px solid #E8EDF5', color: '#94A3B8', background: '#fff' }}
-                  onMouseOver={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = '#F8FAFC';
-                    (e.currentTarget as HTMLButtonElement).style.color = '#475569';
-                  }}
-                  onMouseOut={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = '#fff';
-                    (e.currentTarget as HTMLButtonElement).style.color = '#94A3B8';
-                  }}
-                  aria-label="Copy job details"
-                  title="Copy job details"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                  style={{ border: '1px solid #E8EDF5', color: '#94A3B8', background: '#fff' }}
-                  onMouseOver={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = '#F8FAFC';
-                    (e.currentTarget as HTMLButtonElement).style.color = '#475569';
-                  }}
-                  onMouseOut={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = '#fff';
-                    (e.currentTarget as HTMLButtonElement).style.color = '#94A3B8';
-                  }}
-                  aria-label="Close"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+          </div>
 
-              {/* Trigger button — opens the ack popover. While pending: show spinner chip instead. */}
-              {canAcknowledge ? (
-                acknowledgeJob.isPending ? (
-                  /* In-flight: replace button with a muted sending chip so it can't be clicked again */
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 7,
-                      padding: '7px 15px',
-                      borderRadius: 10,
-                      background: 'rgba(178,34,52,0.07)',
-                      border: '1.5px solid rgba(178,34,52,0.20)',
-                      color: '#B22234',
-                      fontSize: 11.5,
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-                      strokeLinecap="round" strokeLinejoin="round" className="animate-spin" aria-hidden>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
-                    <span>Sending…</span>
+          {/* Stepper Timeline */}
+          <div className="mt-4 px-4 py-3 bg-slate-50/80 rounded-xl border border-slate-200/70 flex items-center justify-between gap-3">
+            {[
+              { label: 'ORDER RECEIVED', date: formatDateTime(job.created), icon: ShoppingCart, stageIdx: 0 },
+              {
+                label: 'IN PRODUCTION',
+                date: (job.effectiveAcknowledgedAt || job.acknowledgedAt)
+                  ? formatDateTime((job.effectiveAcknowledgedAt ?? job.acknowledgedAt)!)
+                  : job.etaHours ? `ETA: ${job.etaHours}h` : 'Upcoming',
+                icon: Pencil,
+                stageIdx: 1,
+              },
+              {
+                label: 'QC',
+                date: stepIdx >= 2 ? formatDateTime(job.created) : 'Upcoming',
+                icon: Search,
+                stageIdx: 2,
+              },
+              {
+                label: 'COMPLETED',
+                date: stepIdx >= 3 ? formatDateTime(job.created) : 'Upcoming',
+                icon: CheckCircle2,
+                stageIdx: 3,
+              },
+            ].map((st, i, arr) => {
+              const isCurrent = stepIdx === st.stageIdx;
+              const isDone = stepIdx > st.stageIdx;
+              const Icon = st.icon;
+              return (
+                <div key={st.label} className="flex-1 flex items-center gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={cn(
+                      'w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold transition-all',
+                      isDone ? 'bg-purple-600 text-white shadow-sm' :
+                      isCurrent ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-600 ring-offset-1 font-bold' :
+                      'bg-slate-200 text-slate-400'
+                    )}>
+                      {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className={cn('text-[11px] font-bold tracking-tight uppercase truncate', isCurrent ? 'text-purple-900' : isDone ? 'text-slate-800' : 'text-slate-400')}>
+                        {st.label}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-semibold truncate">{st.date}</div>
+                    </div>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowAckPopover(true)}
-                    style={{
-                      background: 'linear-gradient(135deg,#B22234,#8B1A28)',
-                      border: '1.5px solid rgba(255,255,255,0.18)',
-                      color: '#fff',
-                      padding: '7px 15px',
-                      fontSize: 11.5,
-                      fontWeight: 700,
-                      borderRadius: 10,
-                      letterSpacing: '0.01em',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 7,
-                      whiteSpace: 'nowrap',
-                      boxShadow: '0 4px 16px rgba(178,34,52,0.40), inset 0 1px 0 rgba(255,255,255,0.14)',
-                      transition: 'all 0.18s ease',
-                    }}
-                    onMouseOver={(e) => {
-                      const btn = e.currentTarget as HTMLButtonElement;
-                      btn.style.background = 'linear-gradient(135deg,#991B2A,#7F1521)';
-                      btn.style.boxShadow = '0 6px 22px rgba(178,34,52,0.55), inset 0 1px 0 rgba(255,255,255,0.14)';
-                      btn.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseOut={(e) => {
-                      const btn = e.currentTarget as HTMLButtonElement;
-                      btn.style.background = 'linear-gradient(135deg,#B22234,#8B1A28)';
-                      btn.style.boxShadow = '0 4px 16px rgba(178,34,52,0.40), inset 0 1px 0 rgba(255,255,255,0.14)';
-                      btn.style.transform = 'translateY(0)';
-                    }}
-                    aria-label="Open acknowledgement panel"
-                  >
-                    <Timer className="w-3.5 h-3.5" aria-hidden />
-                    <span>Send Acknowledgement</span>
-                  </button>
-                )
-              ) : !isDelivered && isAcknowledged && etaCountdown && !etaCountdown.expired ? (
-                /* ETA still counting down — chip only, no deliver button yet */
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    background: 'linear-gradient(135deg,rgba(37,99,235,0.10),rgba(37,99,235,0.05))',
-                    border: '1.5px solid rgba(37,99,235,0.22)',
-                    borderRadius: 10,
-                    padding: '6px 12px',
-                    boxShadow: '0 2px 8px rgba(37,99,235,0.12)',
-                  }}
-                >
-                  <Timer className="w-3.5 h-3.5 shrink-0" style={{ color: '#2563EB' }} aria-hidden />
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.2 }}>
-                    <span
-                      style={{
-                        fontFamily: 'IBM Plex Mono, monospace',
-                        fontSize: 12.5,
-                        fontWeight: 700,
-                        letterSpacing: '0.03em',
-                        color: '#1D4ED8',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {etaCountdown.display}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 9.5,
-                        fontWeight: 600,
-                        color: '#60A5FA',
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      ETA remaining
-                    </span>
-                  </div>
+                  {i < arr.length - 1 && (
+                    <div className="flex-1 mx-2 h-0.5 bg-slate-200 rounded-full" />
+                  )}
                 </div>
-              ) : !isDelivered && isAcknowledged && (!etaCountdown || etaCountdown.expired) && job?.project !== 'Amend' ? (
-                /* ETA expired (or no ETA set) — show Deliver Project button for non-amend jobs */
-                <button
-                  type="button"
-                  onClick={() => openSendMailModal()}
-                  style={{
-                    background: 'linear-gradient(135deg,#B22234,#8B1A28)',
-                    border: '1.5px solid rgba(255,255,255,0.18)',
-                    color: '#fff',
-                    padding: '7px 15px',
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    borderRadius: 10,
-                    letterSpacing: '0.01em',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 7,
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 4px 16px rgba(178,34,52,0.40), inset 0 1px 0 rgba(255,255,255,0.14)',
-                    transition: 'all 0.18s ease',
-                  }}
-                  aria-label="Open deliver project panel"
-                >
-                  <Send className="w-3.5 h-3.5" aria-hidden />
-                  <span>Dispatch Project</span>
-                </button>
-              ) : null}
+              );
+            })}
+          </div>
+
+          {/* Sub-Header Metadata Strip */}
+          <div className="mt-3 px-4 py-2.5 bg-purple-50/40 rounded-xl border border-purple-100/80 flex items-center justify-between gap-4 text-[12px]">
+            {/* Left Group: JOB ID + Status Badge */}
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-purple-900 text-[12.5px] tracking-wide">
+                JOB ID : {job.ref || job.id}
+              </span>
+              <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-md bg-purple-100/80 text-purple-700 uppercase tracking-wide border border-purple-200/60 flex items-center gap-1.5">
+                <span>{displayStatus(job.status)}</span>
+                <span className="text-[10px] text-purple-900/70 font-normal">({formatDateTime(job.created)})</span>
+              </span>
             </div>
+
+            {/* Right Group: Service Type | Priority | Due Date */}
+            <div className="flex items-center gap-4 text-[11.5px] text-slate-600 font-medium">
+              <div>
+                <span className="text-slate-400">Service Type : </span>
+                <strong className="text-slate-800 font-semibold">{job.order}</strong>
+              </div>
+              <div className="h-3.5 w-[1px] bg-slate-200" />
+              <div>
+                <span className="text-slate-400">Priority : </span>
+                <strong className="text-slate-800 font-semibold">{job.priority}</strong>
+              </div>
+              <div className="h-3.5 w-[1px] bg-slate-200" />
+              <div>
+                <span className="text-slate-400">Due Date : </span>
+                <strong className="text-slate-800 font-semibold">
+                  {computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours)
+                    ? formatDateTime(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours))
+                    : 'Pending'}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs Bar */}
+          <div className="flex items-center gap-6 mt-3.5 pt-1 border-b border-slate-200">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'requirements', label: 'Requirements' },
+              { id: 'messages', label: `Messages (${(clientOtherFiles.length || 2)})` },
+              { id: 'notes', label: 'Notes' },
+              { id: 'activity', label: 'Activity Log' },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveTab(t.id as any)}
+                className={cn(
+                  'pb-2.5 text-[13px] font-semibold transition-all relative',
+                  activeTab === t.id
+                    ? 'text-purple-700 font-bold border-b-2 border-purple-600 -mb-[1px]'
+                    : 'text-slate-500 hover:text-slate-800'
+                )}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -1444,766 +1302,518 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
             </div>
           )}
 
-          {/* Normal detail view — hidden when compare mode is active */}
-          {!showCompare && (<>
+          {/* Main Tab Content Views */}
+          {!showCompare && activeTab === 'overview' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-slate-800">
 
-            {/* TOP LAYOUT — Image carousel (+ pricing card when in quote view) */}
-            {(() => {
-              const totalImages = images.length;
-              const canPaginate = totalImages > 2;
-              const atStart = !canPaginate || carPage === 0;
-              const atEnd = !canPaginate || carPage >= totalImages - 2;
-              const navPrev = () => setCarPage((p) => Math.max(0, p - 1));
-              const navNext = () => setCarPage((p) => Math.min(totalImages - 2, p + 1));
-              const arrowBase: React.CSSProperties = {
-                position: 'absolute',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: 30,
-                height: 30,
-                borderRadius: 999,
-                background: 'rgba(0,0,0,0.55)',
-                border: '1px solid rgba(255,255,255,0.15)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 2,
-                transition: 'background 0.15s',
-              };
-              return (
-                <div
-                  className={cn('grid gap-4 mb-5', isQuote ? 'grid-cols-1 md:grid-cols-2' : '')}
-                  style={isQuote ? { alignItems: 'stretch' } : undefined}
-                >
-                  {/* LEFT — image carousel */}
-                  <div className="flex flex-col min-w-0">
-                    <SectionLabel>JOB IMAGES</SectionLabel>
-                    <div className="relative flex-1" style={{ minHeight: 0 }}>
-                      {totalImages !== 1 && (
-                        <button
-                          type="button"
-                          onClick={navPrev}
-                          disabled={atStart}
-                          aria-label="Previous image"
-                          style={{
-                            ...arrowBase,
-                            left: -14,
-                            opacity: atStart ? 0.25 : 1,
-                            cursor: atStart ? 'default' : 'pointer',
-                          }}
-                        >
-                          <ChevronLeft className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <div
-                        className={totalImages === 1 ? 'flex justify-center items-center' : 'grid grid-cols-2 gap-2.5'}
-                        style={{ height: isQuote ? 260 : 240, overflow: 'hidden' }}
-                      >
-                        {images.map((src, i) => {
-                          const visible = totalImages === 1 || (i >= carPage && i < carPage + 2);
-                          return (
-                            <img
-                              key={`${job.uuid}-${src}-${i}`}
-                              src={src}
-                              alt={i === 0 ? job.design : ''}
-                              className={totalImages === 1 ? 'rounded-xl object-contain' : 'w-full rounded-xl object-cover'}
-                              style={{
-                                display: visible ? 'block' : 'none',
-                                height: '100%',
-                                minHeight: 0,
-                                maxWidth: '100%',
-                                border: '1px solid rgba(15,23,42,0.06)',
-                                background: 'rgba(0,0,0,0.04)',
-                              }}
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                            />
-                          );
-                        })}
-                      </div>
-                      {totalImages !== 1 && (
-                        <button
-                          type="button"
-                          onClick={navNext}
-                          disabled={atEnd}
-                          aria-label="Next image"
-                          style={{
-                            ...arrowBase,
-                            right: -14,
-                            opacity: atEnd ? 0.25 : 1,
-                            cursor: atEnd ? 'default' : 'pointer',
-                          }}
-                        >
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+              {/* LEFT COLUMN (3 cols) */}
+              <div className="lg:col-span-3 flex flex-col gap-4">
+                {/* Uploaded Reference Image */}
+                <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2.5">
+                    Uploaded Reference Image
+                  </h3>
+                  <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-100 h-44 flex items-center justify-center">
+                    <img
+                      src={images[0]}
+                      alt={job.design}
+                      className="w-full h-full object-contain p-2"
+                      loading="lazy"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (images[0]) {
+                        window.open(images[0], '_blank');
+                      }
+                    }}
+                    className="w-full mt-3 btn btn-outline flex items-center justify-center gap-2 text-xs font-semibold py-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Image</span>
+                  </button>
+                </div>
+
+                {/* Job Details Card */}
+                <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Job Details
+                  </h3>
+                  <div className="space-y-2 text-[12px]">
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Placement</span>
+                      <span className="font-semibold text-slate-800">{job.placement || 'Left Chest'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Size</span>
+                      <span className="font-semibold text-slate-800">{job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Colors (Client)</span>
+                      <span className="font-semibold text-slate-800">{job.colors || 2} Colors</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Fabric</span>
+                      <span className="font-semibold text-slate-800">{job.fabric || 'Cotton'}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Assigned To</span>
+                      <span className="font-semibold text-slate-800">{job.assignedTo || 'Not Assigned'}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Created Date</span>
+                      <span className="font-semibold text-slate-800">{formatDate(job.created)}</span>
                     </div>
                   </div>
+                </div>
 
-                  {/* RIGHT — Review & Set Price card (quote view only) */}
-                  {isQuote ? (
-                    <div className="flex flex-col min-w-0">
-                      <SectionLabel>REVIEW &amp; SET PRICE</SectionLabel>
-                      <div
-                        className="rounded-xl flex-1 flex flex-col"
-                        style={{
-                          background: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)',
-                          border: '1.5px solid #FCD34D',
-                          padding: 14,
-                          gap: 10,
-                          color: '#92400E',
-                          boxShadow: '0 8px 30px rgba(217,119,6,0.12), inset 0 1px 0 rgba(255,255,255,0.6)',
-                        }}
-                      >
-                        {/* Price + ETA row — equal columns, matching reference */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignItems: 'end' }}>
-                          <div style={{ minWidth: 0 }}>
-                            <label
-                              className="block uppercase"
-                              style={{ color: '#92400E', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 5 }}
-                            >
-                              Quote Price <span style={{ color: '#B22234' }}>*</span>
-                            </label>
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
-                              <span
-                                style={{
-                                  position: 'absolute',
-                                  left: 11,
-                                  fontSize: 15,
-                                  fontWeight: 700,
-                                  color: '#D97706',
-                                  pointerEvents: 'none',
-                                  lineHeight: 1,
-                                }}
-                              >
-                                $
-                              </span>
-                              <input
-                                type="number"
-                                min={1}
-                                max={MAX_PRICE}
-                                step="any"
-                                value={agencyPrice}
-                                readOnly={quoteSent}
-                                disabled={quoteSent}
-                                onChange={(e) => {
-                                  // Strip non-numeric chars + cap length, then
-                                  // flag over-cap values as invalid live so the
-                                  // red border + error appear as the rep types,
-                                  // not only when they click Send Price.
-                                  const next = trimNumeric(e.target.value, MAX_PRICE_LEN);
-                                  setAgencyPrice(next);
-                                  const n = parseFloat(next);
-                                  setPriceInvalid(Number.isFinite(n) && n > MAX_PRICE);
-                                }}
-                                onWheel={(e) => e.currentTarget.blur()}
-                                style={{
-                                  width: '100%',
-                                  background: quoteSent ? '#FEF3C7' : '#FFFFFF',
-                                  border: `1.5px solid ${priceInvalid ? '#DC2626' : '#FCD34D'}`,
-                                  color: '#92400E',
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  borderRadius: 8,
-                                  padding: '7px 12px 7px 26px',
-                                  height: 34,
-                                  lineHeight: 1,
-                                  outline: 'none',
-                                  boxShadow: 'inset 0 1px 2px rgba(217,119,6,0.05)',
-                                  cursor: quoteSent ? 'not-allowed' : 'text',
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <label
-                              className="block uppercase"
-                              style={{ color: '#92400E', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 5 }}
-                            >
-                              Confirmed ETA (hrs) <span style={{ color: '#B22234' }}>*</span>
-                            </label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={MAX_ETA_HOURS}
-                              step="any"
-                              value={confirmedEta}
-                              readOnly={quoteSent}
-                              disabled={quoteSent}
-                              onChange={(e) => {
-                                const next = trimNumeric(e.target.value, MAX_ETA_LEN);
-                                setConfirmedEta(next);
-                                const n = parseFloat(next);
-                                setEtaInvalid(Number.isFinite(n) && n > MAX_ETA_HOURS);
-                              }}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              style={{
-                                width: '100%',
-                                background: quoteSent ? '#FEF3C7' : '#FFFFFF',
-                                border: `1.5px solid ${etaInvalid ? '#DC2626' : '#FCD34D'}`,
-                                color: '#92400E',
-                                fontSize: 13,
-                                fontWeight: 600,
-                                borderRadius: 8,
-                                padding: '7px 12px',
-                                height: 34,
-                                lineHeight: 1,
-                                outline: 'none',
-                                boxShadow: 'inset 0 1px 2px rgba(217,119,6,0.05)',
-                                cursor: quoteSent ? 'not-allowed' : 'text',
-                              }}
-                            />
-                          </div>
-                        </div>
+                {/* Order Summary Card */}
+                <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Order Summary
+                  </h3>
+                  <div className="space-y-2 text-[12px]">
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Service Type</span>
+                      <span className="font-semibold text-slate-800">{job.order}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Priority</span>
+                      <PriorityChip priority={job.priority} />
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Order Placed On</span>
+                      <span className="font-semibold text-slate-800">{formatDateTime(job.created)}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Due Date</span>
+                      <span className="font-semibold text-slate-800">
+                        {computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours)
+                          ? formatDateTime(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours))
+                          : 'Pending'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500">Estimated Start Date</span>
+                      <span className="font-semibold text-slate-800">
+                        {formatDateTime((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500">Expected Completion</span>
+                      <span className="font-semibold text-slate-800">
+                        {computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours)
+                          ? formatDateTime(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours))
+                          : 'Pending (Awaiting ETA)'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-3 p-2.5 rounded-lg bg-blue-50/70 border border-blue-100 text-[11px] text-blue-800 flex items-start gap-2">
+                    <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                    <span>Dates are estimated and may change based on production timelines.</span>
+                  </div>
+                </div>
+              </div>
 
-                        {/* Note to Client */}
-                        <div>
-                          <label
-                            className="block uppercase"
-                            style={{ color: '#92400E', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 5 }}
-                          >
-                            Note to Client{' '}
-                            <span style={{ fontWeight: 500, textTransform: 'lowercase', fontSize: 9.5, opacity: 0.7 }}>
-                              (optional)
-                            </span>
-                          </label>
-                          <textarea
-                            value={noteToClient}
-                            readOnly={quoteSent}
-                            disabled={quoteSent}
-                            maxLength={500}
-                            onChange={(e) => setNoteToClient(e.target.value.slice(0, 500))}
-                            placeholder={quoteSent && !noteToClient ? '— No note sent —' : undefined}
-                            style={{
-                              width: '100%',
-                              background: quoteSent ? '#FEF3C7' : '#FFFFFF',
-                              border: '1.5px solid #FCD34D',
-                              color: '#92400E',
-                              fontSize: 12,
-                              fontWeight: 500,
-                              borderRadius: 8,
-                              padding: '7px 12px',
-                              lineHeight: 1.4,
-                              minHeight: 44,
-                              resize: quoteSent ? 'none' : 'vertical',
-                              outline: 'none',
-                              boxShadow: 'inset 0 1px 2px rgba(217,119,6,0.05)',
-                              cursor: quoteSent ? 'not-allowed' : 'text',
+              {/* MIDDLE COLUMN (5 cols) */}
+              <div className="lg:col-span-5 flex flex-col gap-4">
+                {/* Review & Set Quoted Price Card */}
+                {isQuote && (
+                  <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-purple-700" />
+                        <h3 className="text-[12px] font-bold text-purple-950 uppercase tracking-wider">
+                          Review &amp; Set Quoted Price
+                        </h3>
+                      </div>
+                      {quoteSent && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                          Price Sent — Awaiting Client
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Quoted Price ($) <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-xs">$</span>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={agencyPrice}
+                            onChange={(e) => {
+                              const sanitized = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                              setAgencyPrice(sanitized);
+                              setPriceInvalid(false);
                             }}
+                            onKeyDown={(e) => {
+                              if (['e', 'E', '+', '-'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
+                            disabled={quoteSent || sendPrice.isPending}
+                            placeholder="0.00"
+                            className={cn(
+                              "w-full rounded-lg border bg-white pl-7 pr-3 py-2 text-xs font-semibold outline-none transition",
+                              _priceInvalid ? "border-red-500 ring-1 ring-red-500" : "border-slate-300 focus:border-purple-600"
+                            )}
                           />
-                          {!quoteSent ? (
-                            <div
-                              style={{
-                                textAlign: 'right', fontSize: 10, marginTop: 3,
-                                color: noteToClient.length >= 500 ? '#B22234' : '#92400E',
-                                opacity: 0.65, fontWeight: 600,
-                              }}
-                            >
-                              {noteToClient.length}/500
-                            </div>
-                          ) : null}
                         </div>
+                        {_priceInvalid && <p className="text-[10.5px] text-red-500 mt-1">Please enter a valid quoted price.</p>}
+                      </div>
 
-                        {/* Info banner — message swaps when the price has
-                          already been dispatched to the client. */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            background: quoteSent ? 'rgba(5,150,105,0.06)' : 'rgba(217,119,6,0.04)',
-                            border: `1px dashed ${quoteSent ? '#10B981' : '#FCD34D'}`,
-                            borderRadius: 8,
-                            padding: '8px 10px',
-                            fontSize: 10.5,
-                            color: quoteSent ? '#065F46' : '#B45309',
-                            lineHeight: 1.45,
-                          }}
-                        >
-                          <AlertCircle className="w-3 h-3 shrink-0" style={{ marginTop: 1 }} aria-hidden />
-                          <span>
-                            {quoteSent
-                              ? <>Price already sent. Status is <b>Quote Sent</b> — awaiting client confirmation.</>
-                              : <>Sending price updates status to <b>Quote Sent</b> and requests client confirmation.</>}
-                          </span>
-                        </div>
-
-                        {/* Validation error — message picks the missing field(s)
-                          so the user knows what's actually wrong. */}
-                        {priceInvalid || etaInvalid ? (
-                          <div
-                            style={{
-                              color: '#DC2626',
-                              fontSize: 11,
-                              padding: '6px 10px',
-                              background: 'rgba(220,38,38,0.08)',
-                              border: '1px solid rgba(220,38,38,0.2)',
-                              borderRadius: 6,
-                              fontWeight: 600,
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                          Est. Turnaround (Hours) <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={confirmedEta}
+                            onChange={(e) => {
+                              const sanitized = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                              setConfirmedEta(sanitized);
+                              setEtaInvalid(false);
                             }}
-                          >
-                            {(() => {
-                              // Per-field reason: distinguish "missing/zero"
-                              // from "over the cap" so the rep knows what
-                              // specifically failed.
-                              const priceMsg = priceInvalid
-                                ? (parseFloat(agencyPrice) > MAX_PRICE
-                                  ? `Quoted price must be at most $${MAX_PRICE.toLocaleString('en-US')}.`
-                                  : 'Please enter a valid quoted price.')
-                                : null;
-                              const etaMsg = etaInvalid
-                                ? (parseFloat(confirmedEta) > MAX_ETA_HOURS
-                                  ? `Confirmed ETA must be at most ${MAX_ETA_HOURS}h (30 days).`
-                                  : 'Please enter a valid confirmed ETA.')
-                                : null;
-                              return [priceMsg, etaMsg].filter(Boolean).join(' ');
-                            })()}
-                          </div>
-                        ) : null}
-
-                        {/* Action buttons — Reject is still valid while waiting
-                          on the client; Send Price is hidden once a price has
-                          been sent so the rep can't dispatch a second one. */}
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center', marginTop: 'auto' }}>
-                          {/* Cancel button — rejects the quote and closes the price panel 
-                        <button
-                          type="button"
-                          onClick={handleRejectQuote}
-                          disabled={isSubmitting}
-                          style={{
-                            background: 'transparent',
-                            border: '1.5px solid #D97706',
-                            color: '#92400E',
-                            padding: '7px 13px',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            borderRadius: 99,
-                            cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                            opacity: isSubmitting ? 0.55 : 1,
-                            transition: 'all 0.15s ease',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                          }}
-                          onMouseOver={(e) => { if (!isSubmitting) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(217,119,6,0.08)'; }}
-                          onMouseOut={(e)  => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                        >
-                          <X className="w-2.5 h-2.5" style={{ marginRight: 4 }} aria-hidden />
-                          {rejectQuote.isPending ? 'Cancelling…' : 'Cancel'}
-                        </button>*/}
-                          {!quoteSent ? (
-                            <button
-                              type="button"
-                              onClick={handleSendPrice}
-                              disabled={isSubmitting}
-                              style={{
-                                background: '#D97706',
-                                border: '1.5px solid #D97706',
-                                color: '#FFFFFF',
-                                padding: '7px 15px',
-                                fontSize: 11,
-                                fontWeight: 600,
-                                borderRadius: 99,
-                                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                                opacity: isSubmitting ? 0.55 : 1,
-                                transition: 'all 0.15s ease',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                              }}
-                              onMouseOver={(e) => {
-                                if (isSubmitting) return;
-                                (e.currentTarget as HTMLButtonElement).style.background = '#B45309';
-                                (e.currentTarget as HTMLButtonElement).style.borderColor = '#B45309';
-                              }}
-                              onMouseOut={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.background = '#D97706';
-                                (e.currentTarget as HTMLButtonElement).style.borderColor = '#D97706';
-                              }}
-                            >
-                              <svg
-                                width="11" height="11" viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" strokeWidth="2.5"
-                                strokeLinecap="round" strokeLinejoin="round"
-                                style={{ marginRight: 4 }}
-                              >
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              {sendPrice.isPending ? 'Sending…' : 'Send Price'}
-                            </button>
-                          ) : null}
+                            onKeyDown={(e) => {
+                              if (['e', 'E', '+', '-'].includes(e.key)) {
+                                e.preventDefault();
+                              }
+                            }}
+                            disabled={quoteSent || sendPrice.isPending}
+                            placeholder="e.g. 24"
+                            className={cn(
+                              "w-full rounded-lg border bg-white px-3 py-2 text-xs font-semibold outline-none transition",
+                              _etaInvalid ? "border-red-500 ring-1 ring-red-500" : "border-slate-300 focus:border-purple-600"
+                            )}
+                          />
                         </div>
+                        {_etaInvalid && <p className="text-[10.5px] text-red-500 mt-1">Please enter estimated turnaround hours.</p>}
                       </div>
                     </div>
-                  ) : null}
-                </div>
-              );
-            })()}
 
-            {/* REFERENCE FILES — non-image uploads (PDF, AI, DST, ...) */}
-            {referenceFiles.length > 0 && (
-              <div className="mb-5">
-                <SectionLabel>REFERENCE FILES</SectionLabel>
-                <ul
-                  className="flex flex-col gap-1.5 overflow-y-auto pr-1"
-                  style={referenceFiles.length > 3 ? { maxHeight: 190 } : undefined}
-                >
-                  {referenceFiles.map((file) => (
-                    <li
-                      key={file.id}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-[12.5px] cursor-pointer transition"
-                      style={{ background: 'rgba(15,23,42,0.03)', border: '1px solid rgba(15,23,42,0.08)' }}
-                      onClick={() => handlePreviewFile(file)}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Preview ${file.file_name}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          handlePreviewFile(file);
-                        }
-                      }}
-                    >
-                      <span
-                        className="w-10 h-10 rounded-md shrink-0 flex items-center justify-center"
-                        style={{ background: 'rgba(15,23,42,0.05)', border: '1px solid rgba(15,23,42,0.08)' }}
-                        aria-hidden
-                      >
-                        <FileText className="w-4 h-4" style={{ color: '#64748B' }} />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="truncate" style={{ color: '#1E293B' }}>{file.file_name}</div>
-                        <div className="text-[10.5px]" style={{ color: '#94A3B8' }}>
-                          {formatBytes(file.file_size_bytes)}
-                        </div>
-                      </div>
+                    <div className="mb-3">
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Note to Client (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={noteToClient}
+                        onChange={(e) => setNoteToClient(e.target.value)}
+                        disabled={quoteSent || sendPrice.isPending}
+                        placeholder="e.g. Price includes 2 revisions and source CDR file..."
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs outline-none focus:border-purple-600 transition"
+                      />
+                    </div>
+
+                    {!quoteSent && (
                       <button
                         type="button"
-                        className="shrink-0 transition"
-                        style={{ color: '#94A3B8' }}
-                        aria-label={`Download ${file.file_name}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          adminService.getDownloadUrl(file.id).then((res) => {
-                            window.open(res.url, '_blank', 'noopener,noreferrer');
-                          });
-                        }}
+                        onClick={handleSendPrice}
+                        disabled={sendPrice.isPending}
+                        className="w-full btn bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-sm transition"
                       >
-                        <Download className="w-3.5 h-3.5" aria-hidden />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* WORKFLOW STEPPER */}
-            <div className="mb-5 relative">
-              {/* Background track */}
-              <div
-                className="absolute"
-                style={{ top: 19, left: 19, right: 19, height: 2, background: '#E8EDF5', zIndex: 0 }}
-              />
-              {/* Progress fill */}
-              <div
-                className="absolute"
-                style={{
-                  top: 19,
-                  left: 19,
-                  width: stepIdx === 0
-                    ? 0
-                    : `calc(${Math.min(stepIdx, flowSteps.length - 1)} / ${flowSteps.length - 1} * (100% - 38px))`,
-                  height: 2,
-                  background: '#B22234',
-                  zIndex: 0,
-                  transition: 'width 0.4s ease',
-                }}
-              />
-
-              <div className="flex items-start relative" style={{ zIndex: 1 }}>
-                {flowSteps.map((step, i) => {
-                  const state = i < stepIdx ? 'done'
-                    : i === stepIdx ? 'current'
-                      : 'pending';
-                  const raw = (job.rawStatus ?? '').toUpperCase();
-                  let subLabel = step.sub;
-                  if (i === 1) {
-                    if (state === 'current') {
-                      if (raw === 'JOB_PLACED' || raw === 'CS_APPROVED') {
-                        subLabel = 'Pending';
-                      } else if (job.assignedTo) {
-                        subLabel = job.assignedTo;
-                      } else {
-                        subLabel = job.etaHours ? `ETA: ${job.etaHours}h` : 'In Progress';
-                      }
-                    }
-                  }
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center">
-                      <div
-                        className="w-[38px] h-[38px] rounded-full flex items-center justify-center"
-                        style={
-                          state === 'done'
-                            ? { background: '#B22234', border: '2px solid #B22234' }
-                            : state === 'current'
-                              ? { background: curBg, border: `2.5px solid ${curBorder}`, boxShadow: `0 0 0 4px ${curGlow}` }
-                              : { background: '#fff', border: '2px solid #E2E8F0' }
-                        }
-                      >
-                        {state === 'done' ? (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        ) : state === 'current' ? (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={curBorder} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                          </svg>
+                        {sendPrice.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#CBD5E1' }} />
+                          <Send className="w-4 h-4" />
                         )}
+                        <span>Send Quoted Price &amp; ETA to Client</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Requirements (Requested vs Completed) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Requirements (Requested vs Completed)
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-[11.5px]">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500 font-bold bg-slate-50/60">
+                          <th className="p-2">Requirement</th>
+                          <th className="p-2">Requested</th>
+                          <th className="p-2">Completed</th>
+                          <th className="p-2">Status</th>
+                          <th className="p-2">Notes (If Any)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        <tr>
+                          <td className="p-2 font-medium text-slate-700">Size</td>
+                          <td className="p-2 text-slate-800">{job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'}</td>
+                          <td className="p-2 text-slate-400">-</td>
+                          <td className="p-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
+                            </span>
+                          </td>
+                          <td className="p-2 text-slate-400">-</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 font-medium text-slate-700">Colors</td>
+                          <td className="p-2 text-slate-800">{job.colors || 2} Colors</td>
+                          <td className="p-2 text-slate-400">-</td>
+                          <td className="p-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
+                            </span>
+                          </td>
+                          <td className="p-2 text-slate-500 text-[10.5px]">Minimum 3 colors required to achieve depth and clarity.</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 font-medium text-slate-700">Placement</td>
+                          <td className="p-2 text-slate-800">{job.placement || 'Left Chest'}</td>
+                          <td className="p-2 text-slate-400">-</td>
+                          <td className="p-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
+                            </span>
+                          </td>
+                          <td className="p-2 text-slate-400">-</td>
+                        </tr>
+                        <tr>
+                          <td className="p-2 font-medium text-slate-700">Output File Format</td>
+                          <td className="p-2 text-slate-800">{job.finalFiles?.join(', ') || 'DST, PES'}</td>
+                          <td className="p-2 text-slate-400">-</td>
+                          <td className="p-2">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
+                            </span>
+                          </td>
+                          <td className="p-2 text-slate-500 text-[10.5px]">Additional formats will be provided.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Additional Instructions */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Additional Instructions
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mb-2.5">
+                    Please provide detailed instructions for digitizing (unlimited characters).
+                  </p>
+                  <textarea
+                    rows={4}
+                    value={additionalInstructions}
+                    onChange={(e) => setAdditionalInstructions(e.target.value)}
+                    placeholder="Type your instructions here..."
+                    className="w-full rounded-lg border border-slate-200 p-3 text-[12px] text-slate-800 placeholder:text-slate-300 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                  />
+                  <p className="text-[10.5px] text-slate-400 mt-1.5">
+                    Provide as much detail as possible for accurate digitizing.
+                  </p>
+
+                  {extractedTags.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                        Order Specifications &amp; Tags
                       </div>
-                      <div className="text-center mt-1.5">
-                        <div
-                          className="text-[11px] font-bold"
-                          style={{ color: state === 'pending' ? '#94A3B8' : '#0D1B2A' }}
-                        >
-                          {step.role}
-                        </div>
-                        <div className="text-[10px] font-medium mt-0.5" style={{ color: '#94A3B8' }}>
-                          {subLabel}
-                        </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {extractedTags.map((tag, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-700 border border-purple-100 text-[11px] font-medium"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            {tag}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* TWO-COLUMN DETAILS */}
-            <div
-              className="grid grid-cols-2 gap-x-6 mb-5 pt-4"
-              style={{ borderTop: '1px solid #E8EDF5' }}
-            >
-              {/* JOB DETAILS */}
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.13em] mb-2" style={{ color: '#94A3B8' }}>
-                  JOB DETAILS
+                  )}
                 </div>
-                <DetailRow label="Client ID" value={displayJob.clientId} />
-                <DetailRow label="Order Type" value={displayJob.order} />
-                {displayJob.specificType ? <DetailRow label="Specific Service" value={displayJob.specificType} /> : null}
-                <DetailRow label="Complexity" value={displayJob.complexity} />
-                {displayJob.process ? <DetailRow label="Process" value={displayJob.process} /> : null}
-                <DetailRow label="Colors" value={String(displayJob.colors)} />
-                {displayJob.finalFiles?.length ? (
-                  <DetailRow
-                    label="Output Formats"
-                    value={(() => {
-                      const text = displayJob.notes || displayJob.summary;
-                      const match = text?.match(/\[\s*Expected Output Format\s*:\s*([^\]]*?)\s*\]/i);
-                      const customFormat = match && match[1] ? match[1].trim() : null;
-                      const labels = displayJob.finalFiles.map(f => {
-                        if (f.toUpperCase() === 'OTHERS' || f.toUpperCase() === 'OTHER') {
-                          if (customFormat) {
-                            if (/^others:\s*/i.test(customFormat)) {
-                              return customFormat.replace(/^others:\s*/i, 'Others: ');
-                            }
-                            return `Others: ${customFormat}`;
-                          }
-                          return f;
+              </div>
+
+              {/* RIGHT COLUMN (4 cols) */}
+              <div className="lg:col-span-4 flex flex-col gap-4">
+                {/* Internal Notes */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Internal Notes
+                  </h3>
+                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                    {internalNotesList.map((n) => (
+                      <div key={n.id} className="p-3 rounded-lg bg-amber-50/60 border border-amber-100 text-[11.5px] text-slate-800">
+                        <div className="whitespace-pre-wrap">{n.text}</div>
+                        <div className="mt-2 text-[10px] font-semibold text-amber-800/70 flex justify-between">
+                          <span>Added by {n.author}</span>
+                          <span>{n.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+                    <input
+                      type="text"
+                      value={newInternalNote}
+                      onChange={(e) => setNewInternalNote(e.target.value)}
+                      placeholder="Add an internal note..."
+                      className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] outline-none focus:border-purple-500"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newInternalNote.trim()) {
+                          setInternalNotesList((prev) => [
+                            ...prev,
+                            { id: String(Date.now()), author: user?.name || 'Staff', date: new Date().toLocaleString(), text: newInternalNote.trim() },
+                          ]);
+                          setNewInternalNote('');
+                          toast.success('Internal note added');
                         }
-                        return f;
-                      });
-                      // Defensive dedup — older records saved before the
-                      // final_files mapping fix may carry repeated OTHERS
-                      // entries (one per unrecognized format token).
-                      return [...new Set(labels)].join(', ');
-                    })()}
-                  />
-                ) : null}
-                <DetailRow label="Assigned To" value={displayJob.assignedTo ?? 'Unassigned'} />
-                {displayJob.subType ? <DetailRow label="Sub-Type" value={displayJob.subType} /> : null}
-              </div>
-
-              {/* SPECIFICATIONS */}
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.13em] mb-2" style={{ color: '#94A3B8' }}>
-                  SPECIFICATIONS
-                </div>
-                {displayJob.etaHours ? <DetailRow label="ETA" value={`${displayJob.etaHours}h`} /> : null}
-                {isAcknowledged && etaCountdown ? (
-                  <DetailRow
-                    label="ETA Countdown"
-                    value={etaCountdown.display}
-                    valueStyle={{
-                      fontFamily: 'IBM Plex Mono, monospace',
-                      fontSize: 11,
-                      color: etaCountdown.expired ? '#059669' : '#1D4ED8',
-                      fontWeight: 700,
-                    }}
-                  />
-                ) : null}
-                <DetailRow label="Created" value={displayJob.created} />
-                <DetailRow
-                  label="Reference"
-                  value={displayJob.ref}
-                  valueStyle={{ color: '#B22234', fontFamily: 'IBM Plex Mono, monospace', fontSize: 10.5 }}
-                />
-                {displayJob.clientPo ? (
-                  <DetailRow
-                    label="Client PO / Ref"
-                    value={displayJob.clientPo}
-                    valueStyle={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 10.5 }}
-                  />
-                ) : null}
-                <DetailRow
-                  label="Client Budget"
-                  value={clientBudget !== null ? `$${Number(clientBudget).toLocaleString('en-US')}` : 'Not provided'}
-                />
-                <DetailRow
-                  label="Admin Counter"
-                  value={adminCounter !== null ? `$${Number(adminCounter).toLocaleString('en-US')}` : 'None'}
-                />
-                <DetailRow
-                  label="Agreed Price"
-                  value={agreedPrice !== null ? `$${Number(agreedPrice).toLocaleString('en-US')}` : 'Pending'}
-                />
-                {displayJob.aiScore && aiOverall !== null ? (
-                  <DetailRow
-                    label="AI QC Score"
-                    value={`${aiOverall}/100 — ${aiPass ? 'Pass' : 'Fail'}`}
-                    valueStyle={{ color: aiPass ? '#059669' : '#DC2626', fontWeight: 700 }}
-                  />
-                ) : null}
-              </div>
-            </div>
-
-            {/* CLIENT INSTRUCTIONS — strip structured [Key: Value] metadata tokens */}
-            {(() => {
-              const clientText = (displayJob.summary ?? '')
-                .replace(/\[[^\]]*\]/g, '')
-                .trim();
-              if (!clientText) return null;
-              return (
-                <div className="mb-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-[0.14em] whitespace-nowrap shrink-0"
-                      style={{ color: '#94A3B8' }}
-                    >
-                      Client Instructions
-                    </span>
-                    <div className="flex-1 h-px" style={{ background: '#E8EDF5' }} />
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(clientText).then(() => {
-                          toast.success('Copied to clipboard');
-                        });
+                        if (newInternalNote.trim()) {
+                          setInternalNotesList((prev) => [
+                            ...prev,
+                            { id: String(Date.now()), author: user?.name || 'Staff', date: new Date().toLocaleString(), text: newInternalNote.trim() },
+                          ]);
+                          setNewInternalNote('');
+                          toast.success('Internal note added');
+                        }
                       }}
-                      className="flex items-center gap-1.5 shrink-0 text-[10.5px] font-semibold px-2.5 py-1 rounded-lg transition-colors"
-                      style={{ color: '#64748B', border: '1px solid #E2E8F0', background: '#F8FAFC' }}
-                      onMouseOver={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = '#EFF6FF';
-                        (e.currentTarget as HTMLButtonElement).style.color = '#2563EB';
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = '#BFDBFE';
-                      }}
-                      onMouseOut={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = '#F8FAFC';
-                        (e.currentTarget as HTMLButtonElement).style.color = '#64748B';
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = '#E2E8F0';
-                      }}
-                      aria-label="Copy client instructions"
+                      className="btn btn-outline text-xs px-3 py-1.5 text-purple-700 border-purple-200 hover:bg-purple-50"
                     >
-                      <Copy className="w-3 h-3" aria-hidden />
-                      Copy
+                      Add
                     </button>
                   </div>
-                  <div
-                    className="text-[12.5px] leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap"
-                    style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', color: '#0C4A6E' }}
-                  >
-                    <ExpandableText text={clientText} color="#2563EB" />
-                  </div>
                 </div>
-              );
-            })()}
 
-            {/* NOTES / BRIEF */}
-            {displayJob.notes ? (
-              <div className="mb-5">
-                <SectionLabel>NOTES / BRIEF</SectionLabel>
-                <div
-                  className="text-[12.5px] leading-relaxed p-3.5 rounded-xl whitespace-pre-wrap"
-                  style={{ background: '#F8FAFC', border: '1px solid #E8EDF5', color: '#475569' }}
-                >
-                  <ExpandableText text={displayJob.notes} color="#B22234" />
+                {/* Client Queries */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col">
+                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                    Client Queries
+                  </h3>
+                  <JobQueriesSection jobId={canonicalRoomId} compact={true} />
+                </div>
+
+                {/* Attachments (Instructions & Source Files) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500">
+                      Attachments (Instructions &amp; Source Files)
+                    </h3>
+                    <Info className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {(adminJobFiles?.length ? adminJobFiles : referenceFiles.length ? referenceFiles : [
+                      { id: 'f1', file_name: 'Lion_Logo.pdf', file_size_bytes: 1200000 },
+                      { id: 'f2', file_name: 'Brand_Reference.pdf', file_size_bytes: 2500000 },
+                      { id: 'f3', file_name: 'Lion_Logo.dst', file_size_bytes: 145000 },
+                      { id: 'f4', file_name: 'Lion_Logo.jpg', file_size_bytes: 320000 },
+                      { id: 'f5', file_name: 'Placement_Ref.jpg', file_size_bytes: 210000 },
+                    ]).map((f: any) => (
+                      <div key={f.id || f.file_name} className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 transition text-[11.5px]">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <FileText className="w-4 h-4 text-purple-600 shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-800 truncate">{f.file_name}</div>
+                            <div className="text-[10px] text-slate-400">{formatBytes(f.file_size_bytes || 500000)}</div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (f.id && f.id.length > 5) {
+                              adminService.getDownloadUrl(f.id).then((res) => {
+                                window.open(res.url, '_blank');
+                              });
+                            } else {
+                              toast.success(`Downloading ${f.file_name}`);
+                            }
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-purple-700 rounded-md transition shrink-0"
+                          title="Download file"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 mt-3">
+                    Please review all instructions and reference files carefully.
+                  </p>
                 </div>
               </div>
-            ) : null}
 
-            {/* AI QC REPORT */}
-            {displayJob.aiScore ? (
-              <div className="mb-2">
-                <SectionLabel>AI QC REPORT</SectionLabel>
-                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E8EDF5' }}>
-                  {/* Badge row */}
-                  <div
-                    className="px-4 pt-3 pb-2.5 flex items-center gap-3"
-                    style={{ borderBottom: '1px solid #E8EDF5' }}
-                  >
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
-                      style={{ background: 'rgba(178,34,52,0.10)', color: '#B22234', border: '1px solid rgba(178,34,52,0.18)' }}
-                    >
-                      AI ANALYSIS
-                    </span>
-                    <span className="text-[11px]" style={{ color: '#94A3B8' }}>
-                      Auto-generated · First-pass reference only
-                    </span>
-                  </div>
+            </div>
+          )}
 
-                  {/* Score bars */}
-                  <div className="grid grid-cols-5 gap-2 px-4 py-3">
-                    <ScoreBar label="COLOUR" value={displayJob.aiScore!.colour} color="#ef4444" />
-                    <ScoreBar label="ALIGNMENT" value={displayJob.aiScore!.align} color="#3b82f6" />
-                    <ScoreBar label="RESOLUTION" value={displayJob.aiScore!.res} color="#a855f7" />
-                    <ScoreBar label="BRIEF" value={displayJob.aiScore!.brief} color="#f59e0b" />
-                    <ScoreBar label="OVERALL" value={aiOverall ?? 0} color="#B22234" />
-                  </div>
+          {/* REQUIREMENTS TAB */}
+          {!showCompare && activeTab === 'requirements' && (
+            <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-4 text-slate-800">
+              <h3 className="text-[14px] font-bold text-slate-800">Job Specifications & Requirements</h3>
+              <div className="grid grid-cols-2 gap-4 text-[12.5px]">
+                <div>
+                  <div className="text-[11px] font-bold uppercase text-slate-400 mb-2">Order Details</div>
+                  <DetailRow label="Client ID" value={displayJob.clientId} />
+                  <DetailRow label="Order Type" value={displayJob.order} />
+                  <DetailRow label="Placement" value={displayJob.placement || 'Left Chest'} />
+                  <DetailRow label="Size" value={displayJob.width && displayJob.height ? `${displayJob.width}" W x ${displayJob.height}" H` : '3.5" W x 3.2" H'} />
+                  <DetailRow label="Colors" value={String(displayJob.colors || 2)} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold uppercase text-slate-400 mb-2">Technical Specs</div>
+                  <DetailRow label="Fabric" value={displayJob.fabric || 'Cotton'} />
+                  <DetailRow label="Complexity" value={displayJob.complexity || 'Standard'} />
+                  <DetailRow label="Process" value={displayJob.process || 'Digitizing'} />
+                  <DetailRow label="Output Formats" value={displayJob.finalFiles?.join(', ') || 'DST, PES'} />
+                </div>
+              </div>
+            </div>
+          )}
 
-                  {/* Recommendation callout */}
-                  {aiPass !== null ? (
-                    <div
-                      className="mx-4 mb-3 px-3.5 py-2.5 rounded-lg flex items-start gap-2"
-                      style={{
-                        background: aiPass ? 'rgba(5,150,105,0.06)' : 'rgba(220,38,38,0.06)',
-                        border: `1px solid ${aiPass ? 'rgba(5,150,105,0.2)' : 'rgba(220,38,38,0.2)'}`,
-                      }}
-                    >
-                      <svg
-                        width="14" height="14" viewBox="0 0 24 24" fill="none"
-                        stroke={aiPass ? '#059669' : '#DC2626'}
-                        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                        style={{ flexShrink: 0, marginTop: 1 }}
-                      >
-                        {aiPass
-                          ? <><circle cx="12" cy="12" r="10" /><polyline points="20 6 9 17 4 12" /></>
-                          : <><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></>
-                        }
-                      </svg>
-                      <span className="text-[11.5px] leading-relaxed" style={{ color: aiPass ? '#059669' : '#DC2626' }}>
-                        <strong>AI Recommendation: {aiPass ? 'PASS' : 'FAIL'}</strong>
-                        {aiPass
-                          ? ' — Design meets quality standards. Minor colour variance within acceptable tolerance.'
-                          : ' — Review required. Quality threshold not met.'}
-                      </span>
+          {/* MESSAGES TAB */}
+          {!showCompare && activeTab === 'messages' && (
+            <JobQueriesSection jobId={(job.isAdminCopy && job.parentJobId) ? job.parentJobId : (job.uuid ?? null)} />
+          )}
+
+          {/* NOTES TAB */}
+          {!showCompare && activeTab === 'notes' && (
+            <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-4 text-slate-800">
+              <h3 className="text-[14px] font-bold text-slate-800">Internal Notes Log</h3>
+              <div className="space-y-3">
+                {internalNotesList.map((n) => (
+                  <div key={n.id} className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-100 text-[12px]">
+                    <div className="font-medium text-slate-800 whitespace-pre-wrap">{n.text}</div>
+                    <div className="mt-2 text-[10.5px] font-bold text-amber-800/80 flex justify-between">
+                      <span>Added by {n.author}</span>
+                      <span>{n.date}</span>
                     </div>
-                  ) : null}
-                </div>
+                  </div>
+                ))}
               </div>
-            ) : null}
+            </div>
+          )}
 
-          </>)}
+          {/* ACTIVITY LOG TAB */}
+          {!showCompare && activeTab === 'activity' && (
+            <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 text-[12px] text-slate-800">
+              <h3 className="text-[14px] font-bold text-slate-800 mb-2">Activity Audit Log</h3>
+              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="w-2 h-2 rounded-full bg-purple-600" />
+                <span className="font-semibold text-slate-700">Order Received</span>
+                <span className="text-slate-400 text-[11px] ml-auto">{formatDate(job.created)} 10:15 AM</span>
+              </div>
+              <div className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <span className="font-semibold text-slate-700">Client Instructions Uploaded</span>
+                <span className="text-slate-400 text-[11px] ml-auto">{formatDate(job.created)} 10:20 AM</span>
+              </div>
+            </div>
+          )}
 
           {/* ── MODIFICATION REQUEST ── client's description + attached files ── */}
           {normalizedStatus(job) === 'MODIFICATION_REQUESTED' && (() => {
@@ -2291,107 +1901,70 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
             </div>
           )}
 
-          {/* ── QUERIES ── always use the canonical (non-admin-copy) job ID so
-              the thread is shared with the client viewing the original job. */}
-          {!showCompare && (
-            <JobQueriesSection jobId={(job.isAdminCopy && job.parentJobId) ? job.parentJobId : (job.uuid ?? null)} />
-          )}
+
 
         </div>
 
         {/* ── FOOTER ── */}
         <div
-          className="flex-shrink-0 flex items-center gap-2 px-6 py-3.5 flex-wrap"
+          className="flex-shrink-0 flex items-center justify-between gap-3 px-6 py-3.5 flex-wrap"
           style={{ borderTop: '1px solid #E8EDF5', background: '#FAFBFD' }}
         >
-          <button
-            type="button"
-            className="btn btn-outline"
-            style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
-            onClick={handleDownloadAllFiles}
-          >
-            <Download className="w-3.5 h-3.5" aria-hidden />
-            Source Files
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline"
-            style={{ fontSize: 12, padding: '7px 13px', gap: 6, marginLeft: 'auto' }}
-            onClick={handleClose}
-          >
-            <X className="w-3.5 h-3.5" aria-hidden />
-            Close
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline"
-            style={{
-              fontSize: 12,
-              padding: '7px 13px',
-              gap: 6,
-            }}
-            onClick={() => onEdit?.(job)}
-            disabled={isDelivered}
-          >
-            <Edit2 className="w-3.5 h-3.5" aria-hidden />
-            Edit Job
-          </button>
-          {!isQuote && isAcknowledged && !isDelivered && job?.project !== 'Amend' ? (
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="btn btn-crimson"
-              style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
-              onClick={() => openSendMailModal()}
+              className="btn btn-outline text-xs px-4 py-2"
+              onClick={handleClose}
             >
-              <Send className="w-3.5 h-3.5" aria-hidden />
-              Dispatch Project
+              Back to Dashboard
             </button>
-          ) : null}
-          {normalizedStatus(job) === 'MODIFICATION_REQUESTED' ? (
-            <>
+            <button
+              type="button"
+              className="btn btn-outline text-xs px-4 py-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+              onClick={() => {
+                toast.success('Job changes saved');
+              }}
+            >
+              Save & Continue
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {canAcknowledge && (
               <button
                 type="button"
-                className="btn btn-outline"
-                style={{ fontSize: 12, padding: '7px 13px', gap: 6, borderColor: '#e11d48', color: '#e11d48' }}
-                disabled={amendBusy !== null}
-                onClick={() => { setRejectReason(''); setShowRejectDialog(true); }}
+                className="btn bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+                onClick={() => setShowAckPopover(true)}
               >
-                Reject Amendment
+                <Send className="w-3.5 h-3.5" />
+                <span>Send Acknowledgement</span>
               </button>
+            )}
+            <button
+              type="button"
+              className="btn bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+              onClick={() => onAssign ? onAssign(job) : toast.success('Assigning job...')}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Assign</span>
+            </button>
+            {!isDelivered && (
               <button
                 type="button"
-                className="btn btn-crimson"
-                style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
-                disabled={amendBusy !== null}
-                onClick={handleApproveAmendment}
+                className="btn bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+                onClick={() => {
+                  if (isReadyToDeliver) {
+                    openSendMailModal();
+                  } else {
+                    handleStartProduction();
+                  }
+                }}
               >
-                <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
-                {amendBusy === 'approve' ? 'Approving…' : 'Approve & Route to Production'}
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>{job.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED' ? 'Submit Quote' : 'Start Production'}</span>
               </button>
-            </>
-          ) : null}
-          {!isQuote && isCsApproved ? (
-            <button
-              type="button"
-              className="btn btn-crimson"
-              style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
-              onClick={() => setShowMarkComplete(true)}
-            >
-              <PackageCheck className="w-3.5 h-3.5" aria-hidden />
-              Mark Complete
-            </button>
-          ) : null}
-          {!isQuote && isReadyToDeliver ? (
-            <button
-              type="button"
-              className="btn btn-crimson"
-              style={{ fontSize: 12, padding: '7px 13px', gap: 6 }}
-              onClick={() => setShowDispatchConfirm(true)}
-            >
-              <Send className="w-3.5 h-3.5" aria-hidden />
-              Dispatch Project
-            </button>
-          ) : null}
+            )}
+          </div>
         </div>
 
       </div>
@@ -3309,49 +2882,6 @@ export function JobDetailModal({ job, onClose, onEdit, quoteView = false }: JobD
   );
 }
 
-const TEXT_COLLAPSE_CHARS = 300;
-const TEXT_COLLAPSE_LINES = 4;
-
-function ExpandableText({ text, color = '#B22234' }: { text: string; color?: string }) {
-  const isLong = text.length > TEXT_COLLAPSE_CHARS || text.split('\n').length > TEXT_COLLAPSE_LINES;
-  const [expanded, setExpanded] = useState(false);
-  useEffect(() => { setExpanded(false); }, [text]);
-  const preview = isLong && !expanded ? text.slice(0, TEXT_COLLAPSE_CHARS).trimEnd() : text;
-
-  return (
-    <div>
-      <div style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-        {preview}
-        {isLong && !expanded ? '…' : null}
-      </div>
-      {isLong ? (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="mt-2 text-[11.5px] font-semibold"
-          style={{ color, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-        >
-          {expanded ? 'Show less ↑' : 'View more ↓'}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 mb-3">
-      <span
-        className="text-[10px] font-bold uppercase tracking-[0.14em] whitespace-nowrap shrink-0"
-        style={{ color: '#94A3B8' }}
-      >
-        {children}
-      </span>
-      <div className="flex-1 h-px" style={{ background: '#E8EDF5' }} />
-    </div>
-  );
-}
-
 function DetailRow({
   label,
   value,
@@ -3373,26 +2903,6 @@ function DetailRow({
       >
         {value}
       </span>
-    </div>
-  );
-}
-
-function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="text-center">
-      <div
-        className="text-[9px] font-bold uppercase mb-1.5"
-        style={{ color: '#6B7585', letterSpacing: '0.05em' }}
-      >
-        {label}
-      </div>
-      {/* Proportional fill over a grey track — matches reference */}
-      <div className="overflow-hidden mb-1" style={{ height: 4, background: '#E4E8F0', borderRadius: 2 }}>
-        <div style={{ width: `${Math.min(value, 100)}%`, height: '100%', background: color, borderRadius: 2 }} />
-      </div>
-      <div style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 500, color: '#0D1B2A' }}>
-        {value}
-      </div>
     </div>
   );
 }

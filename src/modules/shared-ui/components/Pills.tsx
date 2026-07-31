@@ -4,6 +4,8 @@ export interface PillItem {
   id: string;
   label: string;
   count?: number;
+  /** Small status dot rendered before the label (e.g. '#22c55e'). Omit for a plain pill like "All". */
+  dotColor?: string;
 }
 
 interface PillsProps {
@@ -29,6 +31,9 @@ export function Pills({ items, activeId, onSelect, className }: PillsProps) {
           className={cn('pill', item.id === activeId && 'active')}
           onClick={() => onSelect(item.id)}
         >
+          {item.dotColor ? (
+            <span className="pill-dot" style={{ background: item.dotColor }} aria-hidden />
+          ) : null}
           {item.label}
           {typeof item.count === 'number' ? ` (${item.count})` : null}
         </button>
