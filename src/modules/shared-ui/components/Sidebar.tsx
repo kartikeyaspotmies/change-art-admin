@@ -65,12 +65,6 @@ export function Sidebar({ collapsedOnMobile, onNavigateMobile }: SidebarProps) {
         />
       </div>
 
-      {/* Role pill */}
-      <div className="role-pill">
-        <div className="role-pill-dot" />
-        <div className="role-pill-text">{navConfig.label}</div>
-      </div>
-
       {/* Sections */}
       <nav className="flex-1 overflow-y-auto py-1 px-2" aria-label="Sections">
         {navConfig.sections.map((section) => (

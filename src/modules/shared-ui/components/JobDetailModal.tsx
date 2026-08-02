@@ -15,6 +15,7 @@ import { uploadCompletedFile } from '@modules/cs-panel/services/cs-quote.service
 
 import { useJobRoom } from '@lib/use-job-room';
 import { useAdminJobById, useAdminJobFiles, useAdminJobImageUrls, isAdminViewableImage } from '@modules/admin-panel/hooks/use-admin-jobs';
+import { useJobQueries } from '@modules/admin-panel/hooks/use-job-queries';
 import { adminService } from '@modules/admin-panel/services/admin.service';
 import { FileCategory, JobStatus, type IFileVersion } from '@contracts';
 import { useSessionUser } from '@modules/auth/stores/auth-store';
@@ -123,9 +124,7 @@ function isQuoteAlreadySent(job: Job): boolean {
   return job.status === 'Quote Approved';
 }
 
-function isReadyToDeliverStatus(job: Job): boolean {
-  return normalizedStatus(job) === 'READY_TO_DELIVER';
-}
+
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—';
@@ -501,10 +500,13 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
     : null;
   const aiPass = aiOverall !== null ? aiOverall >= 80 : null;
 
+  const canonicalJobId = (job?.isAdminCopy && job?.parentJobId) ? job.parentJobId : (job?.uuid ?? null);
+  const { data: jobQueries } = useJobQueries(canonicalJobId);
+  const messagesCount = jobQueries?.length ?? 0;
+
   const stepIdx = currentStepIndex(job);
   const isQuote = _quoteView || job?.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED' || normalizedStatus(job) === 'QUOTE_APPROVED';
   const quoteSent = isQuoteAlreadySent(job);
-  const isReadyToDeliver = isReadyToDeliverStatus(job);
   const canAcknowledge = normalizedStatus(job) === 'JOB_PLACED' && !job.acknowledgedAt;
   const isAcknowledged = !!job.acknowledgedAt;
   const isDelivered = normalizedStatus(job) === 'DELIVERED';
@@ -778,9 +780,9 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
-        background: isIn ? 'rgba(15,23,42,0.45)' : 'rgba(15,23,42,0)',
-        backdropFilter: isIn ? 'blur(5px)' : 'blur(0px)',
-        WebkitBackdropFilter: isIn ? 'blur(5px)' : 'blur(0px)',
+        background: isIn ? 'rgba(15,23,42,0.25)' : 'rgba(15,23,42,0)',
+        backdropFilter: 'none',
+        WebkitBackdropFilter: 'none',
         transition: 'all 240ms cubic-bezier(0.16,1,0.3,1)',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
@@ -791,8 +793,8 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
         aria-modal="true"
         aria-label={`Job detail: ${job.design}`}
         className={cn(
-          'relative w-full max-h-[92vh] rounded-2xl flex flex-col overflow-hidden',
-          'max-w-[1150px]',
+          'relative w-full max-h-[85vh] rounded-2xl flex flex-col overflow-hidden',
+          'max-w-[880px]',
         )}
         style={{
           background: '#fff',
@@ -869,13 +871,13 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
               },
               {
                 label: 'QC',
-                date: stepIdx >= 2 ? formatDateTime(job.created) : 'Upcoming',
+                date: stepIdx >= 2 ? formatDateTime((job as any).updatedAt || job.created) : 'Upcoming',
                 icon: Search,
                 stageIdx: 2,
               },
               {
                 label: 'COMPLETED',
-                date: stepIdx >= 3 ? formatDateTime(job.created) : 'Upcoming',
+                date: stepIdx >= 3 ? formatDateTime((job as any).updatedAt || job.created) : 'Upcoming',
                 icon: CheckCircle2,
                 stageIdx: 3,
               },
@@ -909,16 +911,33 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
             })}
           </div>
 
+          {/* Overall Progress Bar & ETA */}
+          {stepIdx >= 0 && (
+            <div className="mt-2 px-4 py-2 bg-slate-50/80 rounded-xl border border-slate-200/70 flex flex-col gap-1">
+              <div className="flex items-center gap-3 text-[11.5px]">
+                <span className="text-slate-600 font-medium shrink-0">Progress</span>
+                <div className="flex-1 h-3 bg-slate-200/70 rounded-full overflow-hidden p-[1px]">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out shadow-sm"
+                    style={{ width: `${stepIdx === 3 || isDelivered ? 100 : stepIdx === 2 ? 75 : stepIdx === 1 ? 50 : 25}%` }}
+                  />
+                </div>
+                <span className="text-slate-900 font-bold shrink-0">
+                  {stepIdx === 3 || isDelivered ? 100 : stepIdx === 2 ? 75 : stepIdx === 1 ? 50 : 25}%
+                </span>
+              </div>
+              <div className="text-[11px] font-semibold text-slate-700">
+                ETA: <span className="font-bold text-slate-900">{computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours || 4) ? formatDateTime(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours || 4)!) : 'Pending'}</span>
+              </div>
+            </div>
+          )}
+
           {/* Sub-Header Metadata Strip */}
           <div className="mt-3 px-4 py-2.5 bg-purple-50/40 rounded-xl border border-purple-100/80 flex items-center justify-between gap-4 text-[12px]">
-            {/* Left Group: JOB ID + Status Badge */}
+            {/* Left Group: JOB ID */}
             <div className="flex items-center gap-3">
               <span className="font-bold text-purple-900 text-[12.5px] tracking-wide">
                 JOB ID : {job.ref || job.id}
-              </span>
-              <span className="px-2.5 py-0.5 text-[11px] font-bold rounded-md bg-purple-100/80 text-purple-700 uppercase tracking-wide border border-purple-200/60 flex items-center gap-1.5">
-                <span>{displayStatus(job.status)}</span>
-                <span className="text-[10px] text-purple-900/70 font-normal">({formatDateTime(job.created)})</span>
               </span>
             </div>
 
@@ -950,7 +969,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
             {[
               { id: 'overview', label: 'Overview' },
               { id: 'requirements', label: 'Requirements' },
-              { id: 'messages', label: `Messages (${(clientOtherFiles.length || 2)})` },
+              { id: 'messages', label: messagesCount > 0 ? `Messages (${messagesCount})` : 'Messages' },
               { id: 'notes', label: 'Notes' },
               { id: 'activity', label: 'Activity Log' },
             ].map((t) => (
@@ -1536,7 +1555,14 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                     Requirements (Requested vs Completed)
                   </h3>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-[11.5px]">
+                    <table className="w-full min-w-[540px] text-left text-[11.5px]">
+                      <colgroup>
+                        <col className="w-[16%]" />
+                        <col className="w-[22%]" />
+                        <col className="w-[14%]" />
+                        <col className="w-[16%]" />
+                        <col className="w-[32%]" />
+                      </colgroup>
                       <thead>
                         <tr className="border-b border-slate-200 text-slate-500 font-bold bg-slate-50/60">
                           <th className="p-2">Requirement</th>
@@ -1548,10 +1574,10 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         <tr>
-                          <td className="p-2 font-medium text-slate-700">Size</td>
-                          <td className="p-2 text-slate-800">{job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'}</td>
-                          <td className="p-2 text-slate-400">-</td>
-                          <td className="p-2">
+                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Size</td>
+                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'}</td>
+                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
+                          <td className="p-2 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
                             </span>
@@ -1559,10 +1585,10 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                           <td className="p-2 text-slate-400">-</td>
                         </tr>
                         <tr>
-                          <td className="p-2 font-medium text-slate-700">Colors</td>
-                          <td className="p-2 text-slate-800">{job.colors || 2} Colors</td>
-                          <td className="p-2 text-slate-400">-</td>
-                          <td className="p-2">
+                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Colors</td>
+                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.colors || 2} Colors</td>
+                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
+                          <td className="p-2 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
                             </span>
@@ -1570,10 +1596,10 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                           <td className="p-2 text-slate-500 text-[10.5px]">Minimum 3 colors required to achieve depth and clarity.</td>
                         </tr>
                         <tr>
-                          <td className="p-2 font-medium text-slate-700">Placement</td>
-                          <td className="p-2 text-slate-800">{job.placement || 'Left Chest'}</td>
-                          <td className="p-2 text-slate-400">-</td>
-                          <td className="p-2">
+                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Placement</td>
+                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.placement || 'Left Chest'}</td>
+                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
+                          <td className="p-2 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
                             </span>
@@ -1581,10 +1607,10 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                           <td className="p-2 text-slate-400">-</td>
                         </tr>
                         <tr>
-                          <td className="p-2 font-medium text-slate-700">Output File Format</td>
-                          <td className="p-2 text-slate-800">{job.finalFiles?.join(', ') || 'DST, PES'}</td>
-                          <td className="p-2 text-slate-400">-</td>
-                          <td className="p-2">
+                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Output File Format</td>
+                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.finalFiles?.join(', ') || 'DST, PES'}</td>
+                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
+                          <td className="p-2 whitespace-nowrap">
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
                             </span>
@@ -1951,17 +1977,26 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
             {!isDelivered && (
               <button
                 type="button"
-                className="btn bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+                className="btn bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
                 onClick={() => {
-                  if (isReadyToDeliver) {
-                    openSendMailModal();
-                  } else {
+                  if (job.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED') {
                     handleStartProduction();
+                  } else {
+                    openSendMailModal();
                   }
                 }}
               >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>{job.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED' ? 'Submit Quote' : 'Start Production'}</span>
+                {job.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED' ? (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Submit Quote</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Dispatch Project</span>
+                  </>
+                )}
               </button>
             )}
           </div>

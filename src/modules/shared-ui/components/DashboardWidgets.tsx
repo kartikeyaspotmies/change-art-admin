@@ -26,22 +26,24 @@ interface TodaysOverviewPanelProps {
 export function TodaysOverviewPanel({ items, viewAllHref }: TodaysOverviewPanelProps) {
   return (
     <Panel
-      title="Today's Overview"
-      action={viewAllHref ? <Link to={viewAllHref}>View All</Link> : undefined}
+      className="p-3"
+      title={<span className="font-extrabold text-[12px] text-text-main text-left block">Today's Overview</span>}
+      action={viewAllHref ? <Link to={viewAllHref} className="text-[#4f46e5] dark:text-[#818cf8] font-bold text-[10px] hover:underline">View All</Link> : undefined}
     >
-      <ul className="flex flex-col gap-2.5">
+      <ul className="flex flex-col gap-1 mt-1">
         {items.map((item) => {
           const dangerAccent = '#ef4444';
           const accent = item.tone === 'danger' ? dangerAccent : item.accent;
+          const isDanger = item.tone === 'danger';
           const row = (
-            <div className="flex items-center justify-between text-[12.5px]">
-              <span className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center justify-between text-[10.5px] py-0 text-left">
+              <span className="flex items-center gap-1.5 min-w-0 text-left">
                 {item.icon ? (
                   <span
                     aria-hidden
-                    className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
+                    className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
                     style={{
-                      background: accent ? `${accent}20` : 'rgba(148, 163, 184, 0.15)',
+                      background: accent ? `${accent}18` : 'rgba(148, 163, 184, 0.15)',
                       color: accent ?? 'var(--text-muted)',
                     }}
                   >
@@ -49,16 +51,15 @@ export function TodaysOverviewPanel({ items, viewAllHref }: TodaysOverviewPanelP
                   </span>
                 ) : null}
                 <span
-                  className={cn('truncate', item.tone !== 'danger' && 'text-text-muted')}
-                  style={item.tone === 'danger' ? { color: dangerAccent } : undefined}
+                  className={cn('truncate font-bold text-left', isDanger ? 'text-[#ef4444] font-extrabold' : 'text-[#0f172a] dark:text-white')}
                 >
                   {item.label}
                 </span>
               </span>
               <span
                 className={cn(
-                  'font-semibold flex-shrink-0',
-                  item.tone === 'danger' ? 'text-[var(--color-red)]' : 'text-[var(--text-main)]',
+                  'font-extrabold text-[11px] flex-shrink-0 ml-2 text-right',
+                  isDanger ? 'text-[#ef4444]' : 'text-[#0f172a] dark:text-white',
                 )}
               >
                 {item.value}
@@ -68,7 +69,7 @@ export function TodaysOverviewPanel({ items, viewAllHref }: TodaysOverviewPanelP
           return (
             <li key={item.id}>
               {item.href ? (
-                <Link to={item.href} className="block hover:opacity-70 transition">
+                <Link to={item.href} className="block hover:opacity-75 transition">
                   {row}
                 </Link>
               ) : (
@@ -95,38 +96,48 @@ export interface ActivityItem {
 interface RecentActivityPanelProps {
   items: ActivityItem[];
   viewAllHref?: string;
+  onViewAll?: () => void;
 }
 
-/** "Recent Activity" panel — a small icon + title/subtitle + relative-time timeline. */
-export function RecentActivityPanel({ items, viewAllHref }: RecentActivityPanelProps) {
+/** "Recent Activity" panel — a small icon + title/subtitle + relative-time timeline with "View All" link button. */
+export function RecentActivityPanel({ items, viewAllHref = '/admin/jobs', onViewAll }: RecentActivityPanelProps) {
   return (
     <Panel
-      title="Recent Activity"
-      action={viewAllHref ? <Link to={viewAllHref}>View All</Link> : undefined}
+      className="p-3"
+      title={<span className="font-extrabold text-[12px] text-text-main text-left block">Recent Activity</span>}
+      action={
+        <Link
+          to={viewAllHref}
+          onClick={onViewAll}
+          className="text-[#4f46e5] dark:text-[#818cf8] font-bold text-[10px] hover:underline"
+        >
+          View All
+        </Link>
+      }
     >
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-2 mt-1">
         {items.map((item) => (
-          <li key={item.id} className="flex items-start gap-2.5">
+          <li key={item.id} className="flex items-center gap-2 text-left">
             <span
               aria-hidden
-              className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
+              className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
               style={
                 item.accent
-                  ? { background: `${item.accent}20`, color: item.accent }
+                  ? { background: `${item.accent}18`, color: item.accent }
                   : { background: 'rgba(99, 102, 241, 0.12)', color: 'var(--color-crimson)' }
               }
             >
               {item.icon}
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="text-[12px] font-medium text-[var(--text-main)] truncate">{item.title}</div>
-              <div className="text-[11px] text-text-faint truncate">{item.subtitle}</div>
+            <div className="min-w-0 flex-1 text-left leading-tight">
+              <div className="text-[10.5px] font-bold text-[#0f172a] dark:text-white truncate text-left">{item.title}</div>
+              <div className="text-[9.5px] font-medium text-[#94a3b8] dark:text-[#94a3b8] truncate text-left">{item.subtitle}</div>
             </div>
-            <span className="flex-shrink-0 text-[10.5px] text-text-faint whitespace-nowrap">{item.time}</span>
+            <span className="flex-shrink-0 text-[9.5px] text-[#94a3b8] dark:text-[#94a3b8] whitespace-nowrap ml-2 text-right">{item.time}</span>
           </li>
         ))}
         {items.length === 0 ? (
-          <li className="text-[12px] text-text-faint py-2">No recent activity.</li>
+          <li className="text-[10.5px] text-[#94a3b8] py-1 text-left">No recent activity.</li>
         ) : null}
       </ul>
     </Panel>

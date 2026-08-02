@@ -21,21 +21,25 @@ interface PillsProps {
  */
 export function Pills({ items, activeId, onSelect, className }: PillsProps) {
   return (
-    <div className={cn('pills', className)} role="tablist">
+    <div className={cn('pills-segmented-bar', className)} role="tablist">
       {items.map((item) => (
         <button
           key={item.id}
           type="button"
           role="tab"
           aria-selected={item.id === activeId}
-          className={cn('pill', item.id === activeId && 'active')}
+          className={cn('pill-segmented-item', item.id === activeId && 'active')}
           onClick={() => onSelect(item.id)}
         >
           {item.dotColor ? (
-            <span className="pill-dot" style={{ background: item.dotColor }} aria-hidden />
+            <span
+              className="pill-dot"
+              style={{ borderColor: item.dotColor, color: item.dotColor }}
+              aria-hidden
+            />
           ) : null}
-          {item.label}
-          {typeof item.count === 'number' ? ` (${item.count})` : null}
+          <span className="pill-label">{item.label}</span>
+          {typeof item.count === 'number' ? <span className="pill-count">({item.count})</span> : null}
         </button>
       ))}
     </div>

@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback, useEffect, type ReactNode } from 'react
 import { JobDetailModal } from './JobDetailModal';
 import { EditJobModal } from './EditJobModal';
 import { AssignJobModal } from './AssignJobModal';
+import { RowActionsMenu, type RowAction } from './RowActionsMenu';
 import {
   Inbox,
   Clock,
@@ -14,10 +15,14 @@ import {
   Layers,
   Scissors,
   Flag,
+  Zap,
   Settings,
   Truck,
   RefreshCw,
   XCircle,
+  Eye,
+  Pencil,
+  UserPlus,
 } from 'lucide-react';
 import { useAdminJobById } from '@modules/admin-panel/hooks/use-admin-jobs';
 
@@ -42,6 +47,7 @@ function relativeTimeShort(dateStr: string): string {
 }
 import { cn, briefText } from '@lib/utils';
 import { jobImage, type Job } from '../mocks/jobs';
+import { CompletedStatusBadge, isCompletedStatus } from './StatusBadge';
 
 function statusDisplay(status: string): string {
   if (status === 'Pending Client Confirm' || status === 'Quote Approved') return 'Awaiting Client';
@@ -140,23 +146,16 @@ export function JobTable({
   const builtInActions = useCallback((j: Job) => {
     const showAssign = !j.assignedTo && j.stage !== 'delivered' && j.stage !== 'quote';
     const isReadyToDispatch = j.status === 'Ready to Deliver';
-    // A brand-new quote request that CS hasn't priced yet — needs a
-    // "Prepare Quote" action (opens the modal, which auto-shows the
-    // Review & Set Price card for Quote Submitted jobs).
     const needsQuotePrep = j.status === 'Quote Submitted';
     const isQuoteAwaiting = j.project === 'Quote' || j.status === 'Quote Submitted';
-    // Dispatch stays available on every non-delivered card (not just
-    // "Ready to Deliver") as a manual fallback — assignment is its own
-    // phase, dispatch is a separate one CS/Admin can trigger any time.
-    // It's styled as primary once the job is genuinely ready, outline
-    // otherwise; the modal itself is the real gate on the actual send.
     const showDispatch = j.stage !== 'delivered' && j.stage !== 'quote';
     return (
-      <div className="job-actions" onClick={(e) => e.stopPropagation()}>
+      <div className="job-actions flex gap-1 flex-nowrap flex-1 items-center w-full min-w-0" onClick={(e) => e.stopPropagation()}>
         {showAssign ? (
           <button
             type="button"
-            className="btn btn-crimson"
+            className="btn font-bold flex-1 min-w-0"
+            style={{ fontSize: 10, padding: '0 5px', background: stageAccentColor(j.project), color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
             onClick={() => setAssignJob(j)}
             aria-label={`Assign ${j.id}`}
           >
@@ -166,7 +165,8 @@ export function JobTable({
         {needsQuotePrep ? (
           <button
             type="button"
-            className="btn btn-crimson"
+            className="btn font-bold flex-1 min-w-0"
+            style={{ fontSize: 10, padding: '0 5px', background: stageAccentColor(j.project), color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
             onClick={() => setViewJobId(j.uuid ?? j.id)}
             aria-label={`Prepare quote for ${j.id}`}
           >
@@ -176,19 +176,23 @@ export function JobTable({
         {isReadyToDispatch ? (
           <button
             type="button"
-            className="btn"
-            style={{ background: '#059669', color: '#fff', border: 'none' }}
+            className="btn font-bold flex-1 min-w-0"
+            style={{ fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
             onClick={() => setViewJobId(j.uuid ?? j.id)}
             aria-label={`Upload files for ${j.id}`}
           >
-            Upload Files
+            Upload
           </button>
         ) : null}
         {showDispatch ? (
           <button
             type="button"
-            className={isReadyToDispatch ? 'btn' : 'btn btn-outline'}
-            style={isReadyToDispatch ? { background: '#059669', color: '#fff', border: 'none' } : undefined}
+            className={isReadyToDispatch ? 'btn font-bold flex-1 min-w-0' : 'btn btn-outline font-bold flex-1 min-w-0'}
+            style={
+              isReadyToDispatch
+                ? { fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }
+                : { fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }
+            }
             onClick={() => setViewJobId(j.uuid ?? j.id)}
             aria-label={`Dispatch ${j.id}`}
           >
@@ -198,13 +202,28 @@ export function JobTable({
         {isReadyToDispatch ? null : (
           <button
             type="button"
-            className="btn btn-outline"
+            className="btn btn-outline font-bold flex-1 min-w-0"
+            style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
             onClick={() => setViewJobId(j.uuid ?? j.id)}
             aria-label={`${isQuoteAwaiting ? 'Reply' : 'View'} ${j.id}`}
           >
             {isQuoteAwaiting ? 'Reply' : 'View'}
           </button>
         )}
+        <RowActionsMenu
+          ariaLabel={`More actions for ${j.id}`}
+          triggerClassName="!flex-shrink-0 !flex-grow-0 flex items-center justify-center !p-0 !border-none !bg-transparent text-text-muted hover:text-text-main"
+          triggerStyle={{ height: 25, width: 20, minWidth: 20, maxWidth: 20, flex: '0 0 20px', border: 'none', background: 'transparent' }}
+          actions={
+            [
+              { key: 'view', label: 'View Details', icon: <Eye className="w-3.5 h-3.5" aria-hidden />, onSelect: () => setViewJobId(j.uuid ?? j.id) },
+              { key: 'edit', label: 'Edit Job', icon: <Pencil className="w-3.5 h-3.5" aria-hidden />, onSelect: () => setEditJob(j) },
+              ...(!j.assignedTo && j.stage !== 'delivered' && j.stage !== 'quote'
+                ? [{ key: 'assign', label: 'Assign Job', icon: <UserPlus className="w-3.5 h-3.5" aria-hidden />, onSelect: () => setAssignJob(j) }]
+                : []),
+            ] satisfies RowAction[]
+          }
+        />
       </div>
     );
   }, []);
@@ -370,7 +389,7 @@ function CompactTableView({
               <td><span className={cn('badge', orderBadgeAccent(j.order))}>{j.order}</span></td>
               <td><span className={cn('badge', projectTypeBadgeAccent(j.project))}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</span></td>
               <td><PriorityChip priority={j.priority} /></td>
-              <td><span className={cn('badge', statusBadgeAccent(j.status))}>{statusDisplay(j.status)}</span></td>
+              <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Matched" /> : <span className={cn('badge', statusBadgeAccent(j.status))}>{statusDisplay(j.status)}</span>}</td>
               <td onClick={(e) => e.stopPropagation()}>
                 {renderRowActions ? renderRowActions(j) : (
                   <button
@@ -423,7 +442,7 @@ function DeliveredView({
                   {job.project.toUpperCase()}
                 </Badge>
                 */}
-                <Badge accent={statusBadgeAccent(job.status)}>{statusDisplay(job.status)}</Badge>
+                {isCompletedStatus(job.status, job.stage) ? <CompletedStatusBadge label="Matched" /> : <Badge accent={statusBadgeAccent(job.status)}>{statusDisplay(job.status)}</Badge>}
               </div>
               <div className="text-[15px] font-bold text-text-main line-clamp-2 break-words">{job.design}</div>
               <div className="text-[12px] text-text-muted mt-0.5">
@@ -526,7 +545,16 @@ function Badge({ children, accent }: { children: ReactNode; accent: string }) {
 }
 
 function PriorityChip({ priority }: { priority: string }) {
-  return <span className={cn('priority-badge', priorityClass(priority))}>{priority}</span>;
+  return (
+    <span className={cn('priority-badge', priorityClass(priority))}>
+      {priority === 'Normal' ? (
+        <Flag className="w-3 h-3 shrink-0" aria-hidden />
+      ) : (
+        <Zap className="w-3 h-3 shrink-0" aria-hidden />
+      )}
+      {priority}
+    </span>
+  );
 }
 
 
@@ -558,15 +586,41 @@ function statusIconFor(status: string) {
  * job's real stage — there's no stored progress field on the backend model,
  * so this is computed rather than read off a (nonexistent) `job.progress`.
  */
-function stageProgressPercent(stage: Job['stage']): number | null {
+function stageProgressPercent(stage: Job['stage'], status?: Job['status'] | string): number | null {
   switch (stage) {
     case 'junior': return 25;
     case 'senior': return 50;
     case 'qc': return 75;
     case 'sewout': return 90;
     case 'delivered': return 100;
-    default: return null;
+    default: {
+      const s = String(status ?? '');
+      if (s === 'In Production' || s === 'CS Approved' || s === 'Assigned') return 25;
+      if (s === 'QC Rejected' || s === 'Senior Rejected' || s === 'In QC' || s === 'Senior Review') return 75;
+      if (s === 'Ready to Deliver') return 90;
+      if (s === 'Completed' || s === 'Dispatched') return 100;
+      return null;
+    }
   }
+}
+
+function formatEtaDisplay(startIso?: string | null, etaHours?: number | null): string | null {
+  const hours = etaHours && etaHours > 0 ? etaHours : 4;
+  const startMs = startIso ? new Date(startIso).getTime() : Date.now();
+  if (isNaN(startMs)) return null;
+  const end = new Date(startMs + hours * 60 * 60 * 1000);
+  
+  const today = new Date();
+  const isToday = end.getDate() === today.getDate() &&
+                  end.getMonth() === today.getMonth() &&
+                  end.getFullYear() === today.getFullYear();
+                  
+  const timeStr = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  if (isToday) {
+    return `Today ${timeStr}`;
+  }
+  const dateStr = end.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+  return `${dateStr} ${timeStr}`;
 }
 
 function TableView({
@@ -636,7 +690,7 @@ function TableView({
               <td><Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge></td>
               <td><Badge accent={projectTypeBadgeAccent(j.project)}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</Badge></td>
               <td><PriorityChip priority={j.priority} /></td>
-              <td><Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge></td>
+              <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Matched" /> : <Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge>}</td>
               {!minimalColumns && (
                 <td className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</td>
               )}
@@ -687,7 +741,8 @@ function GridView({
   gridCols?: 3 | 4;
 }) {
   return (
-    <div className={cn("grid-view grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 py-2 min-w-0", className)}>
+    <div className={cn("grid-view-container min-w-0", className)}>
+      <div className="grid-view">
       {jobs.map((j) => {
         const actionRequired = j.status === 'Pending Client Confirm' || j.status === 'Quote Approved';
         const agencyPrice = j.negotiation?.agencyOffer ?? j.adminPrice ?? null;
@@ -698,7 +753,7 @@ function GridView({
         const isReadyDispatch = j.status === 'Ready to Deliver';
         const titleClass = getTitleColorClass(j.project, j.status);
         const stageCardClass = getStageCardClass(j.project, j.status);
-        const progress = stageProgressPercent(j.stage);
+        const progress = stageProgressPercent(j.stage, j.status);
 
         return (
           <article
@@ -715,14 +770,14 @@ function GridView({
             }}
           >
             {/* Card Header: Project type badge + Job Ref + timestamp */}
-            <div className="jc-header">
+            <div className="jc-header px-2.5 pt-2 pb-0.5 flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
-                <span className={cn('badge whitespace-nowrap flex-shrink-0', projectTypeBadgeAccent(j.project))}>
+                <span className={cn('badge whitespace-nowrap flex-shrink-0 !text-[9px] !px-1.5 !py-[1px]', projectTypeBadgeAccent(j.project))}>
                   {projectTypeBadgeLabel(j.project, j.modificationCount)}
                 </span>
                 {j.ref && (
                   <span
-                    className="text-[9.5px] font-mono font-bold text-text-faint truncate"
+                    className="jc-ref font-mono font-bold text-[9px] text-[#334155] dark:text-[#cbd5e1] tracking-tight whitespace-nowrap overflow-hidden text-ellipsis flex-shrink-0"
                     title={j.ref}
                   >
                     {j.ref}
@@ -730,51 +785,65 @@ function GridView({
                 )}
               </div>
               <span className="jc-header-meta flex-shrink-0">
-                <span className="jc-time">{relativeTimeShort(j.created)}</span>
+                <span className="jc-time text-[9px] text-text-muted">{relativeTimeShort(j.created)}</span>
               </span>
             </div>
 
-
             {/* Card Body - Top Metadata Section */}
-            <div className="jc-body flex flex-col flex-1 pb-1">
+            <div className="jc-body px-2.5 pb-2 pt-1 flex flex-col flex-1 gap-1">
               {/* Job title — colored by project type */}
-              <div className={cn('jc-title', titleClass)} title={j.design}>{j.design}</div>
+              <div className={cn('jc-title font-bold text-[13px] leading-tight truncate', titleClass)} title={j.design}>{j.design}</div>
 
               {/* Client name */}
-              {j.client ? <div className="jc-client font-semibold mb-1 text-[#0D1B2A]">{j.client}</div> : null}
+              {j.client ? <div className="jc-client font-semibold text-[11.5px] leading-tight text-[#0D1B2A] -mt-0.5">{j.client}</div> : null}
 
               {/* Info rows: Dept + Priority */}
-              <div className="flex items-center gap-2.5 mb-1 text-[10.5px] font-semibold">
+              <div className="flex items-center gap-2 text-[9.5px] font-semibold">
                 <div className="flex items-center gap-1 text-text-main">
-                  <DeptIcon className="w-3.5 h-3.5 text-text-muted shrink-0" aria-hidden />
+                  <DeptIcon className="w-3 h-3 text-text-muted shrink-0" aria-hidden />
                   {j.order}
                 </div>
-                <div className={cn('flex items-center gap-1', priorityCardClass(j.priority) === 'job-card-rush' ? 'text-amber-600' : priorityCardClass(j.priority) === 'job-card-super-rush' ? 'text-red-600' : 'text-blue-600')}>
-                  <Flag className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                <span className={cn('priority-badge !text-[9px] !px-1.5 !py-[1px]', priorityClass(j.priority))}>
+                  {j.priority === 'Normal' ? (
+                    <Flag className="w-2.5 h-2.5 shrink-0" aria-hidden />
+                  ) : (
+                    <Zap className="w-2.5 h-2.5 shrink-0" aria-hidden />
+                  )}
                   {j.priority}
-                </div>
-              </div>
-
-              {/* Info row: Status */}
-              <div className="flex items-center gap-1 text-[10.5px] font-semibold text-text-muted mb-1">
-                <StatusIcon className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                <span className={cn(statusBadgeAccent(j.status) === 'green' ? 'text-green-600' : statusBadgeAccent(j.status) === 'amber' ? 'text-amber-600' : statusBadgeAccent(j.status) === 'red' ? 'text-red-600' : 'text-text-main')}>
-                  {statusDisplay(j.status)}
                 </span>
               </div>
 
-              {/* ETA / Progress section if needed */}
+              {/* Info row: Status */}
+              <div className="flex items-center gap-1 text-[9.5px] font-semibold text-text-muted">
+                {isCompletedStatus(j.status, j.stage) ? (
+                  <CompletedStatusBadge label="Matched" />
+                ) : (
+                  <>
+                    <StatusIcon className="w-3 h-3 shrink-0" aria-hidden />
+                    <span className={cn(statusBadgeAccent(j.status) === 'green' ? 'text-green-600' : statusBadgeAccent(j.status) === 'amber' ? 'text-amber-600' : statusBadgeAccent(j.status) === 'red' ? 'text-red-600' : 'text-text-main')}>
+                      {statusDisplay(j.status)}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Progress section — label, bar, and percentage indicator ALL on the SAME flex line */}
               {isInProd && progress != null ? (
-                <div className="mt-1">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>Progress</span>
-                    <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-muted)' }}>{progress}%</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[9.5px] text-text-muted font-medium shrink-0">Progress</span>
+                  <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60 p-[1px]">
+                    <div className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500 ease-out shadow-sm" style={{ width: `${progress}%` }} />
                   </div>
-                  <div className="jc-progress-bar mb-1">
-                    <div className="jc-progress-fill" style={{ width: `${progress}%` }} />
-                  </div>
+                  <span className="text-[9.5px] font-bold text-slate-900 dark:text-slate-100 shrink-0">{progress}%</span>
                 </div>
               ) : null}
+
+              {/* ETA Completion Time row */}
+              {isInProd && (
+                <div className="text-[9.5px] font-semibold text-slate-700 dark:text-slate-300 -mt-0.5">
+                  ETA: <span className="font-bold text-slate-900 dark:text-slate-100">{formatEtaDisplay(j.effectiveAcknowledgedAt ?? j.acknowledgedAt ?? j.created, j.etaHours)}</span>
+                </div>
+              )}
 
               {/* Action-required callout */}
               {actionRequired ? (
@@ -789,11 +858,11 @@ function GridView({
             </div>
 
             {/* Image area - Middle */}
-            <div className="jc-img" style={{ padding: '6px 10px 4px' }}>
+            <div className="jc-img" style={{ padding: '3px 6px 2px' }}>
               {j.images?.length ? (
                 <img
-                  className="w-full object-cover block rounded-lg border border-[rgba(0,0,0,0.05)]"
-                  style={{ height: 110 }}
+                  className="w-full object-cover block rounded-md border border-[rgba(0,0,0,0.05)]"
+                  style={{ height: 120 }}
                   src={j.images[0]}
                   alt={j.design}
                   loading="lazy"
@@ -801,8 +870,8 @@ function GridView({
                   onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                 />
               ) : (
-                <div className="w-full" style={{ height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                <div className="w-full rounded-md border border-[rgba(0,0,0,0.05)]" style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
@@ -811,16 +880,16 @@ function GridView({
               )}
             </div>
 
-            {/* Footer actions */}
-            <div className="jc-footer flex gap-1.5 p-2 bg-white border-t border-[rgba(0,0,0,0.06)]" onClick={(e) => e.stopPropagation()}>
+            {/* Footer actions — single row flex-nowrap */}
+            <div className="jc-footer flex gap-1 p-1.5 border-t border-[rgba(0,0,0,0.06)]" onClick={(e) => e.stopPropagation()}>
               {renderRowActions ? renderRowActions(j) : (
-                <div className="flex gap-1.5 flex-wrap flex-1 items-center">
+                <div className="flex gap-1 flex-nowrap flex-1 items-center w-full min-w-0">
                   {/* Assign button */}
                   {!j.assignedTo && j.stage !== 'delivered' && j.stage !== 'quote' && (
                     <button
                       type="button"
-                      className="btn"
-                      style={{ fontSize: 11, padding: '4px 9px', background: '#059669', color: '#fff', border: 'none', height: 26, borderRadius: 6 }}
+                      className="btn font-bold flex-1 min-w-0"
+                      style={{ fontSize: 10, padding: '0 5px', background: stageAccentColor(j.project), color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
                       onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                     >
                       Assign
@@ -830,22 +899,22 @@ function GridView({
                   {isReadyDispatch && (
                     <button
                       type="button"
-                      className="btn"
-                      style={{ fontSize: 11, padding: '4px 9px', background: '#059669', color: '#fff', border: 'none', height: 26, borderRadius: 6 }}
+                      className="btn font-bold flex-1 min-w-0"
+                      style={{ fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
                       onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                     >
-                      Upload Files
+                      Upload
                     </button>
                   )}
                   {/* Dispatch button */}
                   {j.stage !== 'delivered' && j.stage !== 'quote' && (
                     <button
                       type="button"
-                      className={isReadyDispatch ? 'btn' : 'btn btn-outline'}
+                      className={isReadyDispatch ? 'btn font-bold flex-1 min-w-0' : 'btn btn-outline font-bold flex-1 min-w-0'}
                       style={
                         isReadyDispatch
-                          ? { fontSize: 11, padding: '4px 9px', background: '#059669', color: '#fff', border: 'none', height: 26, borderRadius: 6 }
-                          : { fontSize: 11, padding: '4px 9px', height: 26, borderRadius: 6 }
+                          ? { fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }
+                          : { fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }
                       }
                       onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                     >
@@ -856,8 +925,8 @@ function GridView({
                   {(j.project === 'Quote' && (j.status === 'Pending' || j.stage === 'quote')) && (
                     <button
                       type="button"
-                      className="btn"
-                      style={{ fontSize: 11, padding: '4px 9px', background: '#4F46E5', color: '#fff', border: 'none', height: 26, borderRadius: 6 }}
+                      className="btn font-bold flex-1 min-w-0"
+                      style={{ fontSize: 10, padding: '0 5px', background: stageAccentColor(j.project), color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
                       onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                     >
                       Prepare Quote
@@ -867,8 +936,8 @@ function GridView({
                   {(j.project === 'Quote' || j.status === 'Quote Submitted' || j.project === 'Amend') && (
                     <button
                       type="button"
-                      className="btn btn-outline"
-                      style={{ fontSize: 11, padding: '4px 9px', height: 26, borderRadius: 6 }}
+                      className="btn btn-outline font-bold flex-1 min-w-0"
+                      style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
                       onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                     >
                       Reply
@@ -878,11 +947,11 @@ function GridView({
                   {!isReadyDispatch && (
                     <button
                       type="button"
-                      className="btn btn-outline"
-                      style={{ fontSize: 11, padding: '4px 9px', height: 26, borderRadius: 6 }}
+                      className="btn btn-outline font-bold flex-1 min-w-0"
+                      style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
                       onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                     >
-                      {isInProd ? 'View Progress' : 'View'}
+                      {isInProd ? 'Progress' : 'View'}
                     </button>
                   )}
                 </div>
@@ -891,6 +960,7 @@ function GridView({
           </article>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -915,6 +985,38 @@ function getStageCardClass(project: string, _status: string): string {
     case 'Amend': return 'job-card-stage-amend';
     default: return '';
   }
+}
+
+/** Solid accent colour matching the job card's project-type tint (jc-title-* / job-card-stage-*), used to colour the primary CTA button on each card. */
+function stageAccentColor(project: string): string {
+  switch (project) {
+    case 'Live': return '#2563eb';
+    case 'Live Quote': return '#16a34a';
+    case 'Quote': return '#7c3aed';
+    case 'Amend': return '#ea580c';
+    default: return '#4F46E5';
+  }
+}
+
+/** Teal accent used for the "Ready to Dispatch" stage — matches job-card-stage-dispatch / jc-title-dispatch. */
+const DISPATCH_ACCENT = '#0d9488';
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Tinted style for secondary (outline) buttons on a job card — blends into the card's accent tint instead of a stark white pill. */
+function stageOutlineStyle(project: string): { background: string; borderColor: string; color: string } {
+  const accent = stageAccentColor(project);
+  return {
+    background: hexToRgba(accent, 0.08),
+    borderColor: hexToRgba(accent, 0.3),
+    color: accent,
+  };
 }
 
 
@@ -958,7 +1060,7 @@ function ListView({
               <div className="list-badges">
                 <Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge>
                 <Badge accent={projectTypeBadgeAccent(j.project)}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</Badge>
-                <Badge accent={statusBadgeAccent(j.status)}>{statusDisplay(j.status)}</Badge>
+                {isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Matched" /> : <Badge accent={statusBadgeAccent(j.status)}>{statusDisplay(j.status)}</Badge>}
               </div>
             </div>
 

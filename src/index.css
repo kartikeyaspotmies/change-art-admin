@@ -90,7 +90,7 @@ input[type='search']::-ms-reveal {
   --radius-pill: 20px;
   --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 
-  --sidebar-w: 258px;
+  --sidebar-w: 204px;
   --topbar-h: 58px;
   --mobile-nav-h: 60px;
 }
@@ -198,17 +198,21 @@ html[data-theme='light'] .mb-track {
   }
 
   .panel-title {
-    @apply text-[10px] font-semibold uppercase tracking-[0.1em] text-text-muted pb-2 mb-3 flex items-center gap-1.5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-main);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
     border-bottom: 1px solid var(--glass-border);
   }
 
   .panel-title::before {
-    content: '';
-    width: 3px;
-    height: 12px;
-    background: var(--panel-accent, var(--color-crimson));
-    border-radius: 2px;
-    display: inline-block;
+    display: none !important;
+    content: none !important;
   }
 
   /* Panel accent modifiers — set the colored bar before the title.
@@ -237,17 +241,14 @@ html[data-theme='light'] .mb-track {
     --panel-accent: var(--color-gold);
   }
 
-  /* Status badges — color + dot pattern from demo */
+  /* Status badges — clean pill badge without leading dot */
   .badge {
-    @apply inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded text-[10.5px] font-semibold tracking-wide whitespace-nowrap;
+    @apply inline-flex items-center px-2 py-[2px] rounded text-[10px] font-semibold tracking-wide whitespace-nowrap;
   }
 
   .badge::before {
-    content: '';
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    flex-shrink: 0;
+    display: none !important;
+    content: none !important;
   }
 
   .badge.crimson {
@@ -351,7 +352,7 @@ html[data-theme='light'] .mb-track {
   }
 
   .priority-badge {
-    @apply inline-block px-2 py-[3px] rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap;
+    @apply inline-flex items-center gap-1 px-2 py-[3px] rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap;
   }
 
   .priority-badge.normal {
@@ -367,9 +368,9 @@ html[data-theme='light'] .mb-track {
   }
 
   .priority-badge.super-rush {
-    background: rgba(99, 102, 241, 0.28);
+    background: rgba(239, 68, 68, 0.22);
     color: #f87171;
-    border: 1px solid rgba(99, 102, 241, 0.55);
+    border: 1px solid rgba(239, 68, 68, 0.45);
   }
 
   /* Form inputs */
@@ -625,7 +626,7 @@ html[data-theme='light'] .mb-track {
 
   /* Navigation item — active state matches demo */
   .nav-item {
-    @apply relative flex items-center gap-2.5 px-3 rounded-lg mb-px text-[12.5px] font-medium cursor-pointer transition;
+    @apply relative flex items-center gap-2.5 px-3 rounded-lg mb-px text-[11.5px] font-medium cursor-pointer transition;
     padding-top: 6px;
     padding-bottom: 6px;
     color: var(--text-muted);
@@ -1557,33 +1558,179 @@ html[data-theme='light'] .mb-track {
     align-items: center;
   }
 
-  .view-toggle button.on {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-main);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  .job-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 4px !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
+  .job-actions .btn,
+  .job-actions button {
+    height: 25px !important;
+    padding: 0 5px !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    border-radius: 5px !important;
+    white-space: nowrap !important;
+    flex: 1 1 0px !important;
+    min-width: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* ─ Job card grid — container-query driven so column count always matches the space actually
+     available to it (not the browser viewport). This keeps it correct regardless of sidebar
+     width, the "Today's Overview" rail, zoom level, or which page embeds the grid. ─ */
+  .grid-view-container {
+    container-type: inline-size;
+    width: 100%;
+  }
+
+  .grid-view {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 10px;
+    padding: 8px 0;
+    width: 100%;
+    min-width: 0;
+  }
+
+  @container (min-width: 480px) {
+    .grid-view {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @container (min-width: 760px) {
+    .grid-view {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @container (min-width: 1040px) {
+    .grid-view {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
 
   /* ─ Job card (grid view) ─ */
+  /* ─ Job card (grid view) — compact high-density layout matching reference image ─ */
   .job-card {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.03));
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-top-color: rgba(255, 255, 255, 0.18);
-    border-radius: 16px;
+    border-radius: 8px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     backdrop-filter: blur(18px) saturate(150%);
     -webkit-backdrop-filter: blur(18px) saturate(150%);
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
     cursor: pointer;
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   }
 
   .job-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18), 0 1px 0 rgba(255, 255, 255, 0.07) inset;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
     border-color: var(--glass-border-bright);
+  }
+
+  .jc-header {
+    padding: 6px 8px 3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .jc-ref {
+    font-size: 9px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+    color: #475569;
+    letter-spacing: -0.01em;
+  }
+
+  /* Tint job ref code by card stage accent color */
+  .job-card-stage-live .jc-ref {
+    color: #2563eb;
+  }
+
+  .job-card-stage-live-quote .jc-ref {
+    color: #16a34a;
+  }
+
+  .job-card-stage-quote .jc-ref {
+    color: #7c3aed;
+  }
+
+  .job-card-stage-amend .jc-ref {
+    color: #ea580c;
+  }
+
+  .job-card-stage-in-production .jc-ref {
+    color: #d97706;
+  }
+
+  html[data-theme='dark'] .job-card-stage-live .jc-ref {
+    color: #60a5fa;
+  }
+
+  html[data-theme='dark'] .job-card-stage-live-quote .jc-ref {
+    color: #4ade80;
+  }
+
+  html[data-theme='dark'] .job-card-stage-quote .jc-ref {
+    color: #c084fc;
+  }
+
+  html[data-theme='dark'] .job-card-stage-amend .jc-ref {
+    color: #fb923c;
+  }
+
+  html[data-theme='dark'] .job-card-stage-in-production .jc-ref {
+    color: #facc15;
+  }
+
+  .jc-body {
+    padding: 1px 8px 4px;
+  }
+
+  .jc-title {
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .jc-client {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--text-muted, #475569);
+    margin-bottom: 3px;
+  }
+
+  .jc-footer {
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.6);
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  html[data-theme='dark'] .jc-footer {
+    background: rgba(0, 0, 0, 0.2);
+    border-top-color: rgba(255, 255, 255, 0.08);
   }
 
   /* ─ Job card stage/type colour-coding — tints the whole card by job type (Quote / Live Quote / Live / Amend) or active stage (In Production / Ready to Dispatch) ─ */
@@ -1617,12 +1764,6 @@ html[data-theme='light'] .mb-track {
     border-top-color: rgba(245, 158, 11, 0.55);
   }
 
-  .job-card-stage-dispatch {
-    background: linear-gradient(165deg, rgba(20, 184, 166, 0.16), rgba(20, 184, 166, 0.045) 55%, rgba(255, 255, 255, 0.03));
-    border-color: rgba(20, 184, 166, 0.32);
-    border-top-color: rgba(20, 184, 166, 0.55);
-  }
-
   .job-card-stage-live:hover {
     border-color: rgba(59, 130, 246, 0.55);
   }
@@ -1650,19 +1791,18 @@ html[data-theme='light'] .mb-track {
   .jc-img {
     position: relative;
     overflow: hidden;
-    border-bottom: 1px solid var(--glass-border);
   }
 
   .jc-img img {
     width: 100%;
-    height: 110px;
-    max-height: 115px;
-    object-fit: contain;
+    height: 120px;
+    max-height: 124px;
+    object-fit: cover;
     display: block;
-    background: transparent;
+    border-radius: 6px;
   }
 
-  /* ─ CS Stat Card — icon-left layout ─ */
+  /* ─ CS Stat Card — exact layout matching reference image with subtle soft curved corners ─ */
   .stat-card-cs {
     position: relative;
     overflow: hidden;
@@ -1670,91 +1810,100 @@ html[data-theme='light'] .mb-track {
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
-    border-top-color: var(--glass-border-bright);
-    border-radius: var(--radius);
+    border-radius: 5px;
     box-shadow: var(--glass-shadow);
-    padding: 8px 10px;
+    padding: clamp(6px, 0.5vw, 9px) clamp(8px, 0.7vw, 11px);
     transition: var(--transition);
     display: flex;
     flex-direction: row;
-    align-items: center;
-    gap: 8px;
+    align-items: flex-start;
+    gap: clamp(6px, 0.6vw, 9px);
     cursor: pointer;
     text-decoration: none;
     min-width: 0;
+    width: 100%;
   }
 
   .stat-card-cs:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.14);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
     border-color: var(--glass-border-bright);
   }
 
   .cs-stat-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: clamp(30px, 2.2vw, 35px);
+    height: clamp(30px, 2.2vw, 35px);
+    border-radius: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    margin-top: 1px;
   }
 
-  .cs-stat-icon > svg {
-    width: 18px;
-    height: 18px;
-    stroke-width: 2px;
+  .cs-stat-icon>svg {
+    width: clamp(16px, 1.2vw, 18px);
+    height: clamp(16px, 1.2vw, 18px);
+    stroke-width: 2.2px;
   }
 
   .cs-stat-content {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
     min-width: 0;
     flex: 1;
+    text-align: left;
+    overflow: visible;
   }
 
   .cs-stat-tag {
-    font-size: 10px;
+    font-size: clamp(9px, 0.65vw, 10px);
     font-weight: 800;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
     line-height: 1.1;
+    white-space: nowrap;
   }
 
   .cs-stat-desc {
-    font-size: 9.5px;
+    font-size: clamp(8.5px, 0.6vw, 9.5px);
     color: var(--text-muted);
-    font-weight: 500;
+    font-weight: 600;
     margin-top: 1px;
     margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.2;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   .cs-stat-value {
-    font-size: 22px;
+    font-size: clamp(17px, 1.3vw, 20px);
     font-weight: 800;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
     line-height: 1;
-    margin-bottom: 1px;
+    color: var(--text-main);
+    margin-bottom: 2px;
   }
 
   .cs-stat-sub {
-    font-size: 9.5px;
-    font-weight: 500;
+    font-size: clamp(9px, 0.7vw, 10px);
+    font-weight: 600;
     color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.2;
+    word-break: break-word;
   }
 
-  /* CS Stat accent color variants */
+  /* Accent Color Theme Overrides for Light Theme & Dark Theme */
+
+  /* cs-green (Live) */
+  .stat-card-cs.cs-green {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.22);
+  }
+
   .stat-card-cs.cs-green .cs-stat-tag {
-    color: #22c55e;
-  }
-
-  .stat-card-cs.cs-green .cs-stat-value {
     color: #22c55e;
   }
 
@@ -1763,11 +1912,13 @@ html[data-theme='light'] .mb-track {
     color: #22c55e;
   }
 
-  .stat-card-cs.cs-blue .cs-stat-tag {
-    color: #3b82f6;
+  /* cs-blue (Live Quote) */
+  .stat-card-cs.cs-blue {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.22);
   }
 
-  .stat-card-cs.cs-blue .cs-stat-value {
+  .stat-card-cs.cs-blue .cs-stat-tag {
     color: #3b82f6;
   }
 
@@ -1776,11 +1927,13 @@ html[data-theme='light'] .mb-track {
     color: #3b82f6;
   }
 
-  .stat-card-cs.cs-purple .cs-stat-tag {
-    color: #a855f7;
+  /* cs-purple (Quote) */
+  .stat-card-cs.cs-purple {
+    background: rgba(168, 85, 247, 0.08);
+    border-color: rgba(168, 85, 247, 0.22);
   }
 
-  .stat-card-cs.cs-purple .cs-stat-value {
+  .stat-card-cs.cs-purple .cs-stat-tag {
     color: #a855f7;
   }
 
@@ -1789,11 +1942,13 @@ html[data-theme='light'] .mb-track {
     color: #a855f7;
   }
 
-  .stat-card-cs.cs-orange .cs-stat-tag {
-    color: #f97316;
+  /* cs-orange (Amend) */
+  .stat-card-cs.cs-orange {
+    background: rgba(249, 115, 22, 0.08);
+    border-color: rgba(249, 115, 22, 0.22);
   }
 
-  .stat-card-cs.cs-orange .cs-stat-value {
+  .stat-card-cs.cs-orange .cs-stat-tag {
     color: #f97316;
   }
 
@@ -1802,11 +1957,13 @@ html[data-theme='light'] .mb-track {
     color: #f97316;
   }
 
-  .stat-card-cs.cs-amber .cs-stat-tag {
-    color: #f59e0b;
+  /* cs-amber (In Production) */
+  .stat-card-cs.cs-amber {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.22);
   }
 
-  .stat-card-cs.cs-amber .cs-stat-value {
+  .stat-card-cs.cs-amber .cs-stat-tag {
     color: #f59e0b;
   }
 
@@ -1815,11 +1972,13 @@ html[data-theme='light'] .mb-track {
     color: #f59e0b;
   }
 
-  .stat-card-cs.cs-teal .cs-stat-tag {
-    color: #14b8a6;
+  /* cs-teal (Ready to Dispatch) */
+  .stat-card-cs.cs-teal {
+    background: rgba(20, 184, 166, 0.08);
+    border-color: rgba(20, 184, 166, 0.22);
   }
 
-  .stat-card-cs.cs-teal .cs-stat-value {
+  .stat-card-cs.cs-teal .cs-stat-tag {
     color: #14b8a6;
   }
 
@@ -1828,54 +1987,132 @@ html[data-theme='light'] .mb-track {
     color: #14b8a6;
   }
 
-  /* CS Stat card — tint the whole card background/border to match its accent colour */
-  .stat-card-cs.cs-green {
-    background: linear-gradient(165deg, rgba(34, 197, 94, 0.14), rgba(34, 197, 94, 0.03) 60%, rgba(255, 255, 255, 0.02));
-    border-color: rgba(34, 197, 94, 0.28);
+  /* Light Theme Specific Enhancements matching reference screenshot */
+  html[data-theme='light'] .stat-card-cs {
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
   }
 
-  .stat-card-cs.cs-blue {
-    background: linear-gradient(165deg, rgba(59, 130, 246, 0.14), rgba(59, 130, 246, 0.03) 60%, rgba(255, 255, 255, 0.02));
-    border-color: rgba(59, 130, 246, 0.28);
+  html[data-theme='light'] .stat-card-cs.cs-green {
+    background: #f2fbf5;
+    border-color: #dcfce7;
   }
 
-  .stat-card-cs.cs-purple {
-    background: linear-gradient(165deg, rgba(168, 85, 247, 0.14), rgba(168, 85, 247, 0.03) 60%, rgba(255, 255, 255, 0.02));
-    border-color: rgba(168, 85, 247, 0.28);
+  html[data-theme='light'] .stat-card-cs.cs-green .cs-stat-tag {
+    color: #16a34a;
   }
 
-  .stat-card-cs.cs-orange {
-    background: linear-gradient(165deg, rgba(249, 115, 22, 0.16), rgba(249, 115, 22, 0.03) 60%, rgba(255, 255, 255, 0.02));
-    border-color: rgba(249, 115, 22, 0.3);
+  html[data-theme='light'] .stat-card-cs.cs-green .cs-stat-icon {
+    background: #dcfce7;
+    color: #15803d;
   }
 
-  .stat-card-cs.cs-amber {
-    background: linear-gradient(165deg, rgba(245, 158, 11, 0.14), rgba(245, 158, 11, 0.03) 60%, rgba(255, 255, 255, 0.02));
-    border-color: rgba(245, 158, 11, 0.28);
+  html[data-theme='light'] .stat-card-cs.cs-blue {
+    background: #f0f6fe;
+    border-color: #dbeafe;
   }
 
-  .stat-card-cs.cs-teal {
-    background: linear-gradient(165deg, rgba(20, 184, 166, 0.14), rgba(20, 184, 166, 0.03) 60%, rgba(255, 255, 255, 0.02));
-    border-color: rgba(20, 184, 166, 0.28);
+  html[data-theme='light'] .stat-card-cs.cs-blue .cs-stat-tag {
+    color: #2563eb;
   }
 
-  /* CS 6-column stat strip */
+  html[data-theme='light'] .stat-card-cs.cs-blue .cs-stat-icon {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-purple {
+    background: #f8f4fe;
+    border-color: #f3e8ff;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-purple .cs-stat-tag {
+    color: #9333ea;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-purple .cs-stat-icon {
+    background: #f3e8ff;
+    color: #7e22ce;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-orange {
+    background: #fff7ed;
+    border-color: #ffedd5;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-orange .cs-stat-tag {
+    color: #ea580c;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-orange .cs-stat-icon {
+    background: #ffedd5;
+    color: #c2410c;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-amber {
+    background: #fffbeb;
+    border-color: #fef3c7;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-amber .cs-stat-tag {
+    color: #d97706;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-amber .cs-stat-icon {
+    background: #fef3c7;
+    color: #b45309;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-teal {
+    background: #f0fdfa;
+    border-color: #ccfbf1;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-teal .cs-stat-tag {
+    color: #0d9488;
+  }
+
+  html[data-theme='light'] .stat-card-cs.cs-teal .cs-stat-icon {
+    background: #ccfbf1;
+    color: #0f766e;
+  }
+
+  html[data-theme='light'] .cs-stat-value {
+    color: #0f172a;
+  }
+
+  html[data-theme='light'] .cs-stat-desc,
+  html[data-theme='light'] .cs-stat-sub {
+    color: #475569;
+  }
+
+  /* Responsive 6-column / multi-tier grid layout */
   .stats-grid-cs {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 12px;
+    width: 100%;
   }
 
-  @media (max-width: 1024px) {
+  @media (max-width: 1360px) {
     .stats-grid-cs {
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
     }
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 768px) {
     .stats-grid-cs {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .stats-grid-cs {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      gap: 8px;
     }
   }
 
@@ -2064,7 +2301,7 @@ html[data-theme='light'] .mb-track {
   }
 
   .jc-time {
-    font-size: 10.5px;
+    font-size: 9px;
     color: var(--text-faint);
     white-space: nowrap;
   }
@@ -3647,60 +3884,274 @@ html[data-theme='light'] .mb-track {
     white-space: nowrap;
   }
 
-  /* ─ Pills ─ */
-  .pills {
+  /* ─ Single Segmented Filter Container Bar — 100% Full Visibility & Zoom Responsiveness ─ */
+  .pills-control-bar {
     display: flex;
-    gap: 3px;
+    align-items: center;
+    justify-content: space-between;
     flex-wrap: nowrap;
+    gap: 8px 10px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-bottom: 12px;
+  }
+
+  .pills-scroll-wrapper {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    margin-bottom: 14px;
-    padding-bottom: 2px;
-    min-width: 0;
   }
 
+  .pills-scroll-wrapper::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pills-segmented-bar,
+  .pills {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 6px;
+    padding: 0;
+    margin-bottom: 0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    flex-shrink: 0;
+    white-space: nowrap;
+    /* Size to actual pill content, not the wrapper's block width — otherwise
+       the box stays wrapper-width while its no-shrink children overflow past
+       its right border instead of the wrapper's horizontal scroll kicking in. */
+    width: max-content;
+  }
+
+  html[data-theme='dark'] .pills-segmented-bar,
+  html[data-theme='dark'] .pills {
+    background: rgba(16, 25, 43, 0.85);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .pills-segmented-bar::-webkit-scrollbar,
   .pills::-webkit-scrollbar {
     display: none;
   }
 
-  @media (max-width: 640px) {
-    .pills {
-      margin-bottom: 10px;
-    }
+  /* Items live inside one bar, each separated by a short vertical divider (not a full-height border, not separate pill chips) */
+  .pill-segmented-item,
+  .pills .pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 9px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--text-muted, #475569);
+    cursor: pointer;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    position: relative;
+    transition: color 0.15s ease, background 0.15s ease;
+    font-family: inherit;
+    text-align: center;
   }
 
-  .pill {
+  /* Short divider — a centred line, not a full-height border */
+  .pill-segmented-item:not(:last-child)::after,
+  .pills .pill:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 16px;
+    background: rgba(15, 23, 42, 0.18);
+  }
+
+  html[data-theme='dark'] .pill-segmented-item:not(:last-child)::after,
+  html[data-theme='dark'] .pills .pill:not(:last-child)::after {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  html[data-theme='dark'] .pill-segmented-item,
+  html[data-theme='dark'] .pills .pill {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+
+  html[data-theme='dark'] .pill-segmented-item:hover,
+  html[data-theme='dark'] .pills .pill:hover {
+    background: rgba(192, 132, 252, 0.14);
+    color: #c084fc;
+  }
+
+  /* Hollow ring status dot, bolded up — hollow centre stays, thicker ring + soft glow makes it pop for every accent colour */
+  .pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    background: transparent;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent);
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  .pill-label {
+    font-size: inherit;
+    font-weight: inherit;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .pill-count {
+    font-size: 0.9em;
+    font-weight: inherit;
+    opacity: 0.85;
+    white-space: nowrap;
+  }
+
+  /* Active State: bold text + bottom indicator bar, within the single divided segment bar */
+  .pill-segmented-item.active,
+  .pills .pill.active {
+    background: transparent;
+    color: #6c50aa !important;
+    font-weight: 800;
+  }
+
+  html[data-theme='dark'] .pill-segmented-item.active,
+  html[data-theme='dark'] .pills .pill.active {
+    color: #c084fc !important;
+  }
+
+  .pill-segmented-item.active::before,
+  .pills .pill.active::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 4px;
+    right: 4px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: currentColor;
+  }
+
+  /* ─ Matching Filter Controls Action Bar (`Latest First` & `Filter` button) ─ */
+  .pills-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .filter-sort-select,
+  .pills-actions select {
+    height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--text-muted, #475569);
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+  }
+
+  html[data-theme='dark'] .filter-sort-select,
+  html[data-theme='dark'] .pills-actions select {
+    background: rgba(16, 25, 43, 0.85);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  .filter-sort-select:hover,
+  .pills-actions select:hover {
+    background: rgba(15, 23, 42, 0.035);
+    border-color: rgba(15, 23, 42, 0.2);
+    color: var(--text-main, #0f172a);
+  }
+
+  html[data-theme='dark'] .filter-sort-select:hover,
+  html[data-theme='dark'] .pills-actions select:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+  }
+
+  .filter-toggle-btn,
+  .pills-actions .filter-toggle-btn {
+    height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--text-muted, #475569);
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s ease;
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 7px 13px;
-    border-radius: 8px;
-    border: 1px solid var(--glass-border);
-    background: #fff;
-    font-size: 12.5px;
-    font-weight: 600;
-    flex-shrink: 0;
     white-space: nowrap;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: inherit;
   }
 
-  .pill:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    color: var(--text-main);
+  html[data-theme='dark'] .filter-toggle-btn,
+  html[data-theme='dark'] .pills-actions .filter-toggle-btn {
+    background: rgba(16, 25, 43, 0.85);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
   }
 
-  .pill.active {
-    border-color: #0f172a;
-    background: #0f172a;
-    color: #fff;
+  .filter-toggle-btn:hover,
+  .pills-actions .filter-toggle-btn:hover {
+    background: rgba(15, 23, 42, 0.035);
+    border-color: rgba(15, 23, 42, 0.2);
+    color: var(--text-main, #0f172a);
   }
 
-  /* ─ Responsive Dashboard Filter Pills Bar ─ */
+  html[data-theme='dark'] .filter-toggle-btn:hover,
+  html[data-theme='dark'] .pills-actions .filter-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+  }
+
+  .filter-toggle-btn.active,
+  .pills-actions .filter-toggle-btn.active {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: #3b82f6;
+    color: #8a49a9;
+  }
+
+  html[data-theme='dark'] .filter-toggle-btn.active,
+  html[data-theme='dark'] .pills-actions .filter-toggle-btn.active {
+    background: rgba(96, 165, 250, 0.12);
+    border-color: #60a5fa;
+    color: #60a5fa;
+  }
+
+  /* Responsive Control Bar */
   .pills-control-bar {
     display: flex;
     align-items: center;
@@ -3726,57 +4177,16 @@ html[data-theme='light'] .mb-track {
     display: none;
   }
 
-  .dashboard-pills {
-    display: flex;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: clamp(1px, 0.5vw, 5px);
-    margin-bottom: 0 !important;
-    padding-bottom: 2px;
-    width: 100%;
-  }
-
-  .dashboard-pills .pill {
-    font-size: clamp(7.5px, 1.15vw, 11px);
-    padding: clamp(1px, 0.4vw, 4px) clamp(4px, 0.9vw, 10px);
-    border-radius: 999px;
-    border: 1px solid var(--glass-border);
-    background: #ffffff;
-    font-weight: 600;
-    color: var(--text-muted);
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: all 0.15s ease;
-  }
-
-  .dashboard-pills .pill:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    color: var(--text-main);
-  }
-
-  .dashboard-pills .pill.active {
-    background: #1e293b;
-    border-color: #1e293b;
-    color: #ffffff;
-  }
-
-  .dashboard-pills .pill-dot {
-    width: clamp(5px, 0.5vw, 7px);
-    height: clamp(5px, 0.5vw, 7px);
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
   @media (max-width: 768px) {
     .pills-control-bar {
       flex-direction: column;
       align-items: flex-start;
-      gap: 8px;
+      gap: 10px;
     }
 
-    .pills-actions {
+    .pills-scroll-wrapper {
       width: 100%;
-      justify-content: flex-end;
+      overflow-x: auto;
     }
   }
 
@@ -4329,9 +4739,9 @@ html[data-theme='light'] .mb-track {
   }
 
   html[data-theme='light'] .priority-badge.super-rush {
-    background: rgba(99, 102, 241, 0.1);
-    color: var(--color-crimson);
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(239, 68, 68, 0.09);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.3);
   }
 
   html[data-theme='light'] .role-pill {
@@ -4562,6 +4972,12 @@ html[data-theme='light'] .mb-track {
     border-color: rgba(15, 23, 42, 0.14);
   }
 
+  /* ── Footer strip: transparent so it inherits the card's own tint instead of a white band ── */
+  html[data-theme='light'] .jc-footer {
+    background: transparent;
+    border-top-color: rgba(15, 23, 42, 0.06);
+  }
+
   /* ── Action callout strip — dark readable amber text ── */
   html[data-theme='light'] .jc-action {
     background: rgba(245, 158, 11, 0.09);
@@ -4699,35 +5115,35 @@ html[data-theme='light'] .mb-track {
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
   }
 
-  /* ── CS Stat cards: tinted background per accent in light mode ── */
+  /* ── CS Stat cards: flat tinted background per accent in light mode (matches reference image) ── */
   html[data-theme='light'] .stat-card-cs.cs-green {
-    background: linear-gradient(165deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.02) 60%, #FFFFFF);
-    border-color: rgba(34, 197, 94, 0.25);
+    background: #f2fbf5;
+    border-color: #dcfce7;
   }
 
   html[data-theme='light'] .stat-card-cs.cs-blue {
-    background: linear-gradient(165deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.02) 60%, #FFFFFF);
-    border-color: rgba(59, 130, 246, 0.25);
+    background: #f0f6fe;
+    border-color: #dbeafe;
   }
 
   html[data-theme='light'] .stat-card-cs.cs-purple {
-    background: linear-gradient(165deg, rgba(168, 85, 247, 0.1), rgba(168, 85, 247, 0.02) 60%, #FFFFFF);
-    border-color: rgba(168, 85, 247, 0.25);
+    background: #f8f4fe;
+    border-color: #f3e8ff;
   }
 
   html[data-theme='light'] .stat-card-cs.cs-orange {
-    background: linear-gradient(165deg, rgba(249, 115, 22, 0.11), rgba(249, 115, 22, 0.02) 60%, #FFFFFF);
-    border-color: rgba(249, 115, 22, 0.28);
+    background: #fff7ed;
+    border-color: #ffedd5;
   }
 
   html[data-theme='light'] .stat-card-cs.cs-amber {
-    background: linear-gradient(165deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.02) 60%, #FFFFFF);
-    border-color: rgba(245, 158, 11, 0.25);
+    background: #fffbeb;
+    border-color: #fef3c7;
   }
 
   html[data-theme='light'] .stat-card-cs.cs-teal {
-    background: linear-gradient(165deg, rgba(20, 184, 166, 0.1), rgba(20, 184, 166, 0.02) 60%, #FFFFFF);
-    border-color: rgba(20, 184, 166, 0.25);
+    background: #f0fdfa;
+    border-color: #ccfbf1;
   }
 
   html[data-theme='light'] .cs-stat-desc,
@@ -4764,40 +5180,40 @@ html[data-theme='light'] .mb-track {
     color: #0d9488;
   }
 
-  /* ── Job card stage/type colour-coding in light mode ── */
+  /* ── Job card stage/type colour-coding in light mode — flat pastel tints matching reference image ── */
   html[data-theme='light'] .job-card-stage-live {
-    background: linear-gradient(165deg, rgba(37, 99, 235, 0.09), rgba(37, 99, 235, 0.02) 60%, #FFFFFF);
-    border-color: rgba(37, 99, 235, 0.28);
+    background: #f0f6fe;
+    border-color: #dbeafe;
     border-top-color: rgba(37, 99, 235, 0.45);
   }
 
   html[data-theme='light'] .job-card-stage-live-quote {
-    background: linear-gradient(165deg, rgba(22, 163, 74, 0.09), rgba(22, 163, 74, 0.02) 60%, #FFFFFF);
-    border-color: rgba(22, 163, 74, 0.28);
+    background: #f2fbf5;
+    border-color: #dcfce7;
     border-top-color: rgba(22, 163, 74, 0.45);
   }
 
   html[data-theme='light'] .job-card-stage-quote {
-    background: linear-gradient(165deg, rgba(124, 58, 237, 0.09), rgba(124, 58, 237, 0.02) 60%, #FFFFFF);
-    border-color: rgba(124, 58, 237, 0.28);
+    background: #f8f4fe;
+    border-color: #f3e8ff;
     border-top-color: rgba(124, 58, 237, 0.45);
   }
 
   html[data-theme='light'] .job-card-stage-amend {
-    background: linear-gradient(165deg, rgba(234, 88, 12, 0.11), rgba(234, 88, 12, 0.02) 60%, #FFFFFF);
-    border-color: rgba(234, 88, 12, 0.32);
+    background: #fff7ed;
+    border-color: #ffedd5;
     border-top-color: rgba(234, 88, 12, 0.5);
   }
 
   html[data-theme='light'] .job-card-stage-in-production {
-    background: linear-gradient(165deg, rgba(217, 119, 6, 0.09), rgba(217, 119, 6, 0.02) 60%, #FFFFFF);
-    border-color: rgba(217, 119, 6, 0.28);
+    background: #fffbeb;
+    border-color: #fef3c7;
     border-top-color: rgba(217, 119, 6, 0.45);
   }
 
   html[data-theme='light'] .job-card-stage-dispatch {
-    background: linear-gradient(165deg, rgba(13, 148, 136, 0.09), rgba(13, 148, 136, 0.02) 60%, #FFFFFF);
-    border-color: rgba(13, 148, 136, 0.28);
+    background: #f0fdfa;
+    border-color: #ccfbf1;
     border-top-color: rgba(13, 148, 136, 0.45);
   }
 
@@ -6359,7 +6775,7 @@ html[data-theme='light'] .btn-ghost {
   border-radius: 8px;
   padding: 12px 14px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .adm-jc-panel-title {

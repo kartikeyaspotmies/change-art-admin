@@ -33,7 +33,7 @@ import {
   Search,
   ShoppingCart,
   Inbox,
-  Users,
+  User,
   Clock,
 
   CalendarDays,
@@ -195,8 +195,8 @@ export function CSDashboardPage() {
   ];
 
   const overviewItems: OverviewItem[] = [
-    { id: 'new-requests', label: 'New Requests', value: newRequests.length, href: '/cs/new-jobs', icon: <Inbox className="w-3.5 h-3.5" />, accent: '#3b82f6' },
-    { id: 'waiting-assignment', label: 'Waiting Assignment', value: live.length + liveQuote.length, href: '/cs/projects?project=Live', icon: <Users className="w-3.5 h-3.5" />, accent: '#3b82f6' },
+    { id: 'new-requests', label: 'New Requests', value: newRequests.length, href: '/cs/new-jobs', icon: <User className="w-3.5 h-3.5" />, accent: '#3b82f6' },
+    { id: 'waiting-assignment', label: 'Waiting Assignment', value: live.length + liveQuote.length, href: '/cs/projects?project=Live', icon: <Briefcase className="w-3.5 h-3.5" />, accent: '#22c55e' },
     { id: 'waiting-reply', label: 'Waiting Client Reply', value: waitingClientReply.length, href: '/cs/new-quotes', icon: <MessageSquareText className="w-3.5 h-3.5" />, accent: '#a855f7' },
     { id: 'in-production', label: 'In Production', value: inProduction.length, href: '/cs/projects?filter=In+Production', icon: <Cog className="w-3.5 h-3.5" />, accent: '#f97316' },
     { id: 'ready-to-dispatch', label: 'Ready to Dispatch', value: readyToDispatch.length, href: '/cs/deliver', icon: <Send className="w-3.5 h-3.5" />, accent: '#14b8a6' },
@@ -240,8 +240,7 @@ export function CSDashboardPage() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 pills-actions">
               <select
-                className="btn btn-outline"
-                style={{ padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}
+                className="filter-sort-select"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortOrder)}
                 aria-label="Sort jobs"

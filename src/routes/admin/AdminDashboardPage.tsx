@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useSessionUser } from '@modules/auth/stores/auth-store';
 import {
   Callout,
-  GreetingHero,
   JobTable,
   Pagination,
   Pills,
@@ -20,7 +18,7 @@ import {
   type ActivityItem,
   type JobFilters,
 } from '@modules/shared-ui';
-import { CheckCircle2, Cog, Send, Sparkles, PlusCircle, SlidersHorizontal, Briefcase, MessageSquareText, FileText, SquarePen, Users, Clock, TrendingUp, Inbox } from 'lucide-react';
+import { CheckCircle2, Cog, Send, PlusCircle, SlidersHorizontal, Briefcase, MessageSquareText, FileText, SquarePen, User, Clock, Inbox } from 'lucide-react';
 import { cn } from '@lib/utils';
 import {
   useAdminJobViews,
@@ -35,8 +33,6 @@ type FilterId = 'all' | 'In Production' | 'In QC' | 'Sewout' | 'Dispatched';
 type SortOrder = 'newest' | 'oldest';
 
 export function AdminDashboardPage() {
-  const user = useSessionUser();
-  const firstName = user?.name.split(' ')[0] ?? 'Admin';
   const [filter, setFilter] = useState<FilterId>('all');
   const [sort, setSort] = useState<SortOrder>('newest');
   const [showFilters, setShowFilters] = useState(false);
@@ -45,8 +41,6 @@ export function AdminDashboardPage() {
 
   const { jobs, isLoading } = useAdminJobViews({ per_page: 200 });
   const { data: unreadData } = useUnreadCount();
-  // per_page: 1 — we only need meta.total for the "Total Clients" stat; no items are used.
-  const { data: clientsData } = useAdminClients({ per_page: 1 });
   // per_page: 500 — needed to populate the filter drawer's client dropdown with all client names.
   const filterClientsQuery = useAdminClients({ per_page: 500 });
   const filterClients = filterClientsQuery.data?.items ?? [];
@@ -72,12 +66,7 @@ export function AdminDashboardPage() {
     () => jobs.filter((j) => j.stage === 'junior' || j.stage === 'senior'),
     [jobs],
   );
-  const inQc = useMemo(() => jobs.filter((j) => j.stage === 'qc'), [jobs]);
-  const delivered = useMemo(() => jobs.filter((j) => j.stage === 'delivered'), [jobs]);
   const newQuotesAll = useMemo(() => jobs.filter((j) => j.stage === 'quote'), [jobs]);
-
-  const totalClients = clientsData?.meta.total ?? 0;
-  const totalActive = active.length;
 
   // Missed Deadlines: active jobs whose ETA window has already elapsed
   const missedDeadlines = useMemo(() => {
@@ -87,10 +76,6 @@ export function AdminDashboardPage() {
       return deadline < now;
     }).length;
   }, [active]);
-
-  const onTimeRate = totalActive + delivered.length > 0
-    ? Math.round((delivered.length / Math.max(totalActive + delivered.length, 1)) * 100)
-    : null;
 
   const live = useMemo(() => active.filter((j) => j.project === 'Live'), [active]);
   const liveQuote = useMemo(() => active.filter((j) => j.project === 'Live Quote'), [active]);
@@ -141,12 +126,12 @@ export function AdminDashboardPage() {
   );
 
   const overviewItems: OverviewItem[] = [
-    { id: 'total-clients', label: 'Total Clients', value: totalClients, href: '/admin/clients', icon: <Users className="w-3.5 h-3.5" />, accent: '#3b82f6' },
-    { id: 'new-quotes', label: 'New Quote Requests', value: newQuotesAll.length, href: '/admin/new-quotes', icon: <FileText className="w-3.5 h-3.5" />, accent: '#a855f7' },
+    { id: 'new-requests', label: 'New Requests', value: newQuotesAll.length, href: '/admin/new-quotes', icon: <User className="w-3.5 h-3.5" />, accent: '#3b82f6' },
+    { id: 'waiting-assignment', label: 'Waiting Assignment', value: live.length + liveQuote.length, href: '/admin/projects?project=Live', icon: <Briefcase className="w-3.5 h-3.5" />, accent: '#22c55e' },
+    { id: 'waiting-reply', label: 'Waiting Client Reply', value: quote.length, href: '/admin/projects?project=Quote', icon: <MessageSquareText className="w-3.5 h-3.5" />, accent: '#a855f7' },
     { id: 'in-production', label: 'In Production', value: inProd.length, href: '/admin/jobs?filter=In+Production', icon: <Cog className="w-3.5 h-3.5" />, accent: '#f97316' },
-    { id: 'in-qc', label: 'In QC', value: inQc.length, href: '/admin/jobs?filter=In+QC', icon: <CheckCircle2 className="w-3.5 h-3.5" />, accent: '#14b8a6' },
-    { id: 'missed-deadlines', label: 'Missed Deadlines', value: missedDeadlines, tone: missedDeadlines > 0 ? 'danger' : 'default', href: '/admin/jobs', icon: <Clock className="w-3.5 h-3.5" /> },
-    { id: 'on-time-rate', label: 'On-Time Rate', value: onTimeRate ?? 0, href: '/admin/jobs?filter=Dispatched', icon: <TrendingUp className="w-3.5 h-3.5" />, accent: '#22c55e' },
+    { id: 'ready-to-dispatch', label: 'Ready to Dispatch', value: readyToDispatch.length, href: '/admin/deliver', icon: <Send className="w-3.5 h-3.5" />, accent: '#14b8a6' },
+    { id: 'overdue', label: 'Overdue Jobs', value: missedDeadlines, tone: missedDeadlines > 0 ? 'danger' : 'default', href: '/admin/jobs', icon: <Clock className="w-3.5 h-3.5" /> },
   ];
 
   const recentActivity: ActivityItem[] = useMemo(
@@ -172,31 +157,6 @@ export function AdminDashboardPage() {
 
   return (
     <div className="page">
-      <GreetingHero
-        title={`Good ${getGreeting()}, ${firstName}`}
-        subtitle="Platform-wide overview. Full access to all modules."
-        action={
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              to="/admin/create-quote"
-              className="btn btn-outline"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
-            >
-              <Sparkles className="w-3.5 h-3.5" aria-hidden />
-              New Quote
-            </Link>
-            <Link
-              to="/admin/place-order"
-              className="btn btn-crimson"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
-            >
-              <Send className="w-3.5 h-3.5" aria-hidden />
-              Place Order
-            </Link>
-          </div>
-        }
-      />
-
       <CsStatGrid
         stats={[
           {
@@ -206,7 +166,7 @@ export function AdminDashboardPage() {
             value: loading(live.length),
             statusText: 'Waiting Assignment',
             icon: <Briefcase />,
-            href: '/admin/jobs?project=Live',
+            href: '/admin/projects?project=Live',
           },
           {
             accent: 'cs-blue',
@@ -215,7 +175,7 @@ export function AdminDashboardPage() {
             value: loading(liveQuote.length),
             statusText: 'Waiting Assignment',
             icon: <MessageSquareText />,
-            href: '/admin/jobs?project=Live+Quote',
+            href: '/admin/projects?project=Live+Quote',
           },
           {
             accent: 'cs-purple',
@@ -233,7 +193,7 @@ export function AdminDashboardPage() {
             value: loading(amend.length),
             statusText: 'Pending Assignment',
             icon: <SquarePen />,
-            href: '/admin/jobs?project=Amend',
+            href: '/admin/amendments',
           },
           {
             accent: 'cs-amber',
@@ -251,7 +211,7 @@ export function AdminDashboardPage() {
             value: loading(readyToDispatch.length),
             statusText: 'Ready to Send',
             icon: <Send />,
-            href: '/admin/jobs?filter=Ready+to+Dispatch',
+            href: '/admin/deliver',
           },
         ]}
       />
@@ -264,8 +224,7 @@ export function AdminDashboardPage() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0 pills-actions">
               <select
-                className="btn btn-outline"
-                style={{ padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}
+                className="filter-sort-select"
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortOrder)}
                 aria-label="Sort jobs"
@@ -332,13 +291,6 @@ export function AdminDashboardPage() {
       </div>
     </div>
   );
-}
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
 }
 
 function activityIcon(status: string): { icon: ReactNode; accent: string } {
