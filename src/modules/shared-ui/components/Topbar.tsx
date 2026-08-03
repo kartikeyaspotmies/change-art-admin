@@ -145,7 +145,9 @@ function UserMenu() {
           {initials(user.name)}
         </div>
         <div className="min-w-0 hidden sm:block text-left">
-          <div className="text-[12px] font-semibold truncate leading-tight">{user.name}</div>
+          <div className="text-[12px] font-semibold truncate leading-tight" title={user.name}>
+            {user.name.length > 15 ? `${user.name.slice(0, 15)}...` : user.name}
+          </div>
           <div className="text-[10.5px] text-text-muted truncate leading-tight">{navConfig.label}</div>
         </div>
         <ChevronDown aria-hidden className={cn('w-3.5 h-3.5 text-text-muted transition-transform', open && 'rotate-180')} />

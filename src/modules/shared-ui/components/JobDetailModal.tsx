@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { JobQueriesSection } from './JobQueriesSection';
-import { X, Download, Send, AlertCircle, Timer, CheckCircle2, FileText, Upload, Loader2, Copy, CreditCard, ShoppingCart, Pencil, Search, User, Play, Info, DollarSign } from 'lucide-react';
+import { X, Download, Send, AlertCircle, Timer, CheckCircle2, FileText, Upload, Loader2, Copy, CreditCard, ShoppingCart, Pencil, Search, User, Play, Info, DollarSign, Check } from 'lucide-react';
 import { getCardExpiryStatus } from '@lib/card-expiry';
 import { MarkCompleteModal } from '@modules/cs-panel/components/MarkCompleteModal';
 import { useQueryClient } from '@tanstack/react-query';
@@ -162,12 +162,99 @@ function computeExpectedCompletionIso(startIsoStr?: string | null, etaHours?: nu
   return new Date(endMs).toISOString();
 }
 
-function PriorityChip({ priority }: { priority: string }) {
-  const map: Record<string, string> = {
-    Normal: 'normal', Rush: 'rush', 'Super Rush': 'super-rush',
-  };
-  const cls = map[priority] ?? 'normal';
-  return <span className={cn('priority-badge', cls)}>{priority}</span>;
+function PlacementTargetIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function SizeFrameIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9h16M4 15h16M9 4v16M15 4v16" />
+    </svg>
+  );
+}
+
+function ColorsBoxIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.29 7 12 12 20.71 7" />
+      <line x1="12" y1="22" x2="12" y2="12" />
+    </svg>
+  );
+}
+
+function FabricCylinderIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M21 5v14c0 1.66-4.03 3-9 3s-9-1.34-9-3V5" />
+    </svg>
+  );
+}
+
+function AssignedUserIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function CreatedCalendarIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+
+/** Icon + label + value row for the "Job Details" card — matches reference design spec. */
+function JobDetailInfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center text-[11px] py-0.5">
+      <div className="flex items-center gap-1.5 w-[100px] shrink-0 text-[#475569] font-medium">
+        <Icon className="w-3 h-3 shrink-0 text-[#475569]" />
+        <span>{label}</span>
+      </div>
+      <span className="text-[#64748b] mr-2 font-medium shrink-0">:</span>
+      <span className="font-semibold text-[#0f172a] min-w-0 break-words">{value}</span>
+    </div>
+  );
+}
+
+/** Key + colon + value row for the "Order Summary" card — matches reference design spec. */
+function OrderSummaryRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center text-[11px] py-0.5">
+      <span className="w-[115px] shrink-0 text-[#475569] font-medium truncate">{label}</span>
+      <span className="text-[#64748b] mr-2 font-medium shrink-0">:</span>
+      <span className="font-semibold text-[#0f172a] min-w-0 break-words">{value}</span>
+    </div>
+  );
 }
 
 export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteView: _quoteView = false }: JobDetailModalProps) {
@@ -438,7 +525,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
   const hasAllRequiredFormats = useMemo(() => {
     if (!allowedFormats || allowedFormats.length === 0) return true;
     const presentExtensions = new Set<string>();
-    
+
     allCompletedFiles.forEach(f => {
       if (!excludedServerFileIds.has(f.id)) {
         const name = f.file_name || (f as any).name || '';
@@ -446,12 +533,12 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
         if (dotIdx !== -1) presentExtensions.add(name.slice(dotIdx + 1).toLowerCase());
       }
     });
-    
+
     sendMailFiles.forEach(f => {
       const dotIdx = f.name.lastIndexOf('.');
       if (dotIdx !== -1) presentExtensions.add(f.name.slice(dotIdx + 1).toLowerCase());
     });
-    
+
     return allowedFormats.every(ext => presentExtensions.has(ext));
   }, [allowedFormats, allCompletedFiles, excludedServerFileIds, sendMailFiles]);
 
@@ -481,19 +568,6 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
     : clientOtherFiles.length > 0
       ? clientOtherFiles
       : adminOtherFiles;
-
-  const extractedTags = useMemo(() => {
-    const raw = displayJob?.notes || displayJob?.summary || '';
-    const tags: string[] = [];
-    const regex = /\[(.*?)\]/g;
-    let m;
-    while ((m = regex.exec(raw)) !== null) {
-      if (m[1] && m[1].includes(':')) {
-        tags.push(m[1].trim());
-      }
-    }
-    return tags;
-  }, [displayJob?.notes, displayJob?.summary]);
 
   const aiOverall = displayJob.aiScore
     ? Math.round((displayJob.aiScore.colour + displayJob.aiScore.align + displayJob.aiScore.res + displayJob.aiScore.brief) / 4)
@@ -778,7 +852,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3"
       style={{
         background: isIn ? 'rgba(15,23,42,0.25)' : 'rgba(15,23,42,0)',
         backdropFilter: 'none',
@@ -793,8 +867,8 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
         aria-modal="true"
         aria-label={`Job detail: ${job.design}`}
         className={cn(
-          'relative w-full max-h-[85vh] rounded-2xl flex flex-col overflow-hidden',
-          'max-w-[880px]',
+          'relative w-full max-h-[96vh] rounded-2xl flex flex-col overflow-hidden',
+          'max-w-[1080px]',
         )}
         style={{
           background: '#fff',
@@ -807,17 +881,17 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
       >
 
         {/* ── HEADER ── */}
-        <div className="flex-shrink-0 px-6 pt-5 pb-3 border-b border-slate-100" style={{ background: '#fff' }}>
+        <div className="flex-shrink-0 px-5 pt-2.5 pb-1.5 border-b border-slate-100" style={{ background: '#fff' }}>
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3.5 min-w-0 flex-1">
-              <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 shadow-sm border border-purple-200">
-                <ShoppingCart className="w-5.5 h-5.5" aria-hidden />
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 shadow-sm border border-purple-200">
+                <ShoppingCart className="w-3.5 h-3.5" aria-hidden />
               </div>
               <div className="min-w-0">
-                <h2 className="text-[19px] font-extrabold text-slate-900 leading-tight truncate">
+                <h2 className="text-[14px] font-extrabold text-slate-900 leading-tight truncate">
                   Job Details – {displayStatus(job.status)}
                 </h2>
-                <p className="text-[12.5px] text-slate-500 font-medium">
+                <p className="text-[10px] text-slate-500 font-medium">
                   View full job details, requirements, instructions and client information.
                 </p>
               </div>
@@ -840,7 +914,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                     toast.success('Job details copied to clipboard');
                   });
                 }}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-600"
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-600"
                 aria-label="Copy job details"
                 title="Copy job details"
               >
@@ -849,7 +923,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
               <button
                 type="button"
                 onClick={handleClose}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-600"
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-600"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
@@ -858,91 +932,87 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
           </div>
 
           {/* Stepper Timeline */}
-          <div className="mt-4 px-4 py-3 bg-slate-50/80 rounded-xl border border-slate-200/70 flex items-center justify-between gap-3">
+          <div className="mt-2 px-4 py-3 bg-white rounded-xl border border-slate-200/80 flex items-center justify-between shadow-xs">
             {[
-              { label: 'ORDER RECEIVED', date: formatDateTime(job.created), icon: ShoppingCart, stageIdx: 0 },
+              {
+                label: 'ORDER RECEIVED',
+                date: formatDateTime(job.created),
+                icon: ShoppingCart,
+                circleBg: 'bg-[#f3e8ff]',
+                iconColor: 'text-[#7c3aed]',
+                labelColor: stepIdx === 0 ? 'text-[#7c3aed]' : 'text-slate-800',
+                stageIdx: 0,
+              },
               {
                 label: 'IN PRODUCTION',
                 date: (job.effectiveAcknowledgedAt || job.acknowledgedAt)
                   ? formatDateTime((job.effectiveAcknowledgedAt ?? job.acknowledgedAt)!)
                   : job.etaHours ? `ETA: ${job.etaHours}h` : 'Upcoming',
                 icon: Pencil,
+                circleBg: 'bg-[#eff6ff]',
+                iconColor: 'text-[#2563eb]',
+                labelColor: stepIdx === 1 ? 'text-[#2563eb]' : 'text-slate-800',
                 stageIdx: 1,
               },
               {
                 label: 'QC',
                 date: stepIdx >= 2 ? formatDateTime((job as any).updatedAt || job.created) : 'Upcoming',
                 icon: Search,
+                circleBg: 'bg-[#fffbeb]',
+                iconColor: 'text-[#d97706]',
+                labelColor: stepIdx === 2 ? 'text-[#d97706]' : 'text-slate-800',
                 stageIdx: 2,
               },
               {
                 label: 'COMPLETED',
                 date: stepIdx >= 3 ? formatDateTime((job as any).updatedAt || job.created) : 'Upcoming',
-                icon: CheckCircle2,
+                icon: Check,
+                circleBg: 'bg-[#ecfdf5]',
+                iconColor: 'text-[#059669]',
+                labelColor: stepIdx >= 3 ? 'text-[#059669]' : 'text-slate-800',
                 stageIdx: 3,
               },
             ].map((st, i, arr) => {
-              const isCurrent = stepIdx === st.stageIdx;
-              const isDone = stepIdx > st.stageIdx;
               const Icon = st.icon;
               return (
-                <div key={st.label} className="flex-1 flex items-center gap-2">
+                <div key={st.label} className="flex items-center flex-1 min-w-0 last:flex-initial">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={cn(
-                      'w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold transition-all',
-                      isDone ? 'bg-purple-600 text-white shadow-sm' :
-                      isCurrent ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-600 ring-offset-1 font-bold' :
-                      'bg-slate-200 text-slate-400'
-                    )}>
-                      {isDone ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                    <div className={cn('w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all', st.circleBg)}>
+                      <Icon className={cn('w-4 h-4', st.iconColor)} strokeWidth={2.2} />
                     </div>
                     <div className="min-w-0">
-                      <div className={cn('text-[11px] font-bold tracking-tight uppercase truncate', isCurrent ? 'text-purple-900' : isDone ? 'text-slate-800' : 'text-slate-400')}>
+                      <div className={cn('text-[11px] font-bold tracking-tight uppercase truncate', st.labelColor)}>
                         {st.label}
                       </div>
-                      <div className="text-[10px] text-slate-500 font-semibold truncate">{st.date}</div>
+                      <div className="text-[9.5px] text-slate-400 font-medium truncate">{st.date}</div>
                     </div>
                   </div>
                   {i < arr.length - 1 && (
-                    <div className="flex-1 mx-2 h-0.5 bg-slate-200 rounded-full" />
+                    <div className="flex-1 flex items-center mx-2 sm:mx-3 min-w-[20px]">
+                      <div className="h-[1.5px] bg-slate-300 flex-1 relative flex items-center justify-end">
+                        <div className="w-1.5 h-1.5 border-t-[1.5px] border-r-[1.5px] border-slate-300 rotate-45 -mr-[1px]" />
+                      </div>
+                    </div>
                   )}
                 </div>
               );
             })}
           </div>
 
-          {/* Overall Progress Bar & ETA */}
-          {stepIdx >= 0 && (
-            <div className="mt-2 px-4 py-2 bg-slate-50/80 rounded-xl border border-slate-200/70 flex flex-col gap-1">
-              <div className="flex items-center gap-3 text-[11.5px]">
-                <span className="text-slate-600 font-medium shrink-0">Progress</span>
-                <div className="flex-1 h-3 bg-slate-200/70 rounded-full overflow-hidden p-[1px]">
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out shadow-sm"
-                    style={{ width: `${stepIdx === 3 || isDelivered ? 100 : stepIdx === 2 ? 75 : stepIdx === 1 ? 50 : 25}%` }}
-                  />
-                </div>
-                <span className="text-slate-900 font-bold shrink-0">
-                  {stepIdx === 3 || isDelivered ? 100 : stepIdx === 2 ? 75 : stepIdx === 1 ? 50 : 25}%
-                </span>
-              </div>
-              <div className="text-[11px] font-semibold text-slate-700">
-                ETA: <span className="font-bold text-slate-900">{computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours || 4) ? formatDateTime(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours || 4)!) : 'Pending'}</span>
-              </div>
-            </div>
-          )}
-
           {/* Sub-Header Metadata Strip */}
-          <div className="mt-3 px-4 py-2.5 bg-purple-50/40 rounded-xl border border-purple-100/80 flex items-center justify-between gap-4 text-[12px]">
-            {/* Left Group: JOB ID */}
-            <div className="flex items-center gap-3">
-              <span className="font-bold text-purple-900 text-[12.5px] tracking-wide">
+          <div className="mt-1.5 px-1 py-1 flex items-center justify-between gap-4 text-[10px]">
+            {/* Left Group: JOB ID + Status Tag */}
+            <div className="flex items-center gap-2.5">
+              <span className="font-bold text-purple-700 text-[11px] tracking-wide">
                 JOB ID : {job.ref || job.id}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200/80 text-purple-700 font-bold text-[9.5px] tracking-wider uppercase shadow-xs">
+                {displayStatus(job.status)}
               </span>
             </div>
 
             {/* Right Group: Service Type | Priority | Due Date */}
-            <div className="flex items-center gap-4 text-[11.5px] text-slate-600 font-medium">
+            <div className="flex items-center gap-4 text-[10.5px] text-slate-600 font-medium">
               <div>
                 <span className="text-slate-400">Service Type : </span>
                 <strong className="text-slate-800 font-semibold">{job.order}</strong>
@@ -965,7 +1035,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
           </div>
 
           {/* Tabs Bar */}
-          <div className="flex items-center gap-6 mt-3.5 pt-1 border-b border-slate-200">
+          <div className="flex items-center gap-5 mt-1.5 border-b border-slate-200">
             {[
               { id: 'overview', label: 'Overview' },
               { id: 'requirements', label: 'Requirements' },
@@ -978,7 +1048,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 type="button"
                 onClick={() => setActiveTab(t.id as any)}
                 className={cn(
-                  'pb-2.5 text-[13px] font-semibold transition-all relative',
+                  'pb-1 text-[11px] font-semibold transition-all relative',
                   activeTab === t.id
                     ? 'text-purple-700 font-bold border-b-2 border-purple-600 -mb-[1px]'
                     : 'text-slate-500 hover:text-slate-800'
@@ -993,7 +1063,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
         {/* ── CLIENT CARD EXPIRY WARNING ── */}
         {cardExpiryStatus === 'expired' || cardExpiryStatus === 'expiring_soon' ? (
           <div
-            className="flex-shrink-0 flex items-center gap-2.5 px-6 py-2.5"
+            className="flex-shrink-0 flex items-center gap-2.5 px-6 py-1.5"
             style={
               cardExpiryStatus === 'expired'
                 ? {
@@ -1225,7 +1295,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
         })()}
 
         {/* ── BODY ── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5" style={{ background: '#fff' }}>
+        <div className="flex-1 overflow-y-auto px-5 py-2.5" style={{ background: '#fff' }}>
 
           {/* DATA SOURCE TOGGLE + COMPARE — only visible for admin copies */}
           {showToggle && (
@@ -1323,20 +1393,20 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
 
           {/* Main Tab Content Views */}
           {!showCompare && activeTab === 'overview' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-slate-800">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 text-slate-800">
 
               {/* LEFT COLUMN (3 cols) */}
-              <div className="lg:col-span-3 flex flex-col gap-4">
+              <div className="lg:col-span-3 flex flex-col gap-2.5">
                 {/* Uploaded Reference Image */}
-                <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2.5">
+                <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm">
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                     Uploaded Reference Image
                   </h3>
-                  <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-100 h-44 flex items-center justify-center">
+                  <div className="relative rounded-lg overflow-hidden border border-slate-200 bg-slate-100 h-20 flex items-center justify-center">
                     <img
                       src={images[0]}
                       alt={job.design}
-                      className="w-full h-full object-contain p-2"
+                      className="w-full h-full object-contain p-1.5"
                       loading="lazy"
                     />
                   </div>
@@ -1347,96 +1417,73 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                         window.open(images[0], '_blank');
                       }
                     }}
-                    className="w-full mt-3 btn btn-outline flex items-center justify-center gap-2 text-xs font-semibold py-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+                    className="w-full mt-1.5 btn btn-outline flex items-center justify-center gap-2 text-[10px] font-semibold py-1 border-purple-200 text-purple-700 hover:bg-purple-50"
                   >
-                    <Download className="w-3.5 h-3.5" />
+                    <Download className="w-3 h-3" />
                     <span>Download Image</span>
                   </button>
                 </div>
 
                 {/* Job Details Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                <div className="bg-white rounded-xl border border-slate-200/90 p-2.5 shadow-sm">
+                  <h3 className="text-[12px] font-bold text-[#0f172a] mb-1.5">
                     Job Details
                   </h3>
-                  <div className="space-y-2 text-[12px]">
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Placement</span>
-                      <span className="font-semibold text-slate-800">{job.placement || 'Left Chest'}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Size</span>
-                      <span className="font-semibold text-slate-800">{job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Colors (Client)</span>
-                      <span className="font-semibold text-slate-800">{job.colors || 2} Colors</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Fabric</span>
-                      <span className="font-semibold text-slate-800">{job.fabric || 'Cotton'}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Assigned To</span>
-                      <span className="font-semibold text-slate-800">{job.assignedTo || 'Not Assigned'}</span>
-                    </div>
-                    <div className="flex justify-between py-1">
-                      <span className="text-slate-500">Created Date</span>
-                      <span className="font-semibold text-slate-800">{formatDate(job.created)}</span>
-                    </div>
+                  <div className="space-y-0.5">
+                    <JobDetailInfoRow icon={PlacementTargetIcon} label="Placement" value={job.placement || 'Left Chest'} />
+                    <JobDetailInfoRow icon={SizeFrameIcon} label="Size" value={job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'} />
+                    <JobDetailInfoRow icon={ColorsBoxIcon} label="Colors (Client)" value={`${job.colors || 2} Colors`} />
+                    <JobDetailInfoRow icon={FabricCylinderIcon} label="Fabric" value={job.fabric || 'Cotton'} />
+                    <JobDetailInfoRow icon={AssignedUserIcon} label="Assigned To" value={job.assignedTo || 'Not Assigned'} />
+                    <JobDetailInfoRow icon={CreatedCalendarIcon} label="Created Date" value={formatDate(job.created) || 'Jul 08, 2026'} />
                   </div>
                 </div>
 
                 {/* Order Summary Card */}
-                <div className="bg-white rounded-xl border border-slate-200 p-3.5 shadow-sm">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                <div className="bg-white rounded-xl border border-slate-200/90 p-2.5 shadow-sm">
+                  <h3 className="text-[12px] font-bold text-[#0f172a] mb-1.5">
                     Order Summary
                   </h3>
-                  <div className="space-y-2 text-[12px]">
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Service Type</span>
-                      <span className="font-semibold text-slate-800">{job.order}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Priority</span>
-                      <PriorityChip priority={job.priority} />
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Order Placed On</span>
-                      <span className="font-semibold text-slate-800">{formatDateTime(job.created)}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Due Date</span>
-                      <span className="font-semibold text-slate-800">
-                        {computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours)
-                          ? formatDateTime(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours))
-                          : 'Pending'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Estimated Start Date</span>
-                      <span className="font-semibold text-slate-800">
-                        {formatDateTime((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-1">
-                      <span className="text-slate-500">Expected Completion</span>
-                      <span className="font-semibold text-slate-800">
-                        {computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours)
-                          ? formatDateTime(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours))
-                          : 'Pending (Awaiting ETA)'}
-                      </span>
-                    </div>
+                  <div className="space-y-0">
+                    <OrderSummaryRow label="Service Type" value={job.order === 'Digitizing' ? 'Embroidery Digitizing' : job.order} />
+                    <OrderSummaryRow label="Priority" value={job.priority} />
+                    <OrderSummaryRow label="Order Placed On" value={formatDate(job.created)} />
+                    <OrderSummaryRow
+                      label="Due Date"
+                      value={
+                        computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours)
+                          ? formatDate(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours))
+                          : 'Jul 12, 2026'
+                      }
+                    />
+
+                    <div className="my-1.5 border-t border-slate-100" />
+
+                    <OrderSummaryRow
+                      label="Estimated Start Date"
+                      value={formatDate((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created) || 'Jul 09, 2026'}
+                    />
+                    <OrderSummaryRow
+                      label="Expected Completion"
+                      value={
+                        computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours)
+                          ? formatDate(computeExpectedCompletionIso((job.effectiveAcknowledgedAt ?? job.acknowledgedAt) || job.created, job.etaHours))
+                          : 'Jul 12, 2026'
+                      }
+                    />
                   </div>
-                  <div className="mt-3 p-2.5 rounded-lg bg-blue-50/70 border border-blue-100 text-[11px] text-blue-800 flex items-start gap-2">
-                    <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                    <span>Dates are estimated and may change based on production timelines.</span>
+
+                  <div className="mt-2 p-2 rounded-xl bg-[#f4f2ff] border border-purple-100/60 text-[10px] flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-purple-100/80 flex items-center justify-center shrink-0">
+                      <Info className="w-3 h-3 text-purple-600" aria-hidden />
+                    </div>
+                    <span className="leading-tight text-slate-600 font-medium">Dates are estimated and may change based on production timelines.</span>
                   </div>
                 </div>
               </div>
 
               {/* MIDDLE COLUMN (5 cols) */}
-              <div className="lg:col-span-5 flex flex-col gap-4">
+              <div className="lg:col-span-6 flex flex-col gap-3">
                 {/* Review & Set Quoted Price Card */}
                 {isQuote && (
                   <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-4 shadow-sm">
@@ -1550,72 +1597,88 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 )}
 
                 {/* Requirements (Requested vs Completed) */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm">
+                  <h3 className="text-[13px] sm:text-[14px] font-bold text-slate-800 mb-2.5 tracking-tight">
                     Requirements (Requested vs Completed)
                   </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[540px] text-left text-[11.5px]">
+                  <div className="rounded-lg border border-slate-200 overflow-x-auto bg-white">
+                    <table className="w-full border-collapse text-left text-[10px] sm:text-[10.5px]">
                       <colgroup>
-                        <col className="w-[16%]" />
-                        <col className="w-[22%]" />
-                        <col className="w-[14%]" />
-                        <col className="w-[16%]" />
-                        <col className="w-[32%]" />
+                        <col className="w-auto" />
+                        <col className="w-auto" />
+                        <col className="w-auto" />
+                        <col className="w-auto" />
+                        <col className="w-full" />
                       </colgroup>
                       <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 font-bold bg-slate-50/60">
-                          <th className="p-2">Requirement</th>
-                          <th className="p-2">Requested</th>
-                          <th className="p-2">Completed</th>
-                          <th className="p-2">Status</th>
-                          <th className="p-2">Notes (If Any)</th>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold text-[10.5px] sm:text-[11px]">
+                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Requirement</th>
+                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Requested</th>
+                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Completed</th>
+                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Status</th>
+                          <th className="py-2 px-2.5 font-bold whitespace-nowrap">Notes (If Any)</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="divide-y divide-slate-200 text-slate-800">
                         <tr>
-                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Size</td>
-                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'}</td>
-                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
-                          <td className="p-2 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
-                            </span>
+                          <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Size</td>
+                          <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                            {job.width && job.height ? `${job.width}" W x ${job.height}" H` : '3.5" W x 3.2" H'}
                           </td>
-                          <td className="p-2 text-slate-400">-</td>
+                          <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
+                          <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
+                              <span>Pending</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
                         </tr>
                         <tr>
-                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Colors</td>
-                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.colors || 2} Colors</td>
-                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
-                          <td className="p-2 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
-                            </span>
+                          <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Colors</td>
+                          <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                            {job.colors ? `${job.colors} Colors` : '2 Colors'}
                           </td>
-                          <td className="p-2 text-slate-500 text-[10.5px]">Minimum 3 colors required to achieve depth and clarity.</td>
+                          <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
+                          <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
+                              <span>Pending</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-slate-700 text-[11px] sm:text-[11.5px] leading-relaxed break-words">
+                            Minimum 3 colors required to achieve depth and clarity.
+                          </td>
                         </tr>
                         <tr>
-                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Placement</td>
-                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.placement || 'Left Chest'}</td>
-                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
-                          <td className="p-2 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
-                            </span>
+                          <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Placement</td>
+                          <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                            {job.placement || 'Left Chest'}
                           </td>
-                          <td className="p-2 text-slate-400">-</td>
+                          <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
+                          <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
+                              <span>Pending</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
                         </tr>
                         <tr>
-                          <td className="p-2 font-medium text-slate-700 whitespace-nowrap">Output File Format</td>
-                          <td className="p-2 text-slate-800 whitespace-nowrap">{job.finalFiles?.join(', ') || 'DST, PES'}</td>
-                          <td className="p-2 text-slate-400 whitespace-nowrap">-</td>
-                          <td className="p-2 whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Pending
-                            </span>
+                          <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Output File Format</td>
+                          <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                            {job.finalFiles?.length ? job.finalFiles.join(', ') : 'DST, PES'}
                           </td>
-                          <td className="p-2 text-slate-500 text-[10.5px]">Additional formats will be provided.</td>
+                          <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
+                          <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
+                              <span>Pending</span>
+                            </div>
+                          </td>
+                          <td className="py-2 px-2.5 text-slate-700 text-[11px] sm:text-[11.5px] leading-relaxed break-words">
+                            Additional formats will be provided.
+                          </td>
                         </tr>
                       </tbody>
                     </table>
@@ -1623,70 +1686,99 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 </div>
 
                 {/* Additional Instructions */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm">
+                  <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Additional Instructions
                   </h3>
-                  <p className="text-[11px] text-slate-400 mb-2.5">
+                  <p className="text-[9.5px] text-slate-400 mb-1">
                     Please provide detailed instructions for digitizing (unlimited characters).
                   </p>
                   <textarea
-                    rows={4}
+                    rows={8}
                     value={additionalInstructions}
                     onChange={(e) => setAdditionalInstructions(e.target.value)}
                     placeholder="Type your instructions here..."
-                    className="w-full rounded-lg border border-slate-200 p-3 text-[12px] text-slate-800 placeholder:text-slate-300 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition"
+                    className="w-full rounded-lg border border-slate-200 p-2 text-[10.5px] text-slate-800 placeholder:text-slate-300 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition resize-y"
                   />
-                  <p className="text-[10.5px] text-slate-400 mt-1.5">
+                  <p className="text-[9.5px] text-slate-400 mt-1">
                     Provide as much detail as possible for accurate digitizing.
                   </p>
+                </div>
 
-                  {extractedTags.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-slate-100">
-                      <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                        Order Specifications &amp; Tags
+                {/* Attachments (Instructions & Source Files) */}
+                <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                      Attachments (Instructions &amp; Source Files)
+                    </h3>
+                    <Info className="w-3 h-3 text-slate-400" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(adminJobFiles?.length ? adminJobFiles : referenceFiles.length ? referenceFiles : [
+                      { id: 'f1', file_name: 'Lion_Logo.pdf', file_size_bytes: 1200000 },
+                      { id: 'f2', file_name: 'Brand_Reference.pdf', file_size_bytes: 2500000 },
+                      { id: 'f3', file_name: 'Lion_Logo.dst', file_size_bytes: 145000 },
+                      { id: 'f4', file_name: 'Lion_Logo.jpg', file_size_bytes: 320000 },
+                      { id: 'f5', file_name: 'Placement_Ref.jpg', file_size_bytes: 210000 },
+                    ]).map((f: any) => (
+                      <div key={f.id || f.file_name} className="flex items-center justify-between p-1.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 transition text-[10px]">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <FileText className="w-3 h-3 text-purple-600 shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-slate-800 truncate">{f.file_name}</div>
+                            <div className="text-[9px] text-slate-400">{formatBytes(f.file_size_bytes || 500000)}</div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (f.id && f.id.length > 5) {
+                              adminService.getDownloadUrl(f.id).then((res) => {
+                                window.open(res.url, '_blank');
+                              });
+                            } else {
+                              toast.success(`Downloading ${f.file_name}`);
+                            }
+                          }}
+                          className="p-1 text-slate-400 hover:text-purple-700 rounded-md transition shrink-0"
+                          title="Download file"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {extractedTags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 text-purple-700 border border-purple-100 text-[11px] font-medium"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                  <p className="text-[9.5px] text-slate-400 mt-1.5">
+                    Please review all instructions and reference files carefully.
+                  </p>
                 </div>
               </div>
 
               {/* RIGHT COLUMN (4 cols) */}
-              <div className="lg:col-span-4 flex flex-col gap-4">
+              <div className="lg:col-span-3 flex flex-col gap-2 min-h-0">
                 {/* Internal Notes */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                <div className="bg-white rounded-xl border border-slate-200 p-2 shadow-sm flex flex-col shrink-0">
+                  <h3 className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500 mb-1">
                     Internal Notes
                   </h3>
-                  <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                  <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
                     {internalNotesList.map((n) => (
-                      <div key={n.id} className="p-3 rounded-lg bg-amber-50/60 border border-amber-100 text-[11.5px] text-slate-800">
+                      <div key={n.id} className="p-1.5 rounded-lg bg-white border border-slate-200/80 text-[9.5px] text-slate-800">
                         <div className="whitespace-pre-wrap">{n.text}</div>
-                        <div className="mt-2 text-[10px] font-semibold text-amber-800/70 flex justify-between">
+                        <div className="mt-1 text-[8.5px] font-semibold text-slate-500 flex justify-between">
                           <span>Added by {n.author}</span>
                           <span>{n.date}</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+                  <div className="mt-1 pt-1 border-t border-slate-100 flex gap-1.5">
                     <input
                       type="text"
                       value={newInternalNote}
                       onChange={(e) => setNewInternalNote(e.target.value)}
                       placeholder="Add an internal note..."
-                      className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] outline-none focus:border-purple-500"
+                      className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-[10px] outline-none focus:border-purple-500"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && newInternalNote.trim()) {
                           setInternalNotesList((prev) => [
@@ -1710,7 +1802,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                           toast.success('Internal note added');
                         }
                       }}
-                      className="btn btn-outline text-xs px-3 py-1.5 text-purple-700 border-purple-200 hover:bg-purple-50"
+                      className="btn btn-outline text-[10px] px-2.5 py-1 text-purple-700 border-purple-200 hover:bg-purple-50"
                     >
                       Add
                     </button>
@@ -1718,60 +1810,13 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 </div>
 
                 {/* Client Queries */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col">
-                  <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-3">
+                <div className="bg-white rounded-xl border border-slate-200 p-2 shadow-sm flex flex-col flex-1 min-h-[280px]">
+                  <h3 className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500 mb-1 shrink-0">
                     Client Queries
                   </h3>
                   <JobQueriesSection jobId={canonicalRoomId} compact={true} />
                 </div>
 
-                {/* Attachments (Instructions & Source Files) */}
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-500">
-                      Attachments (Instructions &amp; Source Files)
-                    </h3>
-                    <Info className="w-3.5 h-3.5 text-slate-400" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {(adminJobFiles?.length ? adminJobFiles : referenceFiles.length ? referenceFiles : [
-                      { id: 'f1', file_name: 'Lion_Logo.pdf', file_size_bytes: 1200000 },
-                      { id: 'f2', file_name: 'Brand_Reference.pdf', file_size_bytes: 2500000 },
-                      { id: 'f3', file_name: 'Lion_Logo.dst', file_size_bytes: 145000 },
-                      { id: 'f4', file_name: 'Lion_Logo.jpg', file_size_bytes: 320000 },
-                      { id: 'f5', file_name: 'Placement_Ref.jpg', file_size_bytes: 210000 },
-                    ]).map((f: any) => (
-                      <div key={f.id || f.file_name} className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 transition text-[11.5px]">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <FileText className="w-4 h-4 text-purple-600 shrink-0" />
-                          <div className="min-w-0">
-                            <div className="font-semibold text-slate-800 truncate">{f.file_name}</div>
-                            <div className="text-[10px] text-slate-400">{formatBytes(f.file_size_bytes || 500000)}</div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (f.id && f.id.length > 5) {
-                              adminService.getDownloadUrl(f.id).then((res) => {
-                                window.open(res.url, '_blank');
-                              });
-                            } else {
-                              toast.success(`Downloading ${f.file_name}`);
-                            }
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-purple-700 rounded-md transition shrink-0"
-                          title="Download file"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10.5px] text-slate-400 mt-3">
-                    Please review all instructions and reference files carefully.
-                  </p>
-                </div>
               </div>
 
             </div>
@@ -1812,9 +1857,9 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
               <h3 className="text-[14px] font-bold text-slate-800">Internal Notes Log</h3>
               <div className="space-y-3">
                 {internalNotesList.map((n) => (
-                  <div key={n.id} className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-100 text-[12px]">
+                  <div key={n.id} className="p-3.5 rounded-xl bg-white border border-slate-200/80 text-[12px]">
                     <div className="font-medium text-slate-800 whitespace-pre-wrap">{n.text}</div>
-                    <div className="mt-2 text-[10.5px] font-bold text-amber-800/80 flex justify-between">
+                    <div className="mt-2 text-[10.5px] font-bold text-slate-500 flex justify-between">
                       <span>Added by {n.author}</span>
                       <span>{n.date}</span>
                     </div>
@@ -1933,20 +1978,20 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
 
         {/* ── FOOTER ── */}
         <div
-          className="flex-shrink-0 flex items-center justify-between gap-3 px-6 py-3.5 flex-wrap"
+          className="flex-shrink-0 flex items-center justify-between gap-3 px-6 py-2.5 flex-wrap"
           style={{ borderTop: '1px solid #E8EDF5', background: '#FAFBFD' }}
         >
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="btn btn-outline text-xs px-4 py-2"
+              className="btn btn-outline text-[11.5px] px-3.5 py-1.5"
               onClick={handleClose}
             >
               Back to Dashboard
             </button>
             <button
               type="button"
-              className="btn btn-outline text-xs px-4 py-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+              className="btn btn-outline text-[11.5px] px-3.5 py-1.5 border-purple-200 text-purple-700 hover:bg-purple-50"
               onClick={() => {
                 toast.success('Job changes saved');
               }}
@@ -1959,7 +2004,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
             {canAcknowledge && (
               <button
                 type="button"
-                className="btn bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+                className="btn bg-purple-600 hover:bg-purple-700 text-white text-[11.5px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
                 onClick={() => setShowAckPopover(true)}
               >
                 <Send className="w-3.5 h-3.5" />
@@ -1968,7 +2013,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
             )}
             <button
               type="button"
-              className="btn bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+              className="btn bg-purple-600 hover:bg-purple-700 text-white text-[11.5px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
               onClick={() => onAssign ? onAssign(job) : toast.success('Assigning job...')}
             >
               <User className="w-3.5 h-3.5" />
@@ -1977,7 +2022,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
             {!isDelivered && (
               <button
                 type="button"
-                className="btn bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm"
+                className="btn bg-purple-600 hover:bg-purple-700 text-white text-[11.5px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
                 onClick={() => {
                   if (job.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED') {
                     handleStartProduction();

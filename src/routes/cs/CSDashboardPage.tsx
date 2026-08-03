@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { useSessionUser } from '@modules/auth/stores/auth-store';
 import { cn } from '@lib/utils';
 import {
-  GreetingHero,
   JobTable,
   Pagination,
   Pills,
@@ -29,15 +26,9 @@ import {
   Cog,
   Send,
   PlusCircle,
-  Zap,
-  Search,
-  ShoppingCart,
   Inbox,
   User,
   Clock,
-
-  CalendarDays,
-  BarChart2,
   SlidersHorizontal,
 } from 'lucide-react';
 import { useAdminJobViews } from '../../modules/admin-panel/hooks/use-admin-jobs';
@@ -60,8 +51,6 @@ const PILL_DOT_COLORS: Record<Exclude<FilterId, 'all'>, string> = {
 };
 
 export function CSDashboardPage() {
-  const user = useSessionUser();
-  const firstName = user?.name.split(' ')[0] ?? 'there';
   const [filter, setFilter] = useState<FilterId>('all');
   const [sort, setSort] = useState<SortOrder>('newest');
   const [showFilters, setShowFilters] = useState(false);
@@ -224,11 +213,6 @@ export function CSDashboardPage() {
 
   return (
     <div className="page">
-      <GreetingHero
-        title={`Good ${getGreeting()}, ${firstName}`}
-        subtitle="Here's what needs your attention today."
-      />
-
       {/* CS 6-column stat strip */}
       <CsStatGrid stats={csStats} />
 
@@ -271,7 +255,7 @@ export function CSDashboardPage() {
           ) : null}
 
           <div className="mt-3">
-            <JobTable jobs={pageJobs} showActions defaultView="grid" withControls={false} />
+            <JobTable jobs={pageJobs} showActions defaultView="grid" withControls={false} minimalColumns />
           </div>
           <Pagination
             page={page}
@@ -280,31 +264,6 @@ export function CSDashboardPage() {
             perPage={PER_PAGE}
             onPageChange={setPage}
           />
-
-          {/* Quick action bar — matches reference image bottom bar */}
-          <div className="cs-quick-bar mt-4 rounded-xl">
-            <button type="button" className="cs-quick-btn">
-              <Zap className="w-3.5 h-3.5" aria-hidden /> Quick Actions
-            </button>
-            <Link to="/cs/create-quote" className="cs-quick-btn">
-              <FileText className="w-3.5 h-3.5" aria-hidden /> Create Quote
-            </Link>
-            <Link to="/cs/place-order" className="cs-quick-btn">
-              <ShoppingCart className="w-3.5 h-3.5" aria-hidden /> Place Order
-            </Link>
-            <button type="button" className="cs-quick-btn">
-              <Search className="w-3.5 h-3.5" aria-hidden /> Client Search
-            </button>
-            <button type="button" className="cs-quick-btn">
-              <Briefcase className="w-3.5 h-3.5" aria-hidden /> Job Search
-            </button>
-            <button type="button" className="cs-quick-btn">
-              <CalendarDays className="w-3.5 h-3.5" aria-hidden /> Calendar
-            </button>
-            <button type="button" className="cs-quick-btn">
-              <BarChart2 className="w-3.5 h-3.5" aria-hidden /> Reports
-            </button>
-          </div>
         </div>
 
         <div className="flex flex-col gap-3">
@@ -315,13 +274,6 @@ export function CSDashboardPage() {
       </div>
     </div>
   );
-}
-
-function getGreeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
 }
 
 function activityLabel(status: string): string {

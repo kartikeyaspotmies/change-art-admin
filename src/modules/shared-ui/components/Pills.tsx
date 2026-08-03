@@ -21,14 +21,14 @@ interface PillsProps {
  */
 export function Pills({ items, activeId, onSelect, className }: PillsProps) {
   return (
-    <div className={cn('pills-segmented-bar', className)} role="tablist">
+    <div className={cn('pills-segmented-bar flex-nowrap overflow-x-auto scrollbar-none', className)} role="tablist">
       {items.map((item) => (
         <button
           key={item.id}
           type="button"
           role="tab"
           aria-selected={item.id === activeId}
-          className={cn('pill-segmented-item', item.id === activeId && 'active')}
+          className={cn('pill-segmented-item whitespace-nowrap shrink-0', item.id === activeId && 'active')}
           onClick={() => onSelect(item.id)}
         >
           {item.dotColor ? (
@@ -38,8 +38,8 @@ export function Pills({ items, activeId, onSelect, className }: PillsProps) {
               aria-hidden
             />
           ) : null}
-          <span className="pill-label">{item.label}</span>
-          {typeof item.count === 'number' ? <span className="pill-count">({item.count})</span> : null}
+          <span className="pill-label whitespace-nowrap">{item.label}</span>
+          {typeof item.count === 'number' ? <span className="pill-count whitespace-nowrap">({item.count})</span> : null}
         </button>
       ))}
     </div>

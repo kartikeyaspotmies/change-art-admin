@@ -3890,7 +3890,7 @@ html[data-theme='light'] .mb-track {
     align-items: center;
     justify-content: space-between;
     flex-wrap: nowrap;
-    gap: 8px 10px;
+    gap: 8px 9px;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -3954,7 +3954,7 @@ html[data-theme='light'] .mb-track {
     background: transparent;
     border: none;
     border-radius: 0;
-    font-size: 10px;
+    font-size: 9.9px;
     font-weight: 800;
     color: var(--text-muted, #475569);
     cursor: pointer;

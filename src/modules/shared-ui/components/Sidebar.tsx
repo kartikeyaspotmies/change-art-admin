@@ -109,7 +109,9 @@ export function Sidebar({ collapsedOnMobile, onNavigateMobile }: SidebarProps) {
               {initials(user.name)}
             </div>
             <div className="min-w-0">
-              <div className="text-[12px] font-semibold truncate">{user.name}</div>
+              <div className="text-[12px] font-semibold truncate" title={user.name}>
+                {user.name.length > 15 ? `${user.name.slice(0, 15)}...` : user.name}
+              </div>
               <div className="text-[10.5px] text-text-muted truncate">
                 {navConfig.label}
                 {user.sub_type ? ` · ${user.sub_type.toLowerCase()}` : ''}

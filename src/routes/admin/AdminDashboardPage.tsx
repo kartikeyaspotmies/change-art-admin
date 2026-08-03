@@ -19,7 +19,7 @@ import {
   type JobFilters,
 } from '@modules/shared-ui';
 import { CheckCircle2, Cog, Send, PlusCircle, SlidersHorizontal, Briefcase, MessageSquareText, FileText, SquarePen, User, Clock, Inbox } from 'lucide-react';
-import { cn } from '@lib/utils';
+import { cn, isJobEtaExpired } from '@lib/utils';
 import {
   useAdminJobViews,
 } from '../../modules/admin-panel/hooks/use-admin-jobs';
@@ -58,30 +58,16 @@ export function AdminDashboardPage() {
   const expiredCount = expiringCards.filter((c) => c.status === 'expired').length;
   const expiringSoonCount = expiringCards.filter((c) => c.status === 'expiring_soon').length;
 
-  const active = useMemo(
-    () => jobs.filter((j) => j.stage !== 'quote' && j.stage !== 'delivered' && j.status !== 'Cancelled'),
+  const live = useMemo(() => jobs.filter((j) => j.project === 'Live'), [jobs]);
+  const liveQuote = useMemo(() => jobs.filter((j) => j.project === 'Live Quote'), [jobs]);
+  const quote = useMemo(() => jobs.filter((j) => j.project === 'Quote'), [jobs]);
+  const amend = useMemo(() => jobs.filter((j) => j.project === 'Amend'), [jobs]);
+  const inProduction = useMemo(() => jobs.filter((j) => j.status === 'In Production'), [jobs]);
+  const readyToDispatch = useMemo(
+    () => jobs.filter((j) => j.status === 'Ready to Deliver' || isJobEtaExpired(j)),
     [jobs],
   );
-  const inProd = useMemo(
-    () => jobs.filter((j) => j.stage === 'junior' || j.stage === 'senior'),
-    [jobs],
-  );
-  const newQuotesAll = useMemo(() => jobs.filter((j) => j.stage === 'quote'), [jobs]);
-
-  // Missed Deadlines: active jobs whose ETA window has already elapsed
-  const missedDeadlines = useMemo(() => {
-    const now = Date.now();
-    return active.filter((j) => {
-      const deadline = new Date(j.created).getTime() + (j.etaHours ?? 0) * 3_600_000;
-      return deadline < now;
-    }).length;
-  }, [active]);
-
-  const live = useMemo(() => active.filter((j) => j.project === 'Live'), [active]);
-  const liveQuote = useMemo(() => active.filter((j) => j.project === 'Live Quote'), [active]);
-  const quote = useMemo(() => active.filter((j) => j.project === 'Quote'), [active]);
-  const amend = useMemo(() => active.filter((j) => j.project === 'Amend'), [active]);
-  const readyToDispatch = useMemo(() => active.filter((j) => j.status === 'Ready to Deliver' || j.status === 'In QC'), [active]);
+  const missedDeadlines = useMemo(() => jobs.filter((j) => isJobEtaExpired(j)).length, [jobs]);
 
   const pills: PillItem[] = [
     { id: 'all', label: 'All', count: jobs.length },
@@ -89,7 +75,7 @@ export function AdminDashboardPage() {
     { id: 'Live Quote', label: 'Live Quote', count: liveQuote.length, dotColor: '#3b82f6' },
     { id: 'Quote', label: 'Quote', count: quote.length, dotColor: '#a855f7' },
     { id: 'Amend', label: 'Amend', count: amend.length, dotColor: '#f97316' },
-    { id: 'In Production', label: 'In Production', count: inProd.length, dotColor: '#f59e0b' },
+    { id: 'In Production', label: 'In Production', count: inProduction.length, dotColor: '#f59e0b' },
     { id: 'Ready to Dispatch', label: 'Ready to Dispatch', count: readyToDispatch.length, dotColor: '#14b8a6' },
   ];
 
@@ -99,11 +85,11 @@ export function AdminDashboardPage() {
       case 'Live Quote': return liveQuote;
       case 'Quote': return quote;
       case 'Amend': return amend;
-      case 'In Production': return inProd;
+      case 'In Production': return inProduction;
       case 'Ready to Dispatch': return readyToDispatch;
       default: return jobs;
     }
-  }, [filter, jobs, live, liveQuote, quote, amend, inProd, readyToDispatch]);
+  }, [filter, jobs, live, liveQuote, quote, amend, inProduction, readyToDispatch]);
 
   const filteredJobs = useMemo(() => {
     const withExtraFilters = applyJobFilters(pillFilteredJobs, extraFilters);
@@ -126,10 +112,10 @@ export function AdminDashboardPage() {
   );
 
   const overviewItems: OverviewItem[] = [
-    { id: 'new-requests', label: 'New Requests', value: newQuotesAll.length, href: '/admin/new-quotes', icon: <User className="w-3.5 h-3.5" />, accent: '#3b82f6' },
+    { id: 'new-requests', label: 'New Requests', value: quote.length, href: '/admin/new-quotes', icon: <User className="w-3.5 h-3.5" />, accent: '#3b82f6' },
     { id: 'waiting-assignment', label: 'Waiting Assignment', value: live.length + liveQuote.length, href: '/admin/projects?project=Live', icon: <Briefcase className="w-3.5 h-3.5" />, accent: '#22c55e' },
     { id: 'waiting-reply', label: 'Waiting Client Reply', value: quote.length, href: '/admin/projects?project=Quote', icon: <MessageSquareText className="w-3.5 h-3.5" />, accent: '#a855f7' },
-    { id: 'in-production', label: 'In Production', value: inProd.length, href: '/admin/jobs?filter=In+Production', icon: <Cog className="w-3.5 h-3.5" />, accent: '#f97316' },
+    { id: 'in-production', label: 'In Production', value: inProduction.length, href: '/admin/jobs?filter=In+Production', icon: <Cog className="w-3.5 h-3.5" />, accent: '#f97316' },
     { id: 'ready-to-dispatch', label: 'Ready to Dispatch', value: readyToDispatch.length, href: '/admin/deliver', icon: <Send className="w-3.5 h-3.5" />, accent: '#14b8a6' },
     { id: 'overdue', label: 'Overdue Jobs', value: missedDeadlines, tone: missedDeadlines > 0 ? 'danger' : 'default', href: '/admin/jobs', icon: <Clock className="w-3.5 h-3.5" /> },
   ];
@@ -199,7 +185,7 @@ export function AdminDashboardPage() {
             accent: 'cs-amber',
             tag: 'In Production',
             description: 'Jobs In Progress',
-            value: loading(inProd.length),
+            value: loading(inProduction.length),
             statusText: 'On Production',
             icon: <Cog />,
             href: '/admin/jobs?filter=In+Production',

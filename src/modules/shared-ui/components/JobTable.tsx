@@ -814,13 +814,13 @@ function GridView({
               </div>
 
               {/* Info row: Status */}
-              <div className="flex items-center gap-1 text-[9.5px] font-semibold text-text-muted">
+              <div className="flex items-center gap-1 text-[9.5px] font-bold text-slate-700 dark:text-slate-300">
                 {isCompletedStatus(j.status, j.stage) ? (
                   <CompletedStatusBadge label="Matched" />
                 ) : (
                   <>
                     <StatusIcon className="w-3 h-3 shrink-0" aria-hidden />
-                    <span className={cn(statusBadgeAccent(j.status) === 'green' ? 'text-green-600' : statusBadgeAccent(j.status) === 'amber' ? 'text-amber-600' : statusBadgeAccent(j.status) === 'red' ? 'text-red-600' : 'text-text-main')}>
+                    <span className={cn('font-bold', statusBadgeAccent(j.status) === 'green' ? 'text-green-600 dark:text-green-400' : statusBadgeAccent(j.status) === 'amber' ? 'text-amber-600 dark:text-amber-400' : statusBadgeAccent(j.status) === 'red' ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-200')}>
                       {statusDisplay(j.status)}
                     </span>
                   </>
@@ -831,8 +831,8 @@ function GridView({
               {isInProd && progress != null ? (
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-[9.5px] text-text-muted font-medium shrink-0">Progress</span>
-                  <div className="flex-1 h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60 p-[1px]">
-                    <div className="h-full rounded-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-500 ease-out shadow-sm" style={{ width: `${progress}%` }} />
+                  <div className="flex-1 h-1.5 bg-slate-200/70 dark:bg-slate-700/60 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
                   </div>
                   <span className="text-[9.5px] font-bold text-slate-900 dark:text-slate-100 shrink-0">{progress}%</span>
                 </div>
