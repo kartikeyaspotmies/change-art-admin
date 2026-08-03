@@ -1048,9 +1048,9 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 type="button"
                 onClick={() => setActiveTab(t.id as any)}
                 className={cn(
-                  'pb-1 text-[11px] font-semibold transition-all relative',
+                  'pb-2 pt-1 text-[11px] font-semibold transition-all relative',
                   activeTab === t.id
-                    ? 'text-purple-700 font-bold border-b-2 border-purple-600 -mb-[1px]'
+                    ? 'text-purple-700 font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-purple-600'
                     : 'text-slate-500 hover:text-slate-800'
                 )}
               >
