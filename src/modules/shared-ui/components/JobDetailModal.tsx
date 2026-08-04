@@ -2155,7 +2155,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign: _onAss
               <span>Assign</span>
             </button>
             */}
-            {!isDelivered && !canAcknowledge && (
+            {!isDelivered && !canAcknowledge && !quoteSent && (
               <button
                 type="button"
                 className="btn bg-purple-600 hover:bg-purple-700 text-white text-[11.5px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
