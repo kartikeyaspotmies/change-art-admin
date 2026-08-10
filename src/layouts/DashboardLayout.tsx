@@ -81,11 +81,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col md:ml-[var(--sidebar-w)]">
-        <Topbar title={title.title} subtitle={resolvedSubtitle} onOpenMobileNav={openMobile} />
+        <Topbar
+          title={title.title}
+          subtitle={resolvedSubtitle}
+          onOpenMobileNav={openMobile}
+          hideSearch={location.pathname.includes('/clients')}
+        />
 
         <main
           id="main-content"
-          className="flex-1 overflow-y-auto px-4 md:px-6 py-[22px] pb-[calc(var(--mobile-nav-h)+1rem)] md:pb-[22px] anim-fade-in"
+          className="flex-1 overflow-y-auto px-2 md:px-3.5 py-3.5 pb-[calc(var(--mobile-nav-h)+1rem)] md:pb-5 anim-fade-in"
           tabIndex={-1}
         >
           {children}
