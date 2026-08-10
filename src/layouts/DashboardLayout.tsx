@@ -53,6 +53,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   useEffect(() => {
     toast.dismiss();
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+    document.body.classList.remove('scroll-locked');
+    const mainEl = document.getElementById('main-content');
+    if (mainEl) {
+      mainEl.style.overflow = '';
+      mainEl.scrollTop = 0;
+    }
   }, [location.pathname]);
 
   const closeMobile = useCallback(() => setMobileNavOpen(false), []);
@@ -65,7 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     .replace('{greeting}', getGreeting());
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen w-screen overflow-hidden flex">
       {/* Sidebar */}
       <Sidebar collapsedOnMobile={!mobileNavOpen} onNavigateMobile={closeMobile} />
 
@@ -80,7 +88,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ) : null}
 
       {/* Main column */}
-      <div className="flex-1 min-w-0 flex flex-col md:ml-[var(--sidebar-w)]">
+      <div className="flex-1 min-w-0 h-screen flex flex-col md:ml-[var(--sidebar-w)] overflow-hidden">
         <Topbar
           title={title.title}
           subtitle={resolvedSubtitle}

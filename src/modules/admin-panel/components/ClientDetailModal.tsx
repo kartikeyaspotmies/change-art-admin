@@ -16,10 +16,12 @@ import {
   FileText,
   StickyNote,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from '@modules/shared-ui';
 import type { IClient } from '@contracts';
 import { PaymentMode } from '@contracts';
+import { getDateRangeFromPreset } from '@lib/utils';
 import {
   useAdminClientPaymentMethods,
   useDeleteClient,
@@ -108,7 +110,7 @@ function formatFullDateTime(iso?: string | null): string {
   return `${dateStr} ${timeStr}`;
 }
 
-const JOBS_RANGE_OPTIONS = ['Last 1 Week', 'Last 15 Days', 'Last 1 Month', 'Custom Range'];
+const JOBS_RANGE_OPTIONS = ['Last 1 Week', 'Last 15 Days', 'Last 1 Month', 'All Time'];
 
 interface JobsRangeDropdownProps {
   value: string;
@@ -263,6 +265,7 @@ function initialState(client: IClient | null): FormState {
 const ERR_STYLE = { color: '#f87171' };
 
 export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDetailModalProps) {
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(mode === 'edit');
   const [form, setForm] = useState<FormState>(() => initialState(client));
   const [error, setError] = useState<string | null>(null);
@@ -274,6 +277,24 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
   const remove = useDeleteClient();
   const sendCcForm = useSendCcForm();
   const saving = update.isPending;
+
+  function handleViewJobs() {
+    if (!client) return;
+    const { dateFrom, dateTo } = getDateRangeFromPreset(jobsRange);
+    const clientId = client.client_id || client.id;
+
+    const params = new URLSearchParams();
+    if (clientId) params.set('clientId', clientId);
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
+    if (jobsRange) params.set('range', jobsRange);
+
+    onClose();
+
+    const isCs = window.location.pathname.startsWith('/cs');
+    const targetPath = isCs ? '/cs/projects' : '/admin/projects';
+    navigate(`${targetPath}?${params.toString()}`);
+  }
 
   // Query real database jobs for this client
   const { data: jobsData, isLoading: isJobsLoading } = useAdminJobCards({
@@ -289,7 +310,7 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
 
   // Filter jobs count dynamically based on date range dropdown
   const filteredJobsCount = useMemo(() => {
-    if (jobsRange === 'Custom Range') return clientJobs.length;
+    if (jobsRange === 'All Time' || jobsRange === 'Custom Range') return clientJobs.length;
 
     const now = Date.now();
     let days = 30;
@@ -314,10 +335,7 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
   useEffect(() => {
     if (!client) return undefined;
 
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
     const mainEl = document.getElementById('main-content');
-    const originalMainOverflow = mainEl ? mainEl.style.overflow : '';
 
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
@@ -329,9 +347,9 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
     window.addEventListener('keydown', handler);
 
     return () => {
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      if (mainEl) mainEl.style.overflow = originalMainOverflow;
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      if (mainEl) mainEl.style.overflow = '';
       window.removeEventListener('keydown', handler);
     };
   }, [client, onClose, confirmingDelete]);
@@ -685,7 +703,7 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
                       <JobsRangeDropdown value={jobsRange} onChange={setJobsRange} />
                       <button
                         type="button"
-                        onClick={() => toast.success(`Viewing ${filteredJobsCount} jobs for ${clientName}`)}
+                        onClick={handleViewJobs}
                         className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-0.5 cursor-pointer whitespace-nowrap shrink-0"
                       >
                         <span>View Jobs</span>

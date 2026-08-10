@@ -44,10 +44,7 @@ export function ClientSectionGateModal({ onVerified, onDismiss }: ClientSectionG
   }, [step]);
 
   useEffect(() => {
-    const originalBodyOverflow = document.body.style.overflow;
-    const originalHtmlOverflow = document.documentElement.style.overflow;
     const mainEl = document.getElementById('main-content');
-    const originalMainOverflow = mainEl ? mainEl.style.overflow : '';
 
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
@@ -59,9 +56,9 @@ export function ClientSectionGateModal({ onVerified, onDismiss }: ClientSectionG
     window.addEventListener('keydown', onKey);
 
     return () => {
-      document.body.style.overflow = originalBodyOverflow;
-      document.documentElement.style.overflow = originalHtmlOverflow;
-      if (mainEl) mainEl.style.overflow = originalMainOverflow;
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      if (mainEl) mainEl.style.overflow = '';
       window.removeEventListener('keydown', onKey);
     };
   }, [onDismiss]);
