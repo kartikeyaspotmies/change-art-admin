@@ -40,6 +40,21 @@ function formatDate(d: string | Date) {
   });
 }
 
+function formatDateTime(d: string | Date) {
+  const date = new Date(d);
+  const dateStr = date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${dateStr} ${timeStr}`;
+}
+
 // ─── Client detail modal ──────────────────────────────────────────────────────
 
 interface DetailModalProps {
@@ -223,10 +238,32 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
                   )}
                 </div>
 
+                <div className="hidden sm:block w-[1px] h-10 bg-slate-200" />
+
                 <div>
-                  <span className="block text-[11px] font-semibold text-slate-500 mb-1">Signed Up</span>
-                  <span className="text-xs font-bold text-slate-900">{formatDate(client.created_at)}</span>
+                  <span className="block text-[11px] font-semibold text-slate-500 mb-1">Requested On</span>
+                  <span className="text-xs font-bold text-slate-900">{formatDateTime(client.created_at)}</span>
                 </div>
+
+                {subTab === 'approved' && (
+                  <>
+                    <div className="hidden sm:block w-[1px] h-10 bg-slate-200" />
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-500 mb-1">Joined On</span>
+                      <span className="text-xs font-bold text-slate-900">{formatDateTime(client.date)}</span>
+                    </div>
+                  </>
+                )}
+
+                {subTab === 'rejected' && (
+                  <>
+                    <div className="hidden sm:block w-[1px] h-10 bg-slate-200" />
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-500 mb-1">Rejected On</span>
+                      <span className="text-xs font-bold text-slate-900">{formatDateTime(client.updated_at)}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -284,10 +321,6 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
               <div>
                 <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Currency</span>
                 <span className="font-bold text-slate-900">{client.currency || 'USD'}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Registered On</span>
-                <span className="font-bold text-slate-900">{formatDate(client.created_at)}</span>
               </div>
             </div>
           </div>
@@ -414,6 +447,11 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
 
 // ─── Shared table ─────────────────────────────────────────────────────────────
 
+interface DateColumn {
+  label: string;
+  getValue: (c: IClient) => string;
+}
+
 function ClientTable({
   clients,
   isLoading,
@@ -421,6 +459,7 @@ function ClientTable({
   emptyMessage,
   showActions,
   showRejectionNote,
+  dateColumns,
   onRowClick,
   onApprove,
   onReject,
@@ -431,6 +470,7 @@ function ClientTable({
   emptyMessage: string;
   showActions?: boolean;
   showRejectionNote?: boolean;
+  dateColumns: DateColumn[];
   onRowClick?: (c: IClient) => void;
   onApprove?: (c: IClient) => void;
   onReject?: (c: IClient) => void;
@@ -473,7 +513,9 @@ function ClientTable({
             <th>Location</th>
             <th>Country</th>
             <th>Currency</th>
-            <th>Signup Date</th>
+            {dateColumns.map((dc) => (
+              <th key={dc.label}>{dc.label}</th>
+            ))}
             {showRejectionNote && <th>Rejected Reason</th>}
             {showActions && <th>Actions</th>}
           </tr>
@@ -528,9 +570,11 @@ function ClientTable({
                   {c.currency || '—'}
                 </div>
               </td>
-              <td className="text-text-muted text-[12px] whitespace-nowrap">
-                {new Date(c.created_at).toLocaleDateString()}
-              </td>
+              {dateColumns.map((dc) => (
+                <td key={dc.label} className="text-text-muted text-[12px] whitespace-nowrap">
+                  {dc.getValue(c)}
+                </td>
+              ))}
               {showRejectionNote && (
                 <td>
                   <div className="text-text-muted text-[12px] italic whitespace-nowrap truncate max-w-[160px]" title={c.rejection_note || ''}>
@@ -713,6 +757,7 @@ export function ClientApproveTab({ autoOpenUserId }: { autoOpenUserId?: string }
           isError={pending.isError}
           emptyMessage="No pending clients awaiting approval."
           showActions
+          dateColumns={[{ label: 'Signup Date', getValue: (c) => formatDate(c.created_at) }]}
           onRowClick={(c) => setSelectedClient(c)}
           onApprove={setApprovingClient}
           onReject={setRejectingClient}
@@ -725,6 +770,10 @@ export function ClientApproveTab({ autoOpenUserId }: { autoOpenUserId?: string }
           isLoading={approved.isLoading}
           isError={approved.isError}
           emptyMessage="No approved self-registered clients yet."
+          dateColumns={[
+            { label: 'Requested On', getValue: (c) => formatDateTime(c.created_at) },
+            { label: 'Joined On', getValue: (c) => formatDateTime(c.date) },
+          ]}
           onRowClick={(c) => setSelectedClient(c)}
         />
       )}
@@ -736,6 +785,10 @@ export function ClientApproveTab({ autoOpenUserId }: { autoOpenUserId?: string }
           isError={rejected.isError}
           emptyMessage="No rejected client registrations."
           showRejectionNote
+          dateColumns={[
+            { label: 'Requested On', getValue: (c) => formatDateTime(c.created_at) },
+            { label: 'Rejected On', getValue: (c) => formatDateTime(c.updated_at) },
+          ]}
           onRowClick={(c) => setSelectedClient(c)}
         />
       )}
