@@ -20,7 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ConfirmModal } from '@modules/shared-ui';
 import type { IClient } from '@contracts';
-import { PaymentMode } from '@contracts';
+import type { PaymentMode } from '@contracts';
 import { getDateRangeFromPreset } from '@lib/utils';
 import {
   useAdminClientPaymentMethods,
@@ -30,6 +30,7 @@ import {
 } from '../hooks/use-admin-clients';
 import { useAdminJobCards } from '../hooks/use-admin-jobs';
 import type { UpdateClientBody } from '../services/admin.service';
+import { formatPaymentMode, formatPaymentTerms, parsePaymentDetails, PAYMENT_MODE_LABELS } from '../utils/payment-display';
 
 export type ClientModalMode = 'view' | 'edit';
 
@@ -200,18 +201,7 @@ function JobsRangeDropdown({ value, onChange }: JobsRangeDropdownProps) {
   );
 }
 
-const PAYMENT_OPTIONS: { value: PaymentMode; label: string }[] = [
-  { value: PaymentMode.CREDIT_CARD, label: 'Credit Card' },
-  { value: PaymentMode.CARD_ON_FILE, label: 'Card on File' },
-  { value: PaymentMode.ACH, label: 'ACH' },
-  { value: PaymentMode.PAYPAL, label: 'PayPal' },
-  { value: PaymentMode.CHECK, label: 'Check' },
-];
-
-function formatPaymentMode(mode: PaymentMode | null | string): string {
-  if (!mode) return '—';
-  return PAYMENT_OPTIONS.find((p) => p.value === mode)?.label ?? String(mode);
-}
+const PAYMENT_OPTIONS = PAYMENT_MODE_LABELS;
 
 const CURRENCY_NAMES: Record<string, string> = {
   USD: 'US Dollar', CAD: 'Canadian Dollar', GBP: 'British Pound', EUR: 'Euro',
@@ -453,12 +443,19 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
   const displayId = client.client_id || '—';
   const displayCountry = client.country || '';
   const flagUrl = getCountryFlagUrl(displayCountry);
-  const { city, state, zip } = parseLocation(client.location);
+  // Prefer the dedicated city/state/zipcode columns; fall back to parsing the
+  // legacy free-text `location` string for older records created before those
+  // columns existed (migration 0020_client_signup_fields.sql).
+  const parsedLocation = parseLocation(client.location);
+  const city = client.city || parsedLocation.city;
+  const state = client.state || parsedLocation.state;
+  const zip = client.zipcode || parsedLocation.zip;
 
   const cardOnFile = client.card_on_file;
   const cardExpiry = cardOnFile
     ? `${String(cardOnFile.exp_month).padStart(2, '0')}/${String(cardOnFile.exp_year).slice(-2)}`
     : null;
+  const paymentDetailFields = parsePaymentDetails(client.payment_mode, client.payment_details);
 
   const approvalStatusLabel =
     client.approval_status === 'PENDING'
@@ -737,9 +734,16 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
                       <span className="font-semibold text-slate-900">{companyName}</span>
                     </div>
                     <div className="grid grid-cols-[128px_12px_1fr] gap-x-2">
-                      <span className="text-slate-500 font-medium">Email</span>
+                      <span className="text-slate-500 font-medium">Business Email</span>
                       <span className="font-semibold text-slate-900">:</span>
                       <span className="font-semibold text-slate-900">{client.email || '—'}</span>
+                    </div>
+                    <div className="grid grid-cols-[128px_12px_1fr] gap-x-2">
+                      <span className="text-slate-500 font-medium">Login Email</span>
+                      <span className="font-semibold text-slate-900">:</span>
+                      <span className="font-semibold text-slate-900">
+                        {client.login_email || <span className="text-slate-400 font-medium italic">Not linked</span>}
+                      </span>
                     </div>
                     <div className="grid grid-cols-[128px_12px_1fr] gap-x-2">
                       <span className="text-slate-500 font-medium">Phone Number</span>
@@ -810,6 +814,11 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
                       <span className="font-semibold text-slate-900">:</span>
                       <span className="font-semibold text-slate-900">{formatPaymentMode(client.payment_mode)}</span>
                     </div>
+                    <div className="grid grid-cols-[100px_12px_1fr] gap-x-2">
+                      <span className="text-slate-500 font-medium">Payment Terms</span>
+                      <span className="font-semibold text-slate-900">:</span>
+                      <span className="font-semibold text-slate-900">{formatPaymentTerms(client.payment_terms)}</span>
+                    </div>
                     {cardOnFile ? (
                       <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 space-y-1.5 text-[11px]">
                         <div className="flex items-center justify-between gap-4">
@@ -821,8 +830,17 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
                           <span className="font-semibold text-slate-800">: {cardExpiry}</span>
                         </div>
                       </div>
+                    ) : paymentDetailFields.length > 0 ? (
+                      <div className="p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 space-y-1.5 text-[11px]">
+                        {paymentDetailFields.map((f) => (
+                          <div key={f.label} className="flex items-center justify-between gap-4">
+                            <span className="text-slate-500 font-medium">{f.label}</span>
+                            <span className="font-semibold text-slate-800">: {f.value}</span>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      <div className="text-[11px] text-slate-400">No card on file</div>
+                      <div className="text-[11px] text-slate-400">No payment details on file</div>
                     )}
                   </div>
 

@@ -5,6 +5,7 @@ import {
   Building2,
   Check,
   Clock,
+  CreditCard,
   HelpCircle,
   Info,
   Loader2,
@@ -24,6 +25,7 @@ import {
   useRejectedClients,
   useSendCcForm,
 } from '../hooks/use-admin-clients';
+import { formatPaymentMode, formatPaymentTerms, parsePaymentDetails } from '../utils/payment-display';
 import { ApproveClientModal } from './ApproveClientModal';
 import { RejectClientModal } from './RejectClientModal';
 
@@ -95,6 +97,7 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
 
   const displayId = client.client_id || '—';
   const clientName = client.contact_name || client.client_name || '—';
+  const paymentDetailFields = parsePaymentDetails(client.payment_mode, client.payment_details);
 
   const modal = (
     <div
@@ -241,8 +244,14 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
                 <span className="font-bold text-slate-900 text-sm">{client.contact_name}</span>
               </div>
               <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Email</span>
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Business Email</span>
                 <span className="font-bold text-slate-900 text-sm">{client.email}</span>
+              </div>
+              <div>
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Login Email</span>
+                <span className="font-bold text-slate-900 text-sm">
+                  {client.login_email ?? <span className="text-slate-400 font-medium italic">Not linked</span>}
+                </span>
               </div>
               <div>
                 <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Phone</span>
@@ -252,13 +261,25 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
                 <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Company</span>
                 <span className="font-bold text-slate-900">{client.company_name || '—'}</span>
               </div>
+              <div className="sm:col-span-2">
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Business Address</span>
+                <span className="font-bold text-slate-900">{client.address || '—'}</span>
+              </div>
               <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Location</span>
-                <span className="font-bold text-slate-900">{client.location || '—'}</span>
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">City</span>
+                <span className="font-bold text-slate-900">{client.city || '—'}</span>
+              </div>
+              <div>
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">State</span>
+                <span className="font-bold text-slate-900">{client.state || '—'}</span>
               </div>
               <div>
                 <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Country</span>
                 <span className="font-bold text-slate-900">{client.country || '—'}</span>
+              </div>
+              <div>
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">ZIP / Postal Code</span>
+                <span className="font-bold text-slate-900">{client.zipcode || '—'}</span>
               </div>
               <div>
                 <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Currency</span>
@@ -268,6 +289,35 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
                 <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Registered On</span>
                 <span className="font-bold text-slate-900">{formatDate(client.created_at)}</span>
               </div>
+            </div>
+          </div>
+
+          {/* 2b. PAYMENT INFORMATION SECTION */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-rose-500 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <CreditCard className="w-4 h-4 text-rose-500" />
+              <span>Payment Information</span>
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-[6px] border border-slate-200/90 text-xs">
+              <div>
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Payment Mode</span>
+                <span className="font-bold text-slate-900">{formatPaymentMode(client.payment_mode)}</span>
+              </div>
+              <div>
+                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Payment Terms</span>
+                <span className="font-bold text-slate-900">{formatPaymentTerms(client.payment_terms)}</span>
+              </div>
+              {paymentDetailFields.length > 0 && (
+                <div className="sm:col-span-2 space-y-1.5 pt-2 border-t border-slate-200/70">
+                  {paymentDetailFields.map((f) => (
+                    <div key={f.label} className="flex items-center justify-between gap-4">
+                      <span className="text-slate-500 font-medium">{f.label}</span>
+                      <span className="font-bold text-slate-900">{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -417,7 +467,8 @@ function ClientTable({
             <th>Generated ID</th>
             <th>Name</th>
             <th>Company</th>
-            <th>Email</th>
+            <th>Business Email</th>
+            <th>Login Email</th>
             <th>Phone</th>
             <th>Location</th>
             <th>Country</th>
@@ -450,6 +501,11 @@ function ClientTable({
               <td>
                 <div className="text-[12px] whitespace-nowrap truncate max-w-[150px]" title={c.email}>
                   {c.email}
+                </div>
+              </td>
+              <td>
+                <div className="text-[12px] text-text-muted whitespace-nowrap truncate max-w-[150px]" title={c.login_email || ''}>
+                  {c.login_email || '—'}
                 </div>
               </td>
               <td>
@@ -559,6 +615,7 @@ export function ClientApproveTab({ autoOpenUserId }: { autoOpenUserId?: string }
       (c.contact_name && c.contact_name.toLowerCase().includes(q)) ||
       (c.client_name && c.client_name.toLowerCase().includes(q)) ||
       (c.email && c.email.toLowerCase().includes(q)) ||
+      (c.login_email && c.login_email.toLowerCase().includes(q)) ||
       (c.contact_number && c.contact_number.toLowerCase().includes(q)) ||
       (c.company_name && c.company_name.toLowerCase().includes(q)) ||
       (c.location && c.location.toLowerCase().includes(q)) ||
