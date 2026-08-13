@@ -275,52 +275,58 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
               <span>Client Information</span>
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/50 p-4 rounded-[6px] border border-slate-200/90 text-xs">
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Name</span>
-                <span className="font-bold text-slate-900 text-sm">{client.contact_name}</span>
+            <div className="bg-slate-50/50 p-4 rounded-[6px] border border-slate-200/90 text-xs space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Name</span>
+                  <span className="font-bold text-slate-900 text-sm">{client.contact_name}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Business Email</span>
+                  <span className="font-bold text-slate-900 text-sm">{client.email}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Login Email</span>
+                  <span className="font-bold text-slate-900 text-sm">
+                    {client.login_email ?? <span className="text-slate-400 font-medium italic">Not linked</span>}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Phone</span>
+                  <span className="font-bold text-slate-900 font-mono">{client.contact_number || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Company</span>
+                  <span className="font-bold text-slate-900">{client.company_name || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Currency</span>
+                  <span className="font-bold text-slate-900">{client.currency || 'USD'}</span>
+                </div>
               </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Business Email</span>
-                <span className="font-bold text-slate-900 text-sm">{client.email}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Login Email</span>
-                <span className="font-bold text-slate-900 text-sm">
-                  {client.login_email ?? <span className="text-slate-400 font-medium italic">Not linked</span>}
-                </span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Phone</span>
-                <span className="font-bold text-slate-900 font-mono">{client.contact_number || '—'}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Company</span>
-                <span className="font-bold text-slate-900">{client.company_name || '—'}</span>
-              </div>
-              <div className="sm:col-span-2">
+
+              <div className="border-t border-slate-200/70 pt-4">
                 <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Business Address</span>
                 <span className="font-bold text-slate-900">{client.address || '—'}</span>
               </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">City</span>
-                <span className="font-bold text-slate-900">{client.city || '—'}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">State</span>
-                <span className="font-bold text-slate-900">{client.state || '—'}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Country</span>
-                <span className="font-bold text-slate-900">{client.country || '—'}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">ZIP / Postal Code</span>
-                <span className="font-bold text-slate-900">{client.zipcode || '—'}</span>
-              </div>
-              <div>
-                <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Currency</span>
-                <span className="font-bold text-slate-900">{client.currency || 'USD'}</span>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-slate-200/70 pt-4">
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">City</span>
+                  <span className="font-bold text-slate-900">{client.city || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">State</span>
+                  <span className="font-bold text-slate-900">{client.state || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">Country</span>
+                  <span className="font-bold text-slate-900">{client.country || '—'}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-slate-400 font-semibold mb-0.5">ZIP / Postal Code</span>
+                  <span className="font-bold text-slate-900">{client.zipcode || '—'}</span>
+                </div>
               </div>
             </div>
           </div>
