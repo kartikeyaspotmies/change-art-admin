@@ -155,10 +155,10 @@ function JobsRangeDropdown({ value, onChange }: JobsRangeDropdownProps) {
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="h-8 rounded-lg border border-blue-300/80 bg-white px-3 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-2xs focus:outline-none flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-colors"
+        className="h-8 min-w-[130px] rounded-[6px] border border-blue-300 bg-white px-3 text-[12px] font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer shadow-2xs focus:outline-none flex items-center justify-between gap-2 shrink-0 whitespace-nowrap transition-colors"
       >
         <span>{value}</span>
-        <ChevronDown className={`w-3.5 h-3.5 text-blue-600 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-[#2563eb] transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && pos
@@ -167,7 +167,7 @@ function JobsRangeDropdown({ value, onChange }: JobsRangeDropdownProps) {
               <div className="fixed inset-0 z-[59]" role="presentation" onClick={() => setOpen(false)} />
               <div
                 role="listbox"
-                className="fixed z-[60] rounded-lg border border-blue-100 bg-white shadow-xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 min-w-[130px]"
+                className="fixed z-[60] rounded-[6px] border border-blue-100 bg-white shadow-xl py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100 min-w-[130px]"
                 style={{ top: pos.top, left: pos.left }}
               >
                 {JOBS_RANGE_OPTIONS.map((opt) => {
@@ -669,33 +669,38 @@ export function ClientDetailModal({ client, mode = 'view', onClose }: ClientDeta
                     </div>
 
                     {/* Right Card: Total Jobs Given */}
-                    <div className="shrink-0 rounded-xl border border-blue-100 bg-[#f0f7ff] px-3.5 py-3 flex items-center gap-3.5 shadow-2xs">
-                      <div className="w-10 h-10 rounded-xl bg-blue-100/70 border border-blue-200/50 flex items-center justify-center text-blue-600 shrink-0">
-                        <Briefcase className="w-5 h-5 text-blue-600" />
+                    <div className="shrink-0 rounded-[8px] border border-blue-100 bg-[#f0f7ff] px-4 py-3 flex items-center gap-4 shadow-2xs">
+                      <div className="w-11 h-11 rounded-[8px] bg-blue-100/80 border border-blue-200/60 flex items-center justify-center text-blue-600 shrink-0">
+                        <Briefcase className="w-6 h-6 text-[#2563eb]" />
                       </div>
 
-                      <div className="flex flex-col shrink-0">
-                        <span className="text-[12px] font-semibold text-slate-600 leading-tight whitespace-nowrap">Total Jobs Given</span>
-                        {isJobsLoading ? (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
-                            <span className="text-xs text-blue-500 font-semibold">Loading...</span>
-                          </div>
-                        ) : (
-                          <span className="text-xl font-bold text-[#2563eb] leading-tight mt-0.5">{filteredJobsCount}</span>
-                        )}
+                      <div className="flex flex-col min-w-0">
+                        <span className="block text-[12px] font-bold text-slate-600 mb-1 leading-tight whitespace-nowrap">
+                          Total Jobs Given
+                        </span>
+
+                        <div className="flex items-center gap-3">
+                          {isJobsLoading ? (
+                            <div className="flex items-center gap-1">
+                              <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                              <span className="text-xs text-blue-500 font-semibold">Loading...</span>
+                            </div>
+                          ) : (
+                            <span className="text-2xl font-black text-[#2563eb] leading-none">{filteredJobsCount}</span>
+                          )}
+
+                          <JobsRangeDropdown value={jobsRange} onChange={setJobsRange} />
+
+                          <button
+                            type="button"
+                            onClick={handleViewJobs}
+                            className="text-xs font-bold text-[#2563eb] hover:text-blue-700 flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 ml-1 transition-colors hover:underline"
+                          >
+                            <span>View Jobs</span>
+                            <span className="text-sm font-bold">→</span>
+                          </button>
+                        </div>
                       </div>
-
-                      <JobsRangeDropdown value={jobsRange} onChange={setJobsRange} />
-
-                      <button
-                        type="button"
-                        onClick={handleViewJobs}
-                        className="text-xs font-bold text-[#2563eb] hover:text-blue-700 flex items-center gap-1 cursor-pointer whitespace-nowrap shrink-0 ml-1 transition-colors hover:underline"
-                      >
-                        <span>View Jobs</span>
-                        <span className="text-sm font-semibold">→</span>
-                      </button>
                     </div>
                   </div>
                 </div>

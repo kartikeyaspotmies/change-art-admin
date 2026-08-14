@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   AlertCircle,
-  ArrowUpDown,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -542,6 +542,21 @@ export function ClientRecordsView({
     return sortedRecords.slice(startIndex, startIndex + pageSize);
   }, [sortedRecords, startIndex, pageSize]);
 
+  function renderSortIcon(field: keyof ClientDisplayRecord) {
+    const isSorted = sortField === field;
+    if (!isSorted) {
+      return <ChevronDown className="w-3 h-3 text-slate-400/70 shrink-0 transition-transform" />;
+    }
+    return (
+      <ChevronDown
+        className={cn(
+          'w-3 h-3 text-rose-600 font-bold shrink-0 transition-transform duration-150',
+          sortDir === 'asc' && 'rotate-180'
+        )}
+      />
+    );
+  }
+
   function handleSort(field: keyof ClientDisplayRecord) {
     if (sortField === field) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -834,7 +849,7 @@ export function ClientRecordsView({
                 >
                   <div className="flex items-center gap-1">
                     <span>Client ID</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    {renderSortIcon('client_id')}
                   </div>
                 </th>
 
@@ -844,7 +859,7 @@ export function ClientRecordsView({
                 >
                   <div className="flex items-center gap-1">
                     <span>Client Name</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    {renderSortIcon('client_name')}
                   </div>
                 </th>
 
@@ -857,7 +872,7 @@ export function ClientRecordsView({
                 >
                   <div className="flex items-center gap-1">
                     <span>Contact Number</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    {renderSortIcon('contact_number')}
                   </div>
                 </th>
 
@@ -867,7 +882,7 @@ export function ClientRecordsView({
                 >
                   <div className="flex items-center gap-1">
                     <span>Country</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    {renderSortIcon('country')}
                   </div>
                 </th>
 
@@ -877,7 +892,7 @@ export function ClientRecordsView({
                 >
                   <div className="flex items-center gap-1">
                     <span>Joined On</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    {renderSortIcon('joined_on')}
                   </div>
                 </th>
 
@@ -887,7 +902,7 @@ export function ClientRecordsView({
                 >
                   <div className="flex items-center gap-1">
                     <span>Last Updated</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    {renderSortIcon('last_updated_date')}
                   </div>
                 </th>
 
@@ -897,7 +912,7 @@ export function ClientRecordsView({
                 >
                   <div className="flex items-center gap-1">
                     <span>Status</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                    {renderSortIcon('status')}
                   </div>
                 </th>
 
