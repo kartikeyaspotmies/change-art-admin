@@ -49,16 +49,26 @@ export function parsePaymentDetails(
 
   switch (mode) {
     case PaymentMode.CREDIT_CARD:
+      return [
+        field('holder') && { label: 'Cardholder Name', value: field('holder')! },
+        field('number') && { label: 'Card Last Four Digits', value: field('number')! },
+        field('expiry') && { label: 'Card Expiry Date', value: field('expiry')! },
+        field('zip') && { label: 'Billing ZIP / Postal', value: field('zip')! },
+      ].filter((x): x is { label: string; value: string } => !!x);
     case PaymentMode.CARD_ON_FILE:
       return [
-        field('number') && { label: 'Card Last 4 Digits', value: field('number')! },
-        field('expiry') && { label: 'Card Expiry Date', value: field('expiry')! },
         field('holder') && { label: 'Cardholder Name', value: field('holder')! },
+        field('number') && { label: 'Card Last Four Digits', value: field('number')! },
+        field('expiry') && { label: 'Card Expiry Date', value: field('expiry')! },
+        field('billingAddress') && { label: 'Billing Address', value: field('billingAddress')! },
+        data['consent'] === true && { label: 'Card-on-File Consent', value: 'Authorized' },
       ].filter((x): x is { label: string; value: string } => !!x);
     case PaymentMode.CHECK:
       return [
         field('payee') && { label: 'Payee Name', value: field('payee')! },
         field('number') && { label: 'Check Number', value: field('number')! },
+        field('routing') && { label: 'Routing Number', value: field('routing')! },
+        field('account') && { label: 'Account Number', value: field('account')! },
       ].filter((x): x is { label: string; value: string } => !!x);
     case PaymentMode.PAYPAL:
       return field('email') ? [{ label: 'PayPal Email', value: field('email')! }] : [];

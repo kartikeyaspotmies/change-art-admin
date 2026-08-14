@@ -55,6 +55,22 @@ function formatDateTime(d: string | Date) {
   return `${dateStr} ${timeStr}`;
 }
 
+function parseDateParts(d: string | Date) {
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return { dateStr: String(d), timeStr: '' };
+  const dateStr = date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return { dateStr, timeStr };
+}
+
 // ─── Client detail modal ──────────────────────────────────────────────────────
 
 interface DetailModalProps {
@@ -113,6 +129,9 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
   const displayId = client.client_id || '—';
   const clientName = client.contact_name || client.client_name || '—';
   const paymentDetailFields = parsePaymentDetails(client.payment_mode, client.payment_details);
+  const joinedParts = parseDateParts(client.date);
+  const createdParts = parseDateParts(client.created_at);
+  const updatedParts = parseDateParts(client.updated_at);
 
   const modal = (
     <div
@@ -127,11 +146,16 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── MODAL HEADER ── */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Client Registration Details</h2>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-start justify-between shrink-0 bg-white">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Review Client Signup Request</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Please review the client details carefully. Approve to activate their account or reject if any changes are required.
+            </p>
+          </div>
           <button
             type="button"
-            className="w-8 h-8 rounded-[6px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer"
+            className="w-8 h-8 rounded-[6px] text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer shrink-0 mt-0.5"
             onClick={onClose}
             aria-label="Close"
           >
@@ -140,75 +164,81 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
         </div>
 
         {/* ── MODAL BODY ── */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+        <div className="px-6 pt-4 pb-6 overflow-y-auto space-y-6 flex-1 text-xs">
           {/* 1. TOP SUMMARY SECTION */}
-          <div className="flex gap-4">
-            <div className="w-14 h-14 rounded-[6px] bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 shrink-0">
-              <Building2 className="w-7 h-7" />
+          <div className="flex items-center gap-5">
+            {/* Amber Building Icon Box */}
+            <div className="w-14 h-14 rounded-lg bg-[#fffbeb] border border-[#fde68a] flex items-center justify-center text-amber-500 shrink-0">
+              <Building2 className="w-7 h-7 text-amber-500" />
             </div>
 
-            <div className="flex-1 min-w-0 space-y-4">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                <div>
-                  <span className="block text-[11px] font-semibold text-slate-500 mb-0.5">Generated ID</span>
-                  {subTab === 'pending' && isEditingId ? (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <div className="relative">
-                          <input
-                            type="text"
-                            className={`w-28 px-2.5 py-0.5 text-lg font-black bg-white border rounded-[6px] focus:outline-none focus:ring-2 tracking-tight shadow-2xs font-mono ${
-                              !isValidFormat || hasIdError
-                                ? 'border-rose-400 text-rose-600 focus:ring-rose-500/20 focus:border-rose-500'
-                                : 'border-slate-300 text-[#e11d48] focus:ring-rose-500/20 focus:border-rose-500'
-                            }`}
-                            value={editableClientId}
-                            onChange={(e) => setEditableClientId(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                            maxLength={5}
-                            autoFocus
-                            placeholder="5 digits"
-                            title="Edit 5-digit Client ID"
-                          />
-                          {isCheckingId && (
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                              <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />
-                            </div>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          className="p-1.5 rounded-[6px] bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 transition cursor-pointer disabled:opacity-50"
-                          onClick={() => {
-                            if (isValidFormat && isIdAvailable) setIsEditingId(false);
-                          }}
-                          disabled={!isValidFormat || !isIdAvailable || isCheckingId}
-                          title="Confirm Client ID"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      </div>
+            <div className="flex-1 min-w-0 flex items-center gap-x-6 overflow-x-auto">
+              {/* Column 1: Client ID */}
+              <div className="shrink-0">
+                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 mb-1">
+                  <span>Client ID (Editable before activation)</span>
+                  <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                </div>
 
-                      {editableClientId.length > 0 && !isValidFormat && (
-                        <p className="text-[10.5px] text-rose-500 font-medium">
-                          Must be exactly 5 digits.
-                        </p>
-                      )}
-                      {hasIdError && !isCheckingId && (
-                        <p className="text-[10.5px] text-rose-500 font-semibold flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                          <span>Client ID {editableClientId} already exists!</span>
-                        </p>
-                      )}
+                {subTab === 'pending' && isEditingId ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          className={`w-32 px-3 py-1.5 text-sm font-bold bg-white border rounded-lg focus:outline-none focus:ring-2 tracking-tight shadow-2xs font-mono ${
+                            !isValidFormat || hasIdError
+                              ? 'border-rose-400 text-rose-600 focus:ring-rose-500/20 focus:border-rose-500'
+                              : 'border-slate-300 text-slate-900 focus:ring-rose-500/20 focus:border-rose-500'
+                          }`}
+                          value={editableClientId}
+                          onChange={(e) => setEditableClientId(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                          maxLength={5}
+                          autoFocus
+                          placeholder="5 digits"
+                          title="Edit 5-digit Client ID"
+                        />
+                        {isCheckingId && (
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                            <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 transition cursor-pointer disabled:opacity-50"
+                        onClick={() => {
+                          if (isValidFormat && isIdAvailable) setIsEditingId(false);
+                        }}
+                        disabled={!isValidFormat || !isIdAvailable || isCheckingId}
+                        title="Confirm Client ID"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-black text-[#e11d48] tracking-tight">
+
+                    {editableClientId.length > 0 && !isValidFormat && (
+                      <p className="text-[10.5px] text-rose-500 font-medium">
+                        Must be exactly 5 digits.
+                      </p>
+                    )}
+                    {hasIdError && !isCheckingId && (
+                      <p className="text-[10.5px] text-rose-500 font-semibold flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span>Client ID {editableClientId} already exists!</span>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="w-36 px-3 py-1.5 rounded-lg border border-slate-200 bg-white shadow-2xs flex items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-slate-900 font-mono tracking-tight">
                         {editableClientId || displayId}
                       </span>
                       {subTab === 'pending' && (
                         <button
                           type="button"
-                          className="p-1 rounded-[6px] text-slate-400 hover:text-[#e11d48] hover:bg-rose-50 transition cursor-pointer"
+                          className="p-0.5 rounded text-slate-400 hover:text-slate-700 transition cursor-pointer"
                           onClick={() => setIsEditingId(true)}
                           title="Edit Client ID"
                         >
@@ -216,54 +246,60 @@ function ClientApproveDetailModal({ client, subTab, onClose, onApprove, onReject
                         </button>
                       )}
                     </div>
-                  )}
-                </div>
-
-                <div className="hidden sm:block w-[1px] h-10 bg-slate-200" />
-
-                <div>
-                  <span className="block text-[11px] font-semibold text-slate-500 mb-1">Status</span>
-                  {subTab === 'pending' ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-[6px] text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
-                      Pending Approval
-                    </span>
-                  ) : subTab === 'approved' ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-[6px] text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200/80">
-                      Approved
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-[6px] text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200/80">
-                      Rejected
-                    </span>
-                  )}
-                </div>
-
-                <div className="hidden sm:block w-[1px] h-10 bg-slate-200" />
-
-                <div>
-                  <span className="block text-[11px] font-semibold text-slate-500 mb-1">Requested On</span>
-                  <span className="text-xs font-bold text-slate-900">{formatDateTime(client.created_at)}</span>
-                </div>
-
-                {subTab === 'approved' && (
-                  <>
-                    <div className="hidden sm:block w-[1px] h-10 bg-slate-200" />
-                    <div>
-                      <span className="block text-[11px] font-semibold text-slate-500 mb-1">Joined On</span>
-                      <span className="text-xs font-bold text-slate-900">{formatDateTime(client.date)}</span>
-                    </div>
-                  </>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Client ID can be edited only once before activation.
+                    </p>
+                  </div>
                 )}
+              </div>
 
-                {subTab === 'rejected' && (
-                  <>
-                    <div className="hidden sm:block w-[1px] h-10 bg-slate-200" />
-                    <div>
-                      <span className="block text-[11px] font-semibold text-slate-500 mb-1">Rejected On</span>
-                      <span className="text-xs font-bold text-slate-900">{formatDateTime(client.updated_at)}</span>
-                    </div>
-                  </>
+              {/* Vertical Divider 1 */}
+              <div className="hidden sm:block w-[1px] h-10 bg-slate-200/80 shrink-0" />
+
+              {/* Column 2: Status */}
+              <div className="shrink-0 flex flex-col justify-center">
+                <span className="block text-[11px] font-semibold text-slate-500 mb-1.5">Status</span>
+                {subTab === 'pending' ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-[6px] text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                    Pending Approval
+                  </span>
+                ) : subTab === 'approved' ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-[6px] text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200/80">
+                    Approved
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-[6px] text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200/80">
+                    Rejected
+                  </span>
                 )}
+              </div>
+
+              {/* Vertical Divider 2 */}
+              <div className="hidden sm:block w-[1px] h-10 bg-slate-200/80 shrink-0" />
+
+              {/* Column 3: Joined On */}
+              {subTab === 'approved' && (
+                <>
+                  <div className="shrink-0 flex flex-col justify-center">
+                    <span className="block text-[11px] font-semibold text-slate-500 mb-1">Joined On</span>
+                    <span className="text-xs font-bold text-slate-900">{joinedParts.dateStr}</span>
+                    <span className="text-[11px] font-medium text-slate-500">{joinedParts.timeStr}</span>
+                  </div>
+                  <div className="hidden sm:block w-[1px] h-10 bg-slate-200/80 shrink-0" />
+                </>
+              )}
+
+              {/* Column 4: Requested On / Joined On */}
+              <div className="shrink-0 flex flex-col justify-center">
+                <span className="block text-[11px] font-semibold text-slate-500 mb-1">
+                  {subTab === 'rejected' ? 'Rejected On' : 'Requested On'}
+                </span>
+                <span className="text-xs font-bold text-slate-900">
+                  {subTab === 'rejected' ? updatedParts.dateStr : createdParts.dateStr}
+                </span>
+                <span className="text-[11px] font-medium text-slate-500">
+                  {subTab === 'rejected' ? updatedParts.timeStr : createdParts.timeStr}
+                </span>
               </div>
             </div>
           </div>
