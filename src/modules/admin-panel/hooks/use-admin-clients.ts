@@ -176,7 +176,7 @@ export function useResetClientPassword() {
   return useMutation({
     mutationFn: (id: string) => adminService.resetClientPassword(id),
     onSuccess: (client) => {
-      toast.success(`Password reset email sent to ${client.email ?? 'client'}`);
+      toast.success(`Password reset email sent to ${client.login_email ?? 'client'}`);
     },
     onError: (err) => toastApiError(err),
   });
