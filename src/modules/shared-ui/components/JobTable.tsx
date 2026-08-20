@@ -848,10 +848,12 @@ function GridView({
                   </div>
                 ) : null}
 
-                {/* ETA Completion Time row */}
-                {isInProd && (
+                {/* ETA Completion Time row — only once acknowledgement has actually
+                    been sent; before that there's no real ETA to show (see
+                    needsAcknowledgement above). */}
+                {isInProd && !needsAcknowledgement && (j.effectiveAcknowledgedAt ?? j.acknowledgedAt) && (
                   <div className="text-[9.5px] font-semibold text-slate-700 dark:text-slate-300 -mt-0.5">
-                    ETA: <span className="font-bold text-slate-900 dark:text-slate-100">{formatEtaDisplay(j.effectiveAcknowledgedAt ?? j.acknowledgedAt ?? j.created, j.etaHours)}</span>
+                    ETA: <span className="font-bold text-slate-900 dark:text-slate-100">{formatEtaDisplay(j.effectiveAcknowledgedAt ?? j.acknowledgedAt, j.etaHours)}</span>
                   </div>
                 )}
 

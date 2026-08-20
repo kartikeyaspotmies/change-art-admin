@@ -968,9 +968,16 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
               },
               {
                 label: 'IN PRODUCTION',
-                date: (job.effectiveAcknowledgedAt || job.acknowledgedAt)
-                  ? formatDateTime((job.effectiveAcknowledgedAt ?? job.acknowledgedAt)!)
-                  : job.etaHours ? `ETA: ${job.etaHours}h` : 'Upcoming',
+                // Only show an estimate once acknowledgement has actually been sent —
+                // the countdown starts from that moment, not from when the ETA was
+                // merely quoted/locked. Before that, there's nothing to show yet.
+                date: (() => {
+                  const ackAt = job.effectiveAcknowledgedAt ?? job.acknowledgedAt;
+                  if (!ackAt) return 'Upcoming';
+                  if (!job.etaHours) return formatDateTime(ackAt);
+                  const estCompletion = new Date(new Date(ackAt).getTime() + job.etaHours * 3600_000);
+                  return formatDateTime(estCompletion.toISOString());
+                })(),
                 icon: Pencil,
                 circleBg: 'bg-[#eff6ff]',
                 iconColor: 'text-[#2563eb]',
