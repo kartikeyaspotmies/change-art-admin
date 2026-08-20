@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { JobQueriesSection } from './JobQueriesSection';
-import { X, Download, Send, AlertCircle, Timer, CheckCircle2, FileText, Upload, Loader2, Copy, CreditCard, ShoppingCart, Pencil, Search, Play, Info, DollarSign, Check, Clock, Image as ImageIcon } from 'lucide-react';
+import { X, Download, Send, AlertCircle, Timer, CheckCircle2, FileText, Upload, Loader2, Copy, CreditCard, ShoppingCart, Pencil, Search, Play, Info, DollarSign, Check, Clock, Image as ImageIcon, User } from 'lucide-react';
 import { getCardExpiryStatus } from '@lib/card-expiry';
 import { MarkCompleteModal } from '@modules/cs-panel/components/MarkCompleteModal';
 import { useQueryClient } from '@tanstack/react-query';
@@ -259,7 +259,7 @@ function OrderSummaryRow({
   );
 }
 
-export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign: _onAssign, quoteView: _quoteView = false }: JobDetailModalProps) {
+export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteView: _quoteView = false }: JobDetailModalProps) {
   const user = useSessionUser();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'overview' | 'requirements' | 'messages' | 'notes' | 'activity'>('overview');
@@ -2145,16 +2145,14 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign: _onAss
                 <span>Send Acknowledgement</span>
               </button>
             )}
-            {/* Phase 2: Assign
             <button
               type="button"
               className="btn bg-purple-600 hover:bg-purple-700 text-white text-[11.5px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
-              onClick={() => onAssign ? onAssign(job) : toast.success('Assigning job...')}
+              onClick={() => onAssign ? onAssign(job) : toast('Assigning jobs is coming soon in Phase 2.')}
             >
               <User className="w-3.5 h-3.5" />
               <span>Assign</span>
             </button>
-            */}
             {!isDelivered && !canAcknowledge && !quoteSent && (
               <button
                 type="button"
