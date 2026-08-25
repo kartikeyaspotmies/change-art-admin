@@ -55,6 +55,20 @@ function statusDisplay(status: string): string {
   return status;
 }
 
+/**
+ * True when a job is JOB_PLACED with no acknowledgement sent yet — the TL
+ * hasn't set an ETA, so dispatching isn't possible and there's no ETA to show.
+ * Checks the raw backend enum + acknowledgedAt directly (mirroring the
+ * adapter's own derivation in job-view.ts) instead of comparing against the
+ * 'Pending' display label, which is just one UI rendering of that state and
+ * can drift out of sync with the label used elsewhere. Falls back to the
+ * label for mock fixtures that don't carry rawStatus.
+ */
+function isPendingAcknowledgement(j: Job): boolean {
+  if (j.rawStatus) return j.rawStatus.toUpperCase() === 'JOB_PLACED' && !j.acknowledgedAt;
+  return j.status === 'Pending';
+}
+
 type JobView = 'grid' | 'list' | 'table';
 
 interface JobTableProps {
@@ -149,7 +163,7 @@ export function JobTable({
     const isQuoteAwaiting = j.project === 'Quote' || j.status === 'Quote Submitted';
     // 'Pending' = JOB_PLACED with no acknowledgement sent yet — the TL hasn't
     // set an ETA, so dispatching isn't possible until that happens.
-    const needsAcknowledgement = j.status === 'Pending';
+    const needsAcknowledgement = isPendingAcknowledgement(j);
     const showDispatch = j.stage !== 'delivered' && j.stage !== 'quote' && !needsAcknowledgement;
     return (
       <div className="job-actions flex gap-1 flex-nowrap flex-1 items-center w-full min-w-0" onClick={(e) => e.stopPropagation()}>
@@ -760,7 +774,7 @@ function GridView({
           // 'Pending' = JOB_PLACED with no acknowledgement sent yet — no ETA
           // exists to dispatch against, so show "Send ETA" instead. Excludes
           // stage 'quote', where 'Pending' means something else (see below).
-          const needsAcknowledgement = j.status === 'Pending' && j.stage !== 'quote';
+          const needsAcknowledgement = isPendingAcknowledgement(j) && j.stage !== 'quote';
           const titleClass = getTitleColorClass(j.project, j.status);
           const stageCardClass = getStageCardClass(j.project, j.status);
           const progress = stageProgressPercent(j.stage, j.status);
