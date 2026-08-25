@@ -77,221 +77,213 @@ export function CreateClientGroupPage() {
   const paginatedSelectedClients = selectedClients.slice(startIndex, startIndex + rowsPerPage);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-      {/* ── BREADCRUMB ── */}
-      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-        <button
-          type="button"
-          onClick={() => navigate(basePath)}
-          className="hover:text-blue-600 cursor-pointer"
-        >
-          Client Groups
-        </button>
-        <span>&gt;</span>
-        <span className="text-blue-600 font-semibold">Create Client Group</span>
-      </div>
-
-      {/* ── HEADER ── */}
+    <div className="max-w-6xl mx-auto px-4 py-2 space-y-2.5">
+      {/* ── PAGE TITLE ── */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Create Client Group</h1>
-        <p className="text-sm text-slate-500 mt-1 font-medium">
+        <h1 className="text-lg font-bold text-slate-900 tracking-tight">Create Client Group</h1>
+        <p className="text-[11.5px] text-slate-500 mt-0.5 font-medium">
           Create a new client group and define rules and display options.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ── SECTION 1: BASIC INFORMATION ── */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-6 space-y-5">
-          <h2 className="text-sm font-bold text-blue-600 tracking-wide">Basic Information</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-2">
-                Client Group Name <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Enter client group name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full h-10 px-3.5 text-xs rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-800 placeholder:text-slate-400 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-2">
-                Description <span className="text-slate-400 font-normal">(Optional)</span>
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Enter description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-800 placeholder:text-slate-400 transition-colors resize-y"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ── SECTION 2: DISPLAY OPTIONS ── */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-6 space-y-5">
-          <h2 className="text-sm font-bold text-blue-600 tracking-wide">Display Options</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Show in Quote */}
-            <div className="flex items-start gap-3.5 p-3 rounded-lg border border-slate-100 bg-slate-50/40">
-              <input
-                type="checkbox"
-                id="show_in_quote"
-                checked={showInQuote}
-                onChange={(e) => setShowInQuote(e.target.checked)}
-                className="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
-              />
-              <div>
-                <label htmlFor="show_in_quote" className="text-xs font-bold text-slate-900 cursor-pointer block">
-                  Show in Quote
-                </label>
-                <p className="text-[11.5px] text-slate-500 mt-0.5 font-normal">
-                  Client group name will be displayed in Quotes.
-                </p>
-              </div>
-            </div>
-
-            {/* Show in Orders */}
-            <div className="flex items-start gap-3.5 p-3 rounded-lg border border-slate-100 bg-slate-50/40">
-              <input
-                type="checkbox"
-                id="show_in_orders"
-                checked={showInOrders}
-                onChange={(e) => setShowInOrders(e.target.checked)}
-                className="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
-              />
-              <div>
-                <label htmlFor="show_in_orders" className="text-xs font-bold text-slate-900 cursor-pointer block">
-                  Show in Orders
-                </label>
-                <p className="text-[11.5px] text-slate-500 mt-0.5 font-normal">
-                  Client group name will be displayed in Orders.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── SECTION 3: ADD CLIENTS TO THIS GROUP ── */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-6 space-y-5">
-          <div>
-            <h2 className="text-sm font-bold text-blue-600 tracking-wide">
-              Add Clients to this Group <span className="text-slate-400 font-normal">(Optional)</span>
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        {/* ── SINGLE MAIN CARD CONTAINER ── */}
+        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-3.5 space-y-3">
+          {/* SECTION 1: BASIC INFORMATION */}
+          <div className="space-y-2">
+            <h2 className="text-[13px] font-extrabold text-blue-700 tracking-wide pb-1.5 border-b border-slate-200">
+              Basic Information
             </h2>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              Search and add clients who will be part of this group.
-            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-0.5">
+              <div>
+                <label className="block text-xs font-extrabold text-slate-900 mb-1">
+                  Client Group Name <span className="text-rose-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter client group name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full h-9 px-3 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal transition-colors shadow-2xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold text-slate-900 mb-1">
+                  Description <span className="text-slate-500 font-medium">(Optional)</span>
+                </label>
+                <textarea
+                  rows={1.5}
+                  placeholder="Enter description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal transition-colors shadow-2xs resize-y h-14"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Search & Add Bar */}
-          <div className="relative flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search client name or client ID"
-                value={searchQuery}
-                onFocus={() => setIsDropdownOpen(true)}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setIsDropdownOpen(true);
-                }}
-                className="w-full h-10 pl-9 pr-3.5 text-xs rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-800 placeholder:text-slate-400 transition-colors"
-              />
-
-              {/* Dropdown list of matching clients */}
-              {isDropdownOpen && availableClients.length > 0 && (
-                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {availableClients.map((c: IClient) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => handleAddClient(c)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center justify-between text-xs transition border-b border-slate-100 last:border-0 cursor-pointer"
-                    >
-                      <div>
-                        <span className="font-bold text-slate-900 block">{c.client_name}</span>
-                        <span className="text-[11px] text-slate-500">{c.email}</span>
-                      </div>
-                      <span className="font-mono text-xs text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded">
-                        {c.client_id}
-                      </span>
-                    </button>
-                  ))}
+          {/* SECTION 2: DISPLAY OPTIONS */}
+          <div className="space-y-2 pt-0.5">
+            <h2 className="text-[13px] font-extrabold text-blue-700 tracking-wide pb-1.5 border-b border-slate-200">
+              Display Options
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200/80 pt-0.5">
+              {/* Show in Quote */}
+              <div className="flex items-center gap-2.5 py-1 md:pr-4">
+                <input
+                  type="checkbox"
+                  id="show_in_quote"
+                  checked={showInQuote}
+                  onChange={(e) => setShowInQuote(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                />
+                <div>
+                  <label htmlFor="show_in_quote" className="text-xs font-extrabold text-slate-900 cursor-pointer block leading-tight">
+                    Show in Quote
+                  </label>
+                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
+                    Client group name will be displayed in Quotes.
+                  </p>
                 </div>
-              )}
+              </div>
+
+              {/* Show in Orders */}
+              <div className="flex items-center gap-2.5 py-1 md:pl-4">
+                <input
+                  type="checkbox"
+                  id="show_in_orders"
+                  checked={showInOrders}
+                  onChange={(e) => setShowInOrders(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500/20 cursor-pointer"
+                />
+                <div>
+                  <label htmlFor="show_in_orders" className="text-xs font-extrabold text-slate-900 cursor-pointer block leading-tight">
+                    Show in Orders
+                  </label>
+                  <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
+                    Client group name will be displayed in Orders.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 3: ADD CLIENTS TO THIS GROUP */}
+          <div className="border-t border-slate-200 pt-2 space-y-2">
+            <div>
+              <h2 className="text-[13px] font-extrabold text-blue-700 tracking-wide">
+                Add Clients to this Group <span className="text-slate-500 font-medium">(Optional)</span>
+              </h2>
+              <p className="text-[11.5px] text-slate-600 mt-0.5 font-medium">
+                Search and add clients who will be part of this group.
+              </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg border border-blue-600 bg-white text-blue-600 font-bold text-xs hover:bg-blue-50 transition shadow-2xs cursor-pointer shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Client</span>
-            </button>
-          </div>
+            {/* Search & Add Bar */}
+            <div className="relative flex items-center gap-2.5">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search client name or client ID"
+                  value={searchQuery}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal transition-colors shadow-2xs"
+                />
 
-          {/* Selected Clients Table */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-100/70 border-b border-slate-200 text-[11.5px] font-bold text-slate-700">
-                  <th className="py-3 px-4">Client ID</th>
-                  <th className="py-3 px-4">Client Name</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {paginatedSelectedClients.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400 text-xs font-medium">
-                      No clients added to this group yet. Use the search bar above to select clients.
-                    </td>
+                {/* Dropdown list of matching clients */}
+                {isDropdownOpen && availableClients.length > 0 && (
+                  <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-36 overflow-y-auto">
+                    {availableClients.map((c: IClient) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleAddClient(c)}
+                        className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-center justify-between text-xs transition border-b border-slate-100 last:border-0 cursor-pointer"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900 block">{c.client_name}</span>
+                          <span className="text-[10.5px] text-slate-500">{c.email}</span>
+                        </div>
+                        <span className="font-mono text-[10.5px] text-slate-600 font-semibold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
+                          {c.client_id}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-blue-600 bg-white text-blue-600 font-bold text-xs hover:bg-blue-50 transition shadow-2xs cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Client</span>
+              </button>
+            </div>
+
+            {/* Selected Clients Table */}
+            <div className="border border-slate-200/90 rounded-lg overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-700">
+                    <th className="py-1.5 px-3">Client ID</th>
+                    <th className="py-1.5 px-3">Client Name</th>
+                    <th className="py-1.5 px-3">Email</th>
+                    <th className="py-1.5 px-3 text-right">Action</th>
                   </tr>
-                ) : (
-                  paginatedSelectedClients.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-800">
-                        {c.client_id}
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-slate-900">
-                        {c.client_name}
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">{c.email}</td>
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveClient(c.id)}
-                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition cursor-pointer"
-                          title="Remove Client"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {paginatedSelectedClients.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="py-2 text-center text-slate-400 text-xs font-medium">
+                        No clients added to this group yet. Use the search bar above to select clients.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    paginatedSelectedClients.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-50/60 transition">
+                        <td className="py-1.5 px-3 font-mono font-medium text-slate-800 text-xs">
+                          {c.client_id}
+                        </td>
+                        <td className="py-1.5 px-3 font-semibold text-slate-900">
+                          {c.client_name}
+                        </td>
+                        <td className="py-1.5 px-3 text-slate-600">{c.email}</td>
+                        <td className="py-1.5 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveClient(c.id)}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition cursor-pointer"
+                            title="Remove Client"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
             {/* Table Footer / Pagination */}
-            <div className="bg-white px-4 py-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600 font-medium">
+            <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500 font-medium">
               <div>
                 Showing {totalSelected === 0 ? 0 : startIndex + 1} to{' '}
                 {Math.min(startIndex + rowsPerPage, totalSelected)} of {totalSelected} clients
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-1.5">
                   <span>Rows per page:</span>
                   <select
                     value={rowsPerPage}
@@ -299,7 +291,7 @@ export function CreateClientGroupPage() {
                       setRowsPerPage(Number(e.target.value));
                       setCurrentPage(1);
                     }}
-                    className="h-8 border border-slate-200 rounded px-2 text-xs bg-white focus:outline-none cursor-pointer"
+                    className="h-6 border border-slate-200 rounded-lg px-1.5 text-[11px] bg-white focus:outline-none cursor-pointer"
                   >
                     <option value={5}>5</option>
                     <option value={10}>10</option>
@@ -312,44 +304,44 @@ export function CreateClientGroupPage() {
                     type="button"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-6 h-6 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-7 h-7 flex items-center justify-center rounded bg-blue-600 text-white font-bold">
+                  <span className="w-6 h-6 flex items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-[11px]">
                     {currentPage}
                   </span>
                   <button
                     type="button"
                     disabled={currentPage >= totalPages}
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className="w-6 h-6 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* ── FOOTER BUTTONS ── */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <button
-            type="button"
-            onClick={() => navigate(basePath)}
-            className="px-5 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition cursor-pointer shadow-2xs"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={createGroup.isPending || !name.trim()}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <UsersIcon className="w-4 h-4" />
-            <span>{createGroup.isPending ? 'Creating...' : 'Create Client Group'}</span>
-          </button>
+          {/* ── CARD FOOTER / ACTION BUTTONS AREA ── */}
+          <div className="border-t border-slate-200/80 pt-3 flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={() => navigate(basePath)}
+              className="px-4 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createGroup.isPending || !name.trim()}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <UsersIcon className="w-3.5 h-3.5" />
+              <span>{createGroup.isPending ? 'Creating...' : 'Create Client Group'}</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>

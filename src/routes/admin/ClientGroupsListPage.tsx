@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Plus, Users, Edit, Trash2, CheckCircle2, XCircle, Search } from 'lucide-react';
 import { useClientGroups, useDeleteClientGroup, useUpdateClientGroup } from '@modules/admin-panel/hooks/use-client-groups';
@@ -161,39 +162,41 @@ export function ClientGroupsListPage() {
       )}
 
       {/* ── DELETE CONFIRMATION MODAL ── */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl p-6 max-w-md w-full space-y-4 animate-in fade-in zoom-in-95">
-            <h3 className="text-lg font-bold text-slate-900">Delete Client Group?</h3>
-            <p className="text-xs text-slate-600 leading-relaxed font-medium">
-              Are you sure you want to delete this Client Group? Clients assigned to this group will no longer have group display settings applied.
-            </p>
+      {deleteConfirmId &&
+        createPortal(
+          <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-2xl p-6 max-w-md w-full space-y-4 animate-in fade-in zoom-in-95">
+              <h3 className="text-lg font-bold text-slate-900">Delete Client Group?</h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                Are you sure you want to delete this Client Group? Clients assigned to this group will no longer have group display settings applied.
+              </p>
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmId(null)}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
-              >
-                Cancel
-              </button>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmId(null)}
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  deleteGroup.mutate(deleteConfirmId, {
-                    onSuccess: () => setDeleteConfirmId(null),
-                  });
-                }}
-                disabled={deleteGroup.isPending}
-                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition cursor-pointer shadow-xs disabled:opacity-50"
-              >
-                {deleteGroup.isPending ? 'Deleting...' : 'Delete Group'}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteGroup.mutate(deleteConfirmId, {
+                      onSuccess: () => setDeleteConfirmId(null),
+                    });
+                  }}
+                  disabled={deleteGroup.isPending}
+                  className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {deleteGroup.isPending ? 'Deleting...' : 'Delete Group'}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -252,7 +255,7 @@ function EditClientGroupModal({
     );
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 my-auto">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -314,7 +317,12 @@ function EditClientGroupModal({
           </div>
 
           <div className="space-y-3 pt-3 border-t border-slate-100">
-            <span className="block font-bold text-slate-900">Manage Group Clients</span>
+            <div className="flex items-center justify-between">
+              <span className="block font-bold text-slate-900">Manage Group Clients</span>
+              <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-full">
+                {selectedClients.length} {selectedClients.length === 1 ? 'client' : 'clients'}
+              </span>
+            </div>
 
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -327,11 +335,11 @@ function EditClientGroupModal({
                   setSearchQuery(e.target.value);
                   setIsDropdownOpen(true);
                 }}
-                className="w-full h-9 pl-8 pr-3 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full h-9 pl-8 pr-3 text-xs rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-800 placeholder:text-slate-400"
               />
 
               {isDropdownOpen && availableClients.length > 0 && (
-                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-48 overflow-y-auto divide-y divide-slate-100">
                   {availableClients.map((c: IClient) => (
                     <button
                       key={c.id}
@@ -341,30 +349,45 @@ function EditClientGroupModal({
                         setSearchQuery('');
                         setIsDropdownOpen(false);
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-blue-50 flex items-center justify-between text-xs transition border-b border-slate-100 last:border-0 cursor-pointer"
+                      className="w-full text-left px-3 py-2 hover:bg-blue-50/70 flex items-center justify-between text-xs transition cursor-pointer group"
                     >
-                      <span className="font-bold text-slate-900">{c.client_name}</span>
-                      <span className="font-mono text-[11px] text-rose-500 font-bold">{c.client_id}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{c.client_name}</span>
+                        {c.company_name && (
+                          <span className="text-[11px] text-slate-400 font-normal">({c.company_name})</span>
+                        )}
+                      </div>
+                      <span className="font-mono text-[10.5px] text-slate-600 bg-slate-100 group-hover:bg-blue-100 group-hover:text-blue-700 px-2 py-0.5 rounded font-semibold border border-slate-200/80 group-hover:border-blue-200 transition-colors">
+                        {c.client_id}
+                      </span>
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
+            <div className="bg-slate-50/60 border border-slate-200 rounded-xl p-2 max-h-48 overflow-y-auto space-y-1.5">
               {selectedClients.length === 0 ? (
-                <div className="p-3 text-center text-slate-400 italic">No clients assigned</div>
+                <div className="p-4 text-center text-slate-400 text-xs italic">
+                  No clients assigned to this group yet
+                </div>
               ) : (
                 selectedClients.map((c) => (
-                  <div key={c.id} className="p-2.5 flex items-center justify-between hover:bg-slate-50">
-                    <div>
-                      <span className="font-bold text-slate-900 block">{c.client_name}</span>
-                      <span className="font-mono text-[10.5px] text-rose-500 font-semibold">{c.client_id}</span>
+                  <div
+                    key={c.id}
+                    className="p-2.5 bg-white border border-slate-200/90 rounded-lg flex items-center justify-between shadow-2xs hover:border-slate-300 transition-all"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-bold text-slate-900 text-xs">{c.client_name}</span>
+                      <span className="font-mono text-[10.5px] text-slate-600 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md font-semibold">
+                        {c.client_id}
+                      </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setSelectedClients((prev) => prev.filter((sc) => sc.id !== c.id))}
-                      className="p-1 text-rose-500 hover:bg-rose-50 rounded cursor-pointer"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title="Remove client"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -392,6 +415,7 @@ function EditClientGroupModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
