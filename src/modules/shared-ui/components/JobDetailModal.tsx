@@ -2174,14 +2174,16 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 <span>Send Acknowledgement</span>
               </button>
             )}
-            <button
-              type="button"
-              className="btn bg-purple-600 hover:bg-purple-700 text-white text-[11.5px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
-              onClick={() => onAssign ? onAssign(job) : toast('Assigning jobs is coming soon in Phase 2.')}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Assign</span>
-            </button>
+            {!job.assignedTo && job.stage !== 'delivered' && job.stage !== 'quote' && (
+              <button
+                type="button"
+                className="btn bg-purple-600 hover:bg-purple-700 text-white text-[11.5px] font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm"
+                onClick={() => onAssign ? onAssign(job) : toast('Assigning jobs is coming soon in Phase 2.')}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Assign</span>
+              </button>
+            )}
             {!isDelivered && !canAcknowledge && !quoteSent && (
               <button
                 type="button"
