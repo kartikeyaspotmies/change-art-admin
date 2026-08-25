@@ -975,8 +975,8 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                   const ackAt = job.effectiveAcknowledgedAt ?? job.acknowledgedAt;
                   if (!ackAt) return 'Upcoming';
                   if (!job.etaHours) return formatDateTime(ackAt);
-                  const estCompletion = new Date(new Date(ackAt).getTime() + job.etaHours * 3600_000);
-                  return formatDateTime(estCompletion.toISOString());
+                  const estCompletionIso = computeExpectedCompletionIso(ackAt, job.etaHours);
+                  return estCompletionIso ? formatDateTime(estCompletionIso) : formatDateTime(ackAt);
                 })(),
                 icon: Pencil,
                 circleBg: 'bg-[#eff6ff]',
