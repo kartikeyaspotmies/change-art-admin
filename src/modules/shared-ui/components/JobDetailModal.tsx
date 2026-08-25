@@ -426,8 +426,12 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
   const canonicalRoomId = (job?.isAdminCopy && job?.parentJobId) ? job.parentJobId : (job?.uuid ?? null);
   useJobRoom(canonicalRoomId);
 
-  const { data: internalNotesList = [] } = useJobNotes(canonicalRoomId);
-  const addJobNoteMutation = useAddJobNote(canonicalRoomId);
+  // Notes are scoped to this specific job_cards row (not the canonical/original
+  // job used for queries+socket) — an admin copy has its own notes, distinct
+  // from the original client job's, so reusing canonicalRoomId here would
+  // read/write notes against the wrong job record.
+  const { data: internalNotesList = [] } = useJobNotes(job?.uuid ?? null);
+  const addJobNoteMutation = useAddJobNote(job?.uuid ?? null);
   const handleAddInternalNote = useCallback(() => {
     const text = newInternalNote.trim();
     if (!text) return;
