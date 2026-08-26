@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Plus, Trash2, Users as UsersIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCreateClientGroup } from '@modules/admin-panel/hooks/use-client-groups';
@@ -27,6 +27,22 @@ export function CreateClientGroupPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent | TouchEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // Fetch directory clients for adding to group
   const { data: clientsData } = useAdminClients({
@@ -190,7 +206,7 @@ export function CreateClientGroupPage() {
             </div>
 
             {/* Search & Add Bar */}
-            <div className="relative flex items-center gap-2.5">
+            <div className="relative flex items-center gap-2.5" ref={searchContainerRef}>
               <div className="relative flex-1">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
@@ -202,6 +218,11 @@ export function CreateClientGroupPage() {
                     setSearchQuery(e.target.value);
                     setIsDropdownOpen(true);
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setIsDropdownOpen(false);
+                    }
+                  }}
                   className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-slate-900 placeholder:text-slate-400 placeholder:font-normal transition-colors shadow-2xs"
                 />
 
@@ -212,7 +233,10 @@ export function CreateClientGroupPage() {
                       <button
                         key={c.id}
                         type="button"
-                        onClick={() => handleAddClient(c)}
+                        onClick={() => {
+                          handleAddClient(c);
+                          setIsDropdownOpen(false);
+                        }}
                         className="w-full text-left px-3 py-1.5 hover:bg-blue-50 flex items-center justify-between text-xs transition border-b border-slate-100 last:border-0 cursor-pointer"
                       >
                         <div>
