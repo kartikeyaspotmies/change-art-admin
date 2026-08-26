@@ -77,18 +77,18 @@ export function CreateClientGroupPage() {
   const paginatedSelectedClients = selectedClients.slice(startIndex, startIndex + rowsPerPage);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-2 space-y-2.5">
+    <div className="max-w-6xl xl:max-w-[1400px] 2xl:max-w-[1680px] mx-auto px-4 py-2 min-h-[calc(100vh-92px)] flex flex-col">
       {/* ── PAGE TITLE ── */}
-      <div>
+      <div className="shrink-0">
         <h1 className="text-lg font-bold text-slate-900 tracking-tight">Create Client Group</h1>
         <p className="text-[11.5px] text-slate-500 mt-0.5 font-medium">
           Create a new client group and define rules and display options.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-2.5">
+      <form onSubmit={handleSubmit} className="mt-2.5 flex-1 flex flex-col min-h-0">
         {/* ── SINGLE MAIN CARD CONTAINER ── */}
-        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-3.5 space-y-3">
+        <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs p-5 flex-1 flex flex-col justify-between gap-4">
           {/* SECTION 1: BASIC INFORMATION */}
           <div className="space-y-2">
             <h2 className="text-[13px] font-extrabold text-blue-700 tracking-wide pb-1.5 border-b border-slate-200">
@@ -96,12 +96,16 @@ export function CreateClientGroupPage() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-0.5">
               <div>
-                <label className="block text-xs font-extrabold text-slate-900 mb-1">
-                  Client Group Name <span className="text-rose-600">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-extrabold text-slate-900">
+                    Client Group Name <span className="text-rose-600">*</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">{name.length}/80</span>
+                </div>
                 <input
                   type="text"
                   required
+                  maxLength={80}
                   placeholder="Enter client group name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -110,11 +114,15 @@ export function CreateClientGroupPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-slate-900 mb-1">
-                  Description <span className="text-slate-500 font-medium">(Optional)</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-extrabold text-slate-900">
+                    Description <span className="text-slate-500 font-medium">(Optional)</span>
+                  </label>
+                  <span className="text-[11px] text-slate-400 font-medium">{description.length}/250</span>
+                </div>
                 <textarea
                   rows={1.5}
+                  maxLength={250}
                   placeholder="Enter description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
