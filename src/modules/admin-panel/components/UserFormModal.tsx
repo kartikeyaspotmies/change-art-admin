@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Pencil, UserX, Eye, EyeOff, Plus, User, Briefcase } from 'lucide-react';
+import { X, Pencil, UserX, Eye, EyeOff, Plus, User, Briefcase, Mail, Phone, ShieldCheck, FileText } from 'lucide-react';
 import { ConfirmModal, CountryPicker, DatePicker } from '@modules/shared-ui';
 import { UserRole, UserSubType } from '@contracts';
 import type { IUser } from '@contracts';
@@ -232,32 +232,6 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
     [managerOptions, user],
   );
 
-  const viewRows: [string, string][] = useMemo(() => {
-    if (!user) return [];
-    const rows: [string, string][] = [
-      ['Full Name', user.name],
-      ['Email', user.email],
-      ['Role', roleLabel(user.role)],
-      ['Sub-Type', subTypeLabel((user.sub_type as UserSubType | null) ?? null)],
-      ['Status', user.is_active ? 'Active' : 'Inactive'],
-    ];
-    if (user.phone) rows.push(['Phone', user.phone]);
-    if (user.date_of_birth) rows.push(['Date of Birth', user.date_of_birth]);
-    if (user.gender) rows.push(['Gender', user.gender.charAt(0) + user.gender.slice(1).toLowerCase()]);
-    if (user.employee_id) rows.push(['Employee ID', user.employee_id]);
-    if (user.joining_date) rows.push(['Joining Date', user.joining_date]);
-    if (user.department) rows.push(['Department', user.department]);
-    if (user.reporting_to_id) {
-      const manager = (managerOptions?.items ?? []).find((m) => m.id === user.reporting_to_id);
-      rows.push(['Reporting To', manager?.name ?? '—']);
-    }
-    if (user.work_location) rows.push(['Work Location', user.work_location]);
-    if (user.shift) rows.push(['Shift', user.shift.charAt(0) + user.shift.slice(1).toLowerCase()]);
-    if (user.work_remarks) rows.push(['Remarks', user.work_remarks]);
-    if (user.ip_whitelist.length) rows.push(['Office Network (IP Whitelist)', user.ip_whitelist.join(', ')]);
-    if (user.notes) rows.push(['Notes', user.notes]);
-    return rows;
-  }, [user, managerOptions]);
 
   function handleSave() {
     setError(null);
@@ -389,15 +363,200 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
         {/* Body */}
         <div className="modal-body">
           {!editing && user ? (
-            <>
-              <div className="m-sec-title">User Details</div>
-              {viewRows.map(([key, val]) => (
-                <div key={key} className="f-row">
-                  <div className="f-key">{key}</div>
-                  <div className="f-val">{val}</div>
+            <div className="space-y-4 py-1">
+              {/* ── Top Profile Hero Banner ── */}
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="relative">
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-xs shrink-0"
+                      style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}
+                    >
+                      {nameInitials(user.name)}
+                    </div>
+                    <span
+                      className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${
+                        user.is_active ? 'bg-emerald-500' : 'bg-slate-400'
+                      }`}
+                      title={user.is_active ? 'Active User' : 'Inactive User'}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">{user.name}</h2>
+                      <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563eb] border border-blue-200/80">
+                        {roleLabel(user.role)}
+                      </span>
+                      {user.sub_type && (
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                          user.sub_type === UserSubType.SENIOR 
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200/80'
+                            : 'bg-indigo-50 text-indigo-700 border border-indigo-200/80'
+                        }`}>
+                          {subTypeLabel(user.sub_type as UserSubType)}
+                        </span>
+                      )}
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 ${
+                        user.is_active
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs text-slate-500 mt-1 flex-wrap font-sans">
+                      <div className="flex items-center gap-1.5">
+                        <Mail className="w-3.5 h-3.5 text-slate-400" />
+                        <a href={`mailto:${user.email}`} className="hover:text-blue-600 transition-colors">{user.email}</a>
+                      </div>
+                      {user.phone && (
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{user.phone}</span>
+                        </div>
+                      )}
+                      {user.employee_id && (
+                        <div className="flex items-center gap-1 font-mono text-[11px] bg-slate-200/60 px-2 py-0.5 rounded text-slate-700 font-semibold">
+                          ID: {user.employee_id}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </>
+              </div>
+
+              {/* ── 2-Column Details Grid ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Card 1: Personal Details */}
+                <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#2563eb] pb-2 border-b border-slate-100 uppercase tracking-wider">
+                    <User className="w-3.5 h-3.5 text-[#2563eb]" /> Personal Information
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-xs">
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Full Name</span>
+                      <span className="font-semibold text-slate-800">{user.name}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Email Address</span>
+                      <span className="font-medium text-slate-800 break-all">{user.email}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Phone Number</span>
+                      <span className="font-medium text-slate-800">{user.phone || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Date of Birth</span>
+                      <span className="font-medium text-slate-800">{user.date_of_birth || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Gender</span>
+                      <span className="font-medium text-slate-800">
+                        {user.gender ? user.gender.charAt(0) + user.gender.slice(1).toLowerCase() : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Work & Employment */}
+                <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#2563eb] pb-2 border-b border-slate-100 uppercase tracking-wider">
+                    <Briefcase className="w-3.5 h-3.5 text-[#2563eb]" /> Work & Employment
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-xs">
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Employee ID</span>
+                      <span className="font-mono font-semibold text-slate-800">{user.employee_id || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Joining Date</span>
+                      <span className="font-medium text-slate-800">{user.joining_date || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Department</span>
+                      <span className="font-medium text-slate-800">{user.department || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Role / Position</span>
+                      <span className="font-medium text-slate-800">{roleLabel(user.role)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Reporting To</span>
+                      <span className="font-medium text-slate-800">
+                        {user.reporting_to_id
+                          ? ((managerOptions?.items ?? []).find((m) => m.id === user.reporting_to_id)?.name ?? '—')
+                          : '—'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Work Location</span>
+                      <span className="font-medium text-slate-800">{user.work_location || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Shift</span>
+                      <span className="font-medium text-slate-800">
+                        {user.shift ? user.shift.charAt(0) + user.shift.slice(1).toLowerCase() : '—'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Security & Access */}
+                <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#2563eb] pb-2 border-b border-slate-100 uppercase tracking-wider">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#2563eb]" /> Security & Access
+                  </div>
+                  <div className="space-y-2.5 text-xs">
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Office Network (IP Whitelist)</span>
+                      {user.ip_whitelist && user.ip_whitelist.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {user.ip_whitelist.map((ip) => (
+                            <span key={ip} className="bg-blue-50 text-[#2563eb] border border-blue-200/80 px-2 py-0.5 rounded font-mono text-[11px] font-semibold">
+                              {ip}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">No IP whitelist configured</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Max Active Sessions</span>
+                      <span className="font-semibold text-slate-800">
+                        {user.max_active_sessions != null ? `${user.max_active_sessions} Active Session(s)` : 'Unlimited'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 4: Notes & Remarks */}
+                <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#2563eb] pb-2 border-b border-slate-100 uppercase tracking-wider">
+                    <FileText className="w-3.5 h-3.5 text-[#2563eb]" /> Notes & Remarks
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    {user.work_remarks && (
+                      <div>
+                        <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Work Remarks</span>
+                        <p className="text-slate-700 bg-slate-50 p-2 rounded border border-slate-100 text-[11px]">{user.work_remarks}</p>
+                      </div>
+                    )}
+                    <div>
+                      <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Staff Notes</span>
+                      {user.notes ? (
+                        <p className="text-slate-700 bg-slate-50 p-2 rounded border border-slate-100 text-[11px]">{user.notes}</p>
+                      ) : (
+                        <span className="text-slate-400 italic">No notes added for this staff.</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="pb-1 space-y-2.5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
