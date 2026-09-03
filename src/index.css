@@ -5703,6 +5703,7 @@ html[data-theme='light'] .mb-track {
 
   /* ── Upload drop zone ── */
   .qf-upload-zone {
+    display: block;
     border: 1.5px dashed var(--glass-border-bright);
     border-radius: 12px;
     padding: 32px 24px;
@@ -5761,6 +5762,47 @@ html[data-theme='light'] .mb-track {
   .qf-upload-hint {
     font-size: 11px;
     color: var(--text-muted);
+  }
+
+  /* ── Confirm dialog (Submit Quote / Place Order) ── */
+  .qf-confirm-modal {
+    background: rgba(8, 14, 30, 0.96);
+    border: 1px solid var(--glass-border-bright);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+  }
+
+  html[data-theme='light'] .qf-confirm-modal {
+    background: #fff;
+    border-color: #E4E8F0;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  }
+
+  .qf-confirm-title,
+  .qf-confirm-highlight {
+    color: #fff;
+  }
+
+  html[data-theme='light'] .qf-confirm-title,
+  html[data-theme='light'] .qf-confirm-highlight {
+    color: #0D1B2A;
+  }
+
+  .qf-confirm-input {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+  }
+
+  html[data-theme='light'] .qf-confirm-input {
+    background: #F8F9FB;
+    color: #0D1B2A;
+  }
+
+  .qf-confirm-footer {
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  html[data-theme='light'] .qf-confirm-footer {
+    background: #F8F9FB;
   }
 
   /* ── Cloud storage helper text ── */

@@ -146,6 +146,7 @@ export interface CreateJobCardBody {
   client_id: string;
   mail: string;
   order_type: string;
+  specific_type?: string;
   project_type: string;
   design_name: string;
   eta_hours?: number;
