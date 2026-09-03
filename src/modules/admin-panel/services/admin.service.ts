@@ -170,15 +170,35 @@ export interface SendQuotePriceBody {
   note?: string;
 }
 
-export interface CreateUserBody {
+export interface StaffProfileFields {
+  phone?: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  employee_id?: string | null;
+  joining_date?: string | null;
+  department?: string | null;
+  reporting_to_id?: string | null;
+  work_location?: string | null;
+  shift?: string | null;
+  work_remarks?: string | null;
+  ip_whitelist?: string[];
+  max_active_sessions?: number | null;
+  notes?: string | null;
+}
+
+export interface CreateUserBody extends StaffProfileFields {
   email: string;
   name: string;
   password: string;
   role: string;
   sub_type?: string | null;
+  is_active?: boolean;
+  joining_date: string;
+  department: string;
+  work_location: string;
 }
 
-export interface UpdateUserBody {
+export interface UpdateUserBody extends StaffProfileFields {
   name?: string;
   role?: string;
   sub_type?: string | null;
