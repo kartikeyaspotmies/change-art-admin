@@ -348,7 +348,7 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
       aria-modal
       aria-label={isCreate ? 'Create user' : `User: ${user?.name}`}
     >
-      <div className="modal" style={{ maxWidth: 1400, width: '92vw' }}>
+      <div className="modal" style={{ maxWidth: 920, width: '90vw' }}>
 
         {/* Header */}
         <div className="modal-top">
@@ -608,94 +608,87 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
                 </div>
               </div>
 
-              {/* ── Office Network (IP Whitelist) & Max Active Sessions Card ── */}
-              <div className="bg-white border border-slate-200/90 rounded-[5px] p-3.5 shadow-xs space-y-2.5">
-                <div>
-                  <label className="fl">
-                    Office Network (IP Whitelist) <span className="text-red-500">*</span>
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                    {/* Left 50%: Half size Input box + Add IP button */}
-                    <div>
-                      <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-[5px] focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-[#2563eb] transition-all">
-                        <input
-                          className="flex-1 border-none focus:outline-none text-xs py-1 px-2 bg-transparent text-slate-800 placeholder:text-slate-400"
-                          value={ipInput}
-                          onChange={(e) => {
-                            setIpInput(e.target.value);
-                            setIpError(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              addIp();
-                            }
-                          }}
-                          placeholder="Add your office's public IP address(es)"
-                        />
-                        <button
-                          type="button"
-                          onClick={addIp}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-[#2563eb] text-xs font-semibold rounded-[4px] border border-slate-200 shadow-2xs transition-colors shrink-0"
-                        >
-                          <Plus className="w-3 h-3 text-[#2563eb]" aria-hidden /> Add IP
-                        </button>
-                      </div>
-                      {ipError ? <p className="text-[10px] text-red-500 mt-0.5">{ipError}</p> : null}
-                      <p className="text-[10px] text-slate-400 mt-0.5">Add your office's public IP address(es)</p>
+              {/* ── Row 2: Left Card (Office Network & Max Sessions) | Right Card (Account Status, Password & Notes) ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* ── Left Card (50%): Office Network & Max Active Sessions ── */}
+                <div className="bg-white border border-slate-200/90 rounded-[5px] p-3.5 shadow-xs space-y-3">
+                  {/* Office Network (IP Whitelist) */}
+                  <div>
+                    <label className="fl">
+                      Office Network (IP Whitelist) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-[5px] focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-[#2563eb] transition-all">
+                      <input
+                        className="flex-1 border-none focus:outline-none text-xs py-1 px-2 bg-transparent text-slate-800 placeholder:text-slate-400"
+                        value={ipInput}
+                        onChange={(e) => {
+                          setIpInput(e.target.value);
+                          setIpError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addIp();
+                          }
+                        }}
+                        placeholder="Add your office's public IP address(es)"
+                      />
+                      <button
+                        type="button"
+                        onClick={addIp}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-[#2563eb] text-xs font-semibold rounded-[4px] border border-slate-200 shadow-2xs transition-colors shrink-0"
+                      >
+                        <Plus className="w-3 h-3 text-[#2563eb]" aria-hidden /> Add IP
+                      </button>
                     </div>
-
-                    {/* Right 50%: Display added IP tags on the right */}
-                    <div className="pt-0.5 min-h-[38px] flex items-center">
-                      {form.ipWhitelist.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 items-center">
-                          {form.ipWhitelist.map((ip) => (
-                            <span
-                              key={ip}
-                              className="inline-flex items-center gap-1.5 bg-blue-50/70 text-[#2563eb] text-xs px-2.5 py-1 rounded-[4px] font-mono border border-blue-200/80 font-medium"
+                    {ipError ? <p className="text-[10px] text-red-500 mt-0.5">{ipError}</p> : null}
+                    {form.ipWhitelist.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 items-center mt-1.5">
+                        {form.ipWhitelist.map((ip) => (
+                          <span
+                            key={ip}
+                            className="inline-flex items-center gap-1.5 bg-blue-50/70 text-[#2563eb] text-xs px-2 py-0.5 rounded-[4px] font-mono border border-blue-200/80 font-medium"
+                          >
+                            {ip}
+                            <button
+                              type="button"
+                              onClick={() => removeIp(ip)}
+                              aria-label={`Remove ${ip}`}
+                              className="text-blue-400 hover:text-red-500 transition-colors"
                             >
-                              {ip}
-                              <button
-                                type="button"
-                                onClick={() => removeIp(ip)}
-                                aria-label={`Remove ${ip}`}
-                                className="text-blue-400 hover:text-red-500 transition-colors"
-                              >
-                                <X className="w-3 h-3" aria-hidden />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">No IP addresses added yet</span>
-                      )}
-                    </div>
+                              <X className="w-3 h-3" aria-hidden />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-slate-400 mt-0.5">No IP addresses added yet</p>
+                    )}
+                  </div>
+
+                  {/* Max Active Sessions */}
+                  <div>
+                    <label className="fl">
+                      Max Active Sessions <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      className="fi font-medium text-slate-800"
+                      value={form.maxActiveSessions}
+                      onChange={(e) => set('maxActiveSessions', e.target.value)}
+                    >
+                      <option value="1">1 (Single Session)</option>
+                      <option value="2">2 Concurrent Sessions</option>
+                      <option value="3">3 Concurrent Sessions</option>
+                      <option value="unlimited">Unlimited</option>
+                    </select>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Maximum allowed concurrent login sessions</p>
                   </div>
                 </div>
 
-                <div>
-                  <label className="fl">
-                    Max Active Sessions <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    className="fi font-medium text-slate-800"
-                    value={form.maxActiveSessions}
-                    onChange={(e) => set('maxActiveSessions', e.target.value)}
-                  >
-                    <option value="1">1 (Single Session)</option>
-                    <option value="2">2 Concurrent Sessions</option>
-                    <option value="3">3 Concurrent Sessions</option>
-                    <option value="unlimited">Unlimited</option>
-                  </select>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Maximum allowed concurrent login sessions</p>
-                </div>
-              </div>
-
-              {/* ── Account Status + Notes Card ── */}
-              <div className="bg-white border border-slate-200/90 rounded-[5px] p-3.5 shadow-xs">
-                <div className="grid grid-cols-2 gap-x-4">
+                {/* ── Right Card (50%): Account Status, Temporary Password & Notes ── */}
+                <div className="bg-white border border-slate-200/90 rounded-[5px] p-3.5 shadow-xs space-y-2.5">
                   <div>
-                    <div className="m-sec-title font-semibold text-[#2563eb] text-xs flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-100">
+                    <div className="m-sec-title font-semibold text-[#2563eb] text-xs flex items-center gap-1.5 mb-1.5 pb-1 border-b border-slate-100">
                       Account Status
                     </div>
                     <select
@@ -740,7 +733,7 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
                   </div>
 
                   <div>
-                    <div className="m-sec-title font-semibold text-[#2563eb] text-xs flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-100">
+                    <div className="m-sec-title font-semibold text-[#2563eb] text-xs flex items-center gap-1.5 mb-1.5 pb-1 border-b border-slate-100">
                       Notes (Optional)
                     </div>
                     <textarea
