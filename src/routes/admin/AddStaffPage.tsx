@@ -8,8 +8,6 @@ import {
   List,
   Loader2,
   ShieldCheck,
-  Clock,
-  Lock,
   UserCheck,
   FileText,
   X,
@@ -68,9 +66,14 @@ const GENDER_OPTIONS = [
   { value: 'OTHER', label: 'Other' },
 ];
 
+const OCTET_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
 const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
 const WORK_REMARKS_MAX = 200;
 const NOTES_MAX = 250;
+
+function isValidIpv4(value: string): boolean {
+  return IPV4_RE.test(value) && value.split('.').every((octet) => OCTET_RE.test(octet));
+}
 
 function generateRandomPassword() {
   const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
@@ -106,29 +109,15 @@ export function AddStaffPage() {
   const [shift, setShift] = useState('');
   const [remarks, setRemarks] = useState('');
 
-  // ── Login Access Control State ──
-  const [accessPolicy, setAccessPolicy] = useState<'OFFICE' | 'DEPT_COMPUTERS' | 'ASSIGNED_COMPUTER' | 'ANYWHERE'>('DEPT_COMPUTERS');
-  const [computerPool, setComputerPool] = useState<string[]>(['ART-PC01', 'ART-PC02', 'ART-PC03']);
-  const [deviceVerification, setDeviceVerification] = useState(true);
-  const [allowRemoteAccess, setAllowRemoteAccess] = useState(false);
+  // ── Login Access Control State ── (the only fields here actually enforced
+  // by the backend — see change-art-backend auth.routes.ts sign-in handler)
   const [ipWhitelist, setIpWhitelist] = useState<string[]>([]);
   const [ipInput, setIpInput] = useState('');
   const [ipError, setIpError] = useState<string | null>(null);
   const [maxActiveSessions, setMaxActiveSessions] = useState('1');
 
-  // ── Login Restrictions & Security State ──
-  const [loginDays, setLoginDays] = useState('Monday - Friday');
-  const [loginStartTime, setLoginStartTime] = useState('09:00');
-  const [loginEndTime, setLoginEndTime] = useState('18:00');
-  const [allowHolidays, setAllowHolidays] = useState(false);
-  const [twoFactorAuth, setTwoFactorAuth] = useState(false);
-  const [forceLogoutClose, setForceLogoutClose] = useState(false);
-  const [autoLogout, setAutoLogout] = useState(true);
-  const [autoLogoutMinutes, setAutoLogoutMinutes] = useState('30');
-
   // ── Account Status & Notes State ──
   const [isActive, setIsActive] = useState(true);
-  const [sendCredentialsEmail, setSendCredentialsEmail] = useState(true);
   const [password, setPassword] = useState(() => generateRandomPassword());
   const [showPassword, setShowPassword] = useState(false);
   const [notes, setNotes] = useState('');
@@ -145,7 +134,7 @@ export function AddStaffPage() {
   function addIp() {
     const value = ipInput.trim();
     if (!value) return;
-    if (!IPV4_RE.test(value)) {
+    if (!isValidIpv4(value)) {
       setIpError('Enter a valid IPv4 address, e.g. 49.123.45.10');
       return;
     }
@@ -160,10 +149,6 @@ export function AddStaffPage() {
 
   function removeIp(ip: string) {
     setIpWhitelist(ipWhitelist.filter((v) => v !== ip));
-  }
-
-  function removeComputer(pc: string) {
-    setComputerPool(computerPool.filter((c) => c !== pc));
   }
 
   function handleRefreshPassword() {
@@ -567,300 +552,91 @@ export function AddStaffPage() {
               <ShieldCheck className="w-4 h-4 text-[#2563eb]" />
               <h2 className="text-sm sm:text-base font-semibold text-[#2563eb]">Login Access Control</h2>
             </div>
-            <p className="text-xs text-slate-500 pl-6">Configure login security and access restrictions for this staff.</p>
+            <p className="text-xs text-slate-500 pl-6">Restrict this staff account to specific office IPs and cap concurrent sessions.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Col 1: Access Policy */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Office Network (IP Whitelist) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">
-                Login Access Policy <span className="text-red-500">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Office Network (IP Whitelist) <span className="text-red-500">*</span>
               </label>
-              <div className="space-y-2.5">
-                {[
-                  { id: 'OFFICE', title: 'Office Network Only (Recommended)', desc: 'Login allowed only from office internet' },
-                  { id: 'DEPT_COMPUTERS', title: 'Department Computers', desc: 'Login allowed from department assigned computers' },
-                  { id: 'ASSIGNED_COMPUTER', title: 'Assigned Computer Only', desc: 'Login allowed only from specific assigned computer(s)' },
-                  { id: 'ANYWHERE', title: 'Anywhere (Not Recommended)', desc: 'Login allowed from anywhere' },
-                ].map((pol) => (
-                  <label key={pol.id} className="flex items-start gap-2.5 cursor-pointer group">
-                    <input
-                      type="radio"
-                      name="accessPolicy"
-                      checked={accessPolicy === pol.id}
-                      onChange={() => setAccessPolicy(pol.id as any)}
-                      className="mt-0.5 text-[#2563eb] focus:ring-blue-500"
-                    />
-                    <div>
-                      <span className="text-xs font-medium text-slate-800 block group-hover:text-blue-600 transition-colors">
-                        {pol.title}
-                      </span>
-                      <span className="text-[11px] text-slate-400 block">{pol.desc}</span>
-                    </div>
-                  </label>
-                ))}
+              <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-[#2563eb] transition-all">
+                <input
+                  type="text"
+                  value={ipInput}
+                  onChange={(e) => {
+                    setIpInput(e.target.value);
+                    setIpError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addIp();
+                    }
+                  }}
+                  placeholder="Add your office's public IP address(es)"
+                  className="flex-1 border-none focus:outline-none text-xs py-1 px-2 bg-transparent text-slate-800 placeholder:text-slate-400"
+                />
+                <button
+                  type="button"
+                  onClick={addIp}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-[#2563eb] text-xs font-semibold rounded-md border border-slate-200 shadow-2xs transition-colors shrink-0"
+                >
+                  <Plus className="w-3 h-3 text-[#2563eb]" aria-hidden /> Add IP
+                </button>
               </div>
-            </div>
-
-            {/* Col 2: Computer Pool & Toggles */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Department Computer Pool <span className="text-red-500">*</span>
-                </label>
-                <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-white border border-slate-200 rounded-lg min-h-[38px]">
-                  {computerPool.map((pc) => (
-                    <span key={pc} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs px-2 py-0.5 rounded font-mono">
-                      {pc}
-                      <button type="button" onClick={() => removeComputer(pc)} className="text-slate-400 hover:text-red-500">
+              {ipError && <p className="text-[11px] text-red-500 mt-1">{ipError}</p>}
+              {ipWhitelist.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 items-center mt-2">
+                  {ipWhitelist.map((ip) => (
+                    <span
+                      key={ip}
+                      className="inline-flex items-center gap-1.5 bg-blue-50/70 text-[#2563eb] text-xs px-2.5 py-1 rounded-md font-mono border border-blue-200/80 font-medium"
+                    >
+                      {ip}
+                      <button
+                        type="button"
+                        onClick={() => removeIp(ip)}
+                        aria-label={`Remove ${ip}`}
+                        className="text-blue-400 hover:text-red-500 transition-colors"
+                      >
                         <X className="w-3 h-3" />
                       </button>
                     </span>
                   ))}
-                  <ChevronDown className="w-4 h-4 text-slate-400 ml-auto pointer-events-none" />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">Select computers that belong to this department</p>
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-3 pt-1">
-                <label className="flex items-center justify-between gap-3 cursor-pointer">
-                  <div>
-                    <span className="text-xs font-medium text-slate-800 block">Device Verification</span>
-                    <span className="text-[11px] text-slate-400 block">Verify registered devices to prevent unauthorized access.</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={deviceVerification}
-                    onChange={(e) => setDeviceVerification(e.target.checked)}
-                    className="w-4 h-4 text-[#2563eb] rounded focus:ring-blue-500"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between gap-3 cursor-pointer">
-                  <div>
-                    <span className="text-xs font-medium text-slate-800 block">Allow Temporary Remote Access</span>
-                    <span className="text-[11px] text-slate-400 block">Enable staff to login from outside office for a limited time.</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={allowRemoteAccess}
-                    onChange={(e) => setAllowRemoteAccess(e.target.checked)}
-                    className="w-4 h-4 text-[#2563eb] rounded focus:ring-blue-500"
-                  />
-                </label>
-              </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 mt-1">No IP addresses added yet — leave empty to allow sign-in from any network.</p>
+              )}
             </div>
 
-            {/* Col 3: Office Network (IP Whitelist) & Max Sessions */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Office Network (IP Whitelist) <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                  {/* Left 50%: Half size Input box + Add IP button */}
-                  <div>
-                    <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-lg focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-[#2563eb] transition-all">
-                      <input
-                        type="text"
-                        value={ipInput}
-                        onChange={(e) => {
-                          setIpInput(e.target.value);
-                          setIpError(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addIp();
-                          }
-                        }}
-                        placeholder="Add your office's public IP address(es)"
-                        className="flex-1 border-none focus:outline-none text-xs py-1 px-2 bg-transparent text-slate-800 placeholder:text-slate-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={addIp}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-[#2563eb] text-xs font-semibold rounded-md border border-slate-200 shadow-2xs transition-colors shrink-0"
-                      >
-                        <Plus className="w-3 h-3 text-[#2563eb]" aria-hidden /> Add IP
-                      </button>
-                    </div>
-                    {ipError && <p className="text-[11px] text-red-500 mt-1">{ipError}</p>}
-                    <p className="text-[11px] text-slate-400 mt-1">Add your office's public IP address(es)</p>
-                  </div>
-
-                  {/* Right 50%: Display added IP tags on the right */}
-                  <div className="pt-0.5 min-h-[38px] flex items-center">
-                    {ipWhitelist.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        {ipWhitelist.map((ip) => (
-                          <span
-                            key={ip}
-                            className="inline-flex items-center gap-1.5 bg-blue-50/70 text-[#2563eb] text-xs px-2.5 py-1 rounded-md font-mono border border-blue-200/80 font-medium"
-                          >
-                            {ip}
-                            <button
-                              type="button"
-                              onClick={() => removeIp(ip)}
-                              aria-label={`Remove ${ip}`}
-                              className="text-blue-400 hover:text-red-500 transition-colors"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400 italic">No IP addresses added yet</span>
-                    )}
-                  </div>
-                </div>
+            {/* Max Active Sessions */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Max Active Sessions <span className="text-red-500">*</span>
+              </label>
+              <div className="relative flex items-center">
+                <select
+                  value={maxActiveSessions}
+                  onChange={(e) => setMaxActiveSessions(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563eb] appearance-none cursor-pointer text-slate-800 font-medium pr-8"
+                >
+                  <option value="1">1 (Single Session)</option>
+                  <option value="2">2 Concurrent Sessions</option>
+                  <option value="3">3 Concurrent Sessions</option>
+                  <option value="unlimited">Unlimited Sessions</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 pointer-events-none" />
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Max Active Sessions <span className="text-red-500">*</span>
-                </label>
-                <div className="relative flex items-center">
-                  <select
-                    value={maxActiveSessions}
-                    onChange={(e) => setMaxActiveSessions(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563eb] appearance-none cursor-pointer text-slate-800 font-medium pr-8"
-                  >
-                    <option value="1">1 (Single Session)</option>
-                    <option value="2">2 Concurrent Sessions</option>
-                    <option value="3">3 Concurrent Sessions</option>
-                    <option value="unlimited">Unlimited Sessions</option>
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 pointer-events-none" />
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">Maximum allowed concurrent login sessions</p>
-              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Maximum allowed concurrent login sessions</p>
             </div>
           </div>
         </div>
 
-        {/* ── Row 3: 4 Bottom Cards ── */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {/* Card 1: Login Restrictions */}
-          <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
-                <Clock className="w-4 h-4 text-[#2563eb]" />
-                <h3 className="text-xs sm:text-sm font-semibold text-[#2563eb]">Login Restrictions</h3>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Login Days</label>
-                  <div className="relative flex items-center">
-                    <select
-                      value={loginDays}
-                      onChange={(e) => setLoginDays(e.target.value)}
-                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563eb] appearance-none cursor-pointer text-slate-700 pr-7"
-                    >
-                      <option value="Monday - Friday">Monday - Friday</option>
-                      <option value="Monday - Saturday">Monday - Saturday</option>
-                      <option value="All Days">All Days (7 Days)</option>
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 pointer-events-none" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">Login Time</label>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="time"
-                      value={loginStartTime}
-                      onChange={(e) => setLoginStartTime(e.target.value)}
-                      className="w-full px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#2563eb]"
-                    />
-                    <span className="text-xs text-slate-400">-</span>
-                    <input
-                      type="time"
-                      value={loginEndTime}
-                      onChange={(e) => setLoginEndTime(e.target.value)}
-                      className="w-full px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#2563eb]"
-                    />
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer pt-1">
-                  <input
-                    type="checkbox"
-                    checked={allowHolidays}
-                    onChange={(e) => setAllowHolidays(e.target.checked)}
-                    className="w-3.5 h-3.5 text-[#2563eb] rounded focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-slate-700">Allow login on holidays</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Security Settings */}
-          <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
-                <Lock className="w-4 h-4 text-[#2563eb]" />
-                <h3 className="text-xs sm:text-sm font-semibold text-[#2563eb]">Security Settings</h3>
-              </div>
-
-              <div className="space-y-2.5">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={twoFactorAuth}
-                    onChange={(e) => setTwoFactorAuth(e.target.checked)}
-                    className="w-3.5 h-3.5 text-[#2563eb] rounded mt-0.5 focus:ring-blue-500"
-                  />
-                  <div>
-                    <span className="text-xs font-medium text-slate-800 block">Two-Factor Authentication (2FA)</span>
-                    <span className="text-[10px] text-slate-400 block">Staff must verify with OTP while login</span>
-                  </div>
-                </label>
-
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={forceLogoutClose}
-                    onChange={(e) => setForceLogoutClose(e.target.checked)}
-                    className="w-3.5 h-3.5 text-[#2563eb] rounded mt-0.5 focus:ring-blue-500"
-                  />
-                  <div>
-                    <span className="text-xs font-medium text-slate-800 block">Force Logout on Browser Close</span>
-                    <span className="text-[10px] text-slate-400 block">End session when browser is closed</span>
-                  </div>
-                </label>
-
-                <div className="flex items-center justify-between gap-1 pt-1">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={autoLogout}
-                      onChange={(e) => setAutoLogout(e.target.checked)}
-                      className="w-3.5 h-3.5 text-[#2563eb] rounded focus:ring-blue-500"
-                    />
-                    <span className="text-xs font-medium text-slate-800">Auto Logout</span>
-                  </label>
-
-                  <select
-                    value={autoLogoutMinutes}
-                    onChange={(e) => setAutoLogoutMinutes(e.target.value)}
-                    className="px-2 py-1 text-[11px] bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#2563eb]"
-                  >
-                    <option value="15">15 Minutes</option>
-                    <option value="30">30 Minutes</option>
-                    <option value="60">60 Minutes</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Account Status */}
+        {/* ── Row 3: Account Status & Notes ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Card 1: Account Status */}
           <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
@@ -885,16 +661,6 @@ export function AddStaffPage() {
                     <ChevronDown className="w-3.5 h-3.5 text-emerald-600 absolute right-2 pointer-events-none" />
                   </div>
                 </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sendCredentialsEmail}
-                    onChange={(e) => setSendCredentialsEmail(e.target.checked)}
-                    className="w-3.5 h-3.5 text-[#2563eb] rounded focus:ring-blue-500"
-                  />
-                  <span className="text-xs text-slate-700">Send login credentials to this email</span>
-                </label>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700 mb-1">Temporary Password</label>
@@ -927,7 +693,7 @@ export function AddStaffPage() {
             </div>
           </div>
 
-          {/* Card 4: Notes (Optional) */}
+          {/* Card 2: Notes (Optional) */}
           <div className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
@@ -964,7 +730,7 @@ export function AddStaffPage() {
           <div className="flex items-center gap-2 text-xs text-slate-600 bg-blue-50/80 border border-blue-100 px-3.5 py-2 rounded-lg w-full sm:w-auto">
             <Info className="w-4 h-4 text-[#2563eb] shrink-0" />
             <span>
-              <strong>Note:</strong> Staff can login only from allowed networks and approved computers as per the selected access policy.
+              <strong>Note:</strong> If an Office Network IP is set above, this staff member can only sign in from that IP.
             </span>
           </div>
 

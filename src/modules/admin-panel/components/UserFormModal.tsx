@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Pencil, UserX, Eye, EyeOff, Plus, User, Briefcase, Mail, Phone, ShieldCheck, FileText } from 'lucide-react';
-import { ConfirmModal, CountryPicker, DatePicker } from '@modules/shared-ui';
+import { ALL_COUNTRY_CODES, ConfirmModal, CountryPicker, DatePicker } from '@modules/shared-ui';
 import { UserRole, UserSubType } from '@contracts';
 import type { IUser } from '@contracts';
 import { useCreateUser, useDeactivateUser, useUpdateUser } from '../hooks/use-admin-users';
@@ -46,9 +46,36 @@ const SHIFT_OPTIONS: { value: string; label: string }[] = [
   { value: 'NIGHT', label: 'Night' },
 ];
 
+const OCTET_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
 const IPV4_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
 const NOTES_MAX = 250;
 const WORK_REMARKS_MAX = 200;
+
+function isValidIpv4(value: string): boolean {
+  return IPV4_RE.test(value) && value.split('.').every((octet) => OCTET_RE.test(octet));
+}
+
+// Dial codes, longest first so e.g. "+1268" (Antigua) matches before the "+1"
+// (US/Canada) prefix it starts with.
+const DIAL_CODES = Array.from(new Set(ALL_COUNTRY_CODES.map((c) => c.code))).sort(
+  (a, b) => b.length - a.length,
+);
+const DEFAULT_COUNTRY_CODE = '+91';
+
+// A stored phone number is `${countryCode} ${localNumber}` (see handleSave).
+// Splitting it back apart on edit is what lets the form re-display and
+// re-save it without corrupting/duplicating the prefix — see the bug this
+// fixes: previously the country picker always reset to +91 on edit and the
+// full stored string (already including a prefix) was jammed into the plain
+// number field, so saving without touching the phone field would silently
+// double up (or wrongly overwrite) the country code every time.
+function splitPhone(phone: string | null | undefined): { countryCode: string; local: string } {
+  const trimmed = (phone ?? '').trim();
+  if (!trimmed) return { countryCode: DEFAULT_COUNTRY_CODE, local: '' };
+  const code = DIAL_CODES.find((c) => trimmed === c || trimmed.startsWith(`${c} `));
+  if (code) return { countryCode: code, local: trimmed.slice(code.length).trim() };
+  return { countryCode: DEFAULT_COUNTRY_CODE, local: trimmed };
+}
 
 // Mirrors the backend's password policy (change-art-backend/src/modules/auth/password-policy.ts)
 // so weak passwords are caught here instead of round-tripping to the server.
@@ -151,7 +178,7 @@ function initialState(mode: UserModalMode, user: IUser | null): FormState {
     role: user.role,
     subType: (user.sub_type as UserSubType | null) ?? '',
     isActive: user.is_active,
-    phone: user.phone ?? '',
+    phone: splitPhone(user.phone).local,
     dateOfBirth: user.date_of_birth ?? '',
     gender: user.gender ?? '',
     employeeId: user.employee_id ?? '',
@@ -173,7 +200,7 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [countryCode, setCountryCode] = useState('+91');
+  const [countryCode, setCountryCode] = useState(() => splitPhone(user?.phone).countryCode);
   const [ipInput, setIpInput] = useState('');
   const [ipError, setIpError] = useState<string | null>(null);
 
@@ -188,7 +215,7 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
   function addIp() {
     const value = ipInput.trim();
     if (!value) return;
-    if (!IPV4_RE.test(value)) return setIpError('Enter a valid IPv4 address, e.g. 49.123.45.10');
+    if (!isValidIpv4(value)) return setIpError('Enter a valid IPv4 address, e.g. 49.123.45.10');
     if (form.ipWhitelist.includes(value)) return setIpError('That IP is already whitelisted.');
     set('ipWhitelist', [...form.ipWhitelist, value]);
     setIpInput('');
@@ -202,6 +229,7 @@ export function UserFormModal({ mode, user, onClose }: UserFormModalProps) {
   // Reset the form whenever the modal target changes.
   useEffect(() => {
     setForm(initialState(mode, user));
+    setCountryCode(splitPhone(user?.phone).countryCode);
     setEditing(mode !== 'view' && user?.role !== UserRole.ADMIN);
     setError(null);
     setShowPassword(false);
