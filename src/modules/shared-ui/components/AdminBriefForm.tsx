@@ -410,7 +410,7 @@ export function AdminBriefForm({
 
   const hasSelection = orderType !== '';
   const specificServices = orderType ? SPECIFIC_SERVICES[orderType] : [];
-  const needsService = specificServices.length > 0;
+  const needsService = specificServices.length > 1;
 
   const selectedService = useMemo(() => {
     if (orderType === 'others') return 'Others';
@@ -526,17 +526,17 @@ export function AdminBriefForm({
     setWidthValue('');
     setHeightValue('');
     const services = SPECIFIC_SERVICES[id] ?? [];
-    if (services.length === 0) {
-      if (id === 'swatches') {
+    if (services.length <= 1) {
+      if (services.length === 1) {
+        setSpecificService(services[0].label);
+      } else if (id === 'swatches') {
         setSpecificService('Digitizing Sewout');
-        window.setTimeout(advanceToPhase3, 220);
       } else if (id === 'extras') {
         setSpecificService('Others');
-        window.setTimeout(advanceToPhase3, 220);
       } else if (id === 'others') {
         setSpecificService('Others');
-        window.setTimeout(advanceToPhase3, 220);
       }
+      window.setTimeout(advanceToPhase3, 220);
     } else {
       window.setTimeout(() => {
         setPhase(2);
@@ -581,7 +581,7 @@ export function AdminBriefForm({
       return;
     }
     const services = SPECIFIC_SERVICES[orderType] ?? [];
-    setPhase(services.length === 0 ? 3 : 2);
+    setPhase(services.length <= 1 ? 3 : 2);
     document.getElementById('main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
