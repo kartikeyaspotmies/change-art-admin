@@ -1049,17 +1049,18 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
           </div>
 
           {/* Stepper Timeline */}
-          <div className="mt-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-white rounded-xl border border-slate-200/80 shadow-xs w-full max-w-full overflow-hidden">
-            <div className="flex items-start justify-between w-full">
+          <div className="mt-2 px-3 sm:px-4 py-3 bg-gradient-to-r from-slate-50/90 via-white to-slate-50/90 rounded-xl border border-slate-200/90 shadow-sm w-full max-w-full overflow-hidden">
+            <div className="flex items-center justify-between w-full">
               {[
                 {
                   label: 'ORDER RECEIVED',
                   shortLabel: 'ORDER',
                   date: formatDateTime(job.created),
                   icon: ShoppingCart,
-                  circleBg: 'bg-[#f3e8ff]',
-                  iconColor: 'text-[#7c3aed]',
-                  labelColor: stepIdx === 0 ? 'text-[#7c3aed]' : 'text-slate-800',
+                  themeColor: 'purple',
+                  activeBg: 'bg-purple-600 text-white shadow-lg shadow-purple-500/30 ring-4 ring-purple-500/20 border-2 border-white',
+                  activeText: 'text-purple-700 font-extrabold',
+                  activeCardBg: 'bg-purple-50/90 border border-purple-200/90 shadow-xs',
                   stageIdx: 0,
                 },
                 {
@@ -1076,9 +1077,10 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                     return estCompletionIso ? formatDateTime(estCompletionIso) : formatDateTime(ackAt);
                   })(),
                   icon: Pencil,
-                  circleBg: 'bg-[#eff6ff]',
-                  iconColor: 'text-[#2563eb]',
-                  labelColor: stepIdx === 1 ? 'text-[#2563eb]' : 'text-slate-800',
+                  themeColor: 'blue',
+                  activeBg: 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-4 ring-blue-500/20 border-2 border-white',
+                  activeText: 'text-blue-700 font-extrabold',
+                  activeCardBg: 'bg-blue-50/90 border border-blue-200/90 shadow-xs',
                   stageIdx: 1,
                 },
                 {
@@ -1086,9 +1088,10 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                   shortLabel: 'QC',
                   date: stepIdx >= 2 ? formatDateTime((job as any).updatedAt || job.created) : 'Upcoming',
                   icon: Search,
-                  circleBg: 'bg-[#fffbeb]',
-                  iconColor: 'text-[#d97706]',
-                  labelColor: stepIdx === 2 ? 'text-[#d97706]' : 'text-slate-800',
+                  themeColor: 'amber',
+                  activeBg: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30 ring-4 ring-amber-500/20 border-2 border-white',
+                  activeText: 'text-amber-700 font-extrabold',
+                  activeCardBg: 'bg-amber-50/90 border border-amber-200/90 shadow-xs',
                   stageIdx: 2,
                 },
                 {
@@ -1096,31 +1099,104 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                   shortLabel: 'COMPLETED',
                   date: stepIdx >= 3 ? formatDateTime((job as any).updatedAt || job.created) : 'Upcoming',
                   icon: Check,
-                  circleBg: 'bg-[#ecfdf5]',
-                  iconColor: 'text-[#059669]',
-                  labelColor: stepIdx >= 3 ? 'text-[#059669]' : 'text-slate-800',
+                  themeColor: 'emerald',
+                  activeBg: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-500/20 border-2 border-white',
+                  activeText: 'text-emerald-700 font-extrabold',
+                  activeCardBg: 'bg-emerald-50/90 border border-emerald-200/90 shadow-xs',
                   stageIdx: 3,
                 },
               ].map((st, i, arr) => {
                 const Icon = st.icon;
+                const isPast = st.stageIdx < stepIdx;
+                const isActive = st.stageIdx === stepIdx;
+
                 return (
-                  <div key={st.label} className="flex-1 flex flex-col sm:flex-row items-center sm:items-center min-w-0">
-                    <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2.5 min-w-0 w-full sm:w-auto text-center sm:text-left">
-                      <div className={cn('w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition-all', st.circleBg)}>
-                        <Icon className={cn('w-3.5 h-3.5 sm:w-4 sm:h-4', st.iconColor)} strokeWidth={2.2} />
+                  <div key={st.label} className="flex-1 flex items-center min-w-0">
+                    <div
+                      className={cn(
+                        'flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2.5 min-w-0 w-full sm:w-auto text-center sm:text-left transition-all duration-300 rounded-xl p-1 sm:p-2',
+                        isActive ? st.activeCardBg : 'bg-transparent',
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-300',
+                          isActive
+                            ? st.activeBg
+                            : isPast
+                              ? 'bg-emerald-500 text-white shadow-xs border-2 border-emerald-500'
+                              : 'bg-slate-100/90 text-slate-400 border border-slate-200/80',
+                        )}
+                      >
+                        {isPast ? (
+                          <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={3} />
+                        ) : (
+                          <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2.2} />
+                        )}
                       </div>
+
                       <div className="min-w-0 w-full">
-                        <div className={cn('text-[9.5px] sm:text-[11px] font-bold tracking-tight uppercase truncate', st.labelColor)}>
-                          <span className="hidden sm:inline">{st.label}</span>
-                          <span className="sm:hidden">{st.shortLabel}</span>
+                        <div className="flex items-center justify-center sm:justify-start gap-1">
+                          <span
+                            className={cn(
+                              'text-[9.5px] sm:text-[11px] uppercase truncate transition-colors',
+                              isActive
+                                ? st.activeText
+                                : isPast
+                                  ? 'text-slate-800 font-bold'
+                                  : 'text-slate-400 font-medium',
+                            )}
+                          >
+                            <span className="hidden sm:inline">{st.label}</span>
+                            <span className="sm:hidden">{st.shortLabel}</span>
+                          </span>
+
+                          {isActive && (
+                            <span className="hidden lg:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-white/90 border border-current shadow-2xs">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current"></span>
+                              </span>
+                              CURRENT
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[8.5px] sm:text-[9.5px] text-slate-400 font-medium truncate">{st.date}</div>
+
+                        <div
+                          className={cn(
+                            'text-[8.5px] sm:text-[9.5px] truncate transition-colors',
+                            isActive
+                              ? 'text-slate-700 font-semibold'
+                              : isPast
+                                ? 'text-slate-500 font-medium'
+                                : 'text-slate-400/80 font-normal',
+                          )}
+                        >
+                          {st.date}
+                        </div>
                       </div>
                     </div>
+
                     {i < arr.length - 1 && (
-                      <div className="hidden sm:flex flex-1 items-center mx-2 sm:mx-3 min-w-[20px]">
-                        <div className="h-[1.5px] bg-slate-300 flex-1 relative flex items-center justify-end">
-                          <div className="w-1.5 h-1.5 border-t-[1.5px] border-r-[1.5px] border-slate-300 rotate-45 -mr-[1px]" />
+                      <div className="hidden sm:flex flex-1 items-center mx-1.5 sm:mx-2 min-w-[16px]">
+                        <div
+                          className={cn(
+                            'h-[2px] flex-1 relative flex items-center justify-end transition-all duration-300',
+                            isPast
+                              ? 'bg-emerald-500'
+                              : isActive
+                                ? 'bg-gradient-to-r from-blue-500 to-slate-300'
+                                : 'bg-slate-200',
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'w-1.5 h-1.5 border-t-[2px] border-r-[2px] rotate-45 -mr-[1px]',
+                              isPast
+                                ? 'border-emerald-500'
+                                : 'border-slate-300',
+                            )}
+                          />
                         </div>
                       </div>
                     )}
