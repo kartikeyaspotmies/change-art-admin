@@ -904,12 +904,13 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
     lines.push(`Assigned To: ${displayJob.assignedTo ?? 'Unassigned'}`);
     if (displayJob.subType) lines.push(`Sub-Type: ${displayJob.subType}`);
 
-    lines.push(`\n--- SPECIFICATIONS ---`);
-    if (displayJob.etaHours) lines.push(`ETA: ${displayJob.etaHours}h`);
-    if (isAcknowledged && etaCountdown) lines.push(`ETA Countdown: ${etaCountdown.display}`);
-    if (displayJob.clientPo) lines.push(`Client PO / Ref: ${displayJob.clientPo}`);
-    if (displayJob.aiScore && aiOverall !== null) {
-      lines.push(`AI QC Score: ${aiOverall}/100 — ${aiPass ? 'Pass' : 'Fail'}`);
+    const hasSpecDetails = displayJob.clientPo || (displayJob.aiScore && aiOverall !== null);
+    if (hasSpecDetails) {
+      lines.push(`\n--- SPECIFICATIONS ---`);
+      if (displayJob.clientPo) lines.push(`Client PO / Ref: ${displayJob.clientPo}`);
+      if (displayJob.aiScore && aiOverall !== null) {
+        lines.push(`AI QC Score: ${aiOverall}/100 — ${aiPass ? 'Pass' : 'Fail'}`);
+      }
     }
 
     const clientText = (displayJob.summary ?? '').replace(/\[[^\]]*\]/g, '').trim();
