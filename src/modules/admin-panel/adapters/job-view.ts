@@ -151,7 +151,7 @@ export function adaptJobCard(
       ? 'Pending'
       : mapped.status;
 
-  let stage: JobStage =
+  const stage: JobStage =
     card.status === JobStatus.HOLD && card.pre_hold_status
       ? (STATUS_MAP[card.pre_hold_status]?.stage ?? mapped.stage)
       : mapped.stage;
@@ -173,8 +173,17 @@ export function adaptJobCard(
       created: card.time_and_date ?? card.created_at,
     })
   ) {
+    // Flip the status label to flag the job as overdue, but leave `stage`
+    // alone — it must keep reflecting wherever the job actually sits in the
+    // pipeline (junior/senior/qc/sewout). `stage === 'delivered'` means
+    // "already dispatched to the client" everywhere else in the app
+    // (history pages, badge counts, assign/dispatch button visibility,
+    // isCompletedStatus/isPipelineActive below); forcing it here previously
+    // made an overdue-but-still-in-production job indistinguishable from one
+    // that had actually shipped. The "Ready to Dispatch" queue itself
+    // (CSDeliverPage) already finds these jobs via `isJobEtaExpired`
+    // directly, not via `stage`, so nothing there depends on this override.
     displayStatus = 'Ready to Deliver';
-    stage = 'delivered';
   }
 
   const assignedUserId =
