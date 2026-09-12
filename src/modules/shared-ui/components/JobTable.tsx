@@ -409,7 +409,7 @@ function CompactTableView({
               <td><span className={cn('badge', orderBadgeAccent(j.order))}>{j.order}</span></td>
               <td><span className={cn('badge', projectTypeBadgeAccent(j.project))}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</span></td>
               <td><PriorityChip priority={j.priority} /></td>
-              <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Matched" /> : <span className={cn('badge', statusBadgeAccent(j.status))}>{statusDisplay(j.status)}</span>}</td>
+              <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Completed" /> : <span className={cn('badge', statusBadgeAccent(j.status))}>{statusDisplay(j.status)}</span>}</td>
               <td onClick={(e) => e.stopPropagation()}>
                 {renderRowActions ? renderRowActions(j) : (
                   <button
@@ -462,7 +462,7 @@ function DeliveredView({
                   {job.project.toUpperCase()}
                 </Badge>
                 */}
-                {isCompletedStatus(job.status, job.stage) ? <CompletedStatusBadge label="Matched" /> : <Badge accent={statusBadgeAccent(job.status)}>{statusDisplay(job.status)}</Badge>}
+                {isCompletedStatus(job.status, job.stage) ? <CompletedStatusBadge label="Completed" /> : <Badge accent={statusBadgeAccent(job.status)}>{statusDisplay(job.status)}</Badge>}
               </div>
               <div className="text-[15px] font-bold text-text-main line-clamp-2 break-words">{job.design}</div>
               <div className="text-[12px] text-text-muted mt-0.5">
@@ -710,7 +710,7 @@ function TableView({
               <td><Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge></td>
               <td><Badge accent={projectTypeBadgeAccent(j.project)}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</Badge></td>
               <td><PriorityChip priority={j.priority} /></td>
-              <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Matched" /> : <Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge>}</td>
+              <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Completed" /> : <Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge>}</td>
               {!minimalColumns && (
                 <td className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</td>
               )}
@@ -840,7 +840,7 @@ function GridView({
                 {/* Info row: Status */}
                 <div className="flex items-center gap-1 text-[9.5px] font-bold text-slate-700 dark:text-slate-300">
                   {isCompletedStatus(j.status, j.stage) ? (
-                    <CompletedStatusBadge label="Matched" />
+                    <CompletedStatusBadge label="Completed" />
                   ) : (
                     <>
                       <StatusIcon className="w-3 h-3 shrink-0" aria-hidden />
@@ -1096,7 +1096,7 @@ function ListView({
               <div className="list-badges">
                 <Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge>
                 <Badge accent={projectTypeBadgeAccent(j.project)}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</Badge>
-                {isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Matched" /> : <Badge accent={statusBadgeAccent(j.status)}>{statusDisplay(j.status)}</Badge>}
+                {isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Completed" /> : <Badge accent={statusBadgeAccent(j.status)}>{statusDisplay(j.status)}</Badge>}
               </div>
             </div>
 

@@ -220,6 +220,8 @@ export function AdminJobsPage() {
   // display label so e.g. 'Ready to Deliver' reads as "Ready to Dispatch".
   const activeStatusLabel = JOB_STATUS_OPTIONS.find((o) => o.value === filters.status)?.label ?? '';
 
+  const isAllProjects = !searchParams.get('project') && !searchParams.get('filter');
+
   return (
     <div className="page">
       <GreetingHero
@@ -244,12 +246,14 @@ export function AdminJobsPage() {
               setSearchParams(next, { replace: true });
             }}
             toolbarSlot={
-              <JobFilterBar
-                filters={filters}
-                onChange={handleFiltersChange}
-                statusOptions={JOB_STATUS_OPTIONS}
-                clients={clients}
-              />
+              isAllProjects ? (
+                <JobFilterBar
+                  filters={filters}
+                  onChange={handleFiltersChange}
+                  statusOptions={JOB_STATUS_OPTIONS}
+                  clients={clients}
+                />
+              ) : undefined
             }
           />
           <Pagination

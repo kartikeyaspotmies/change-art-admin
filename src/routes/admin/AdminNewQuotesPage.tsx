@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GreetingHero,
-  JobFilterBar,
   JobTable,
   Pagination,
   SectionHeader,
@@ -33,8 +32,8 @@ function mapPriority(p: string): string | undefined {
 }
 
 export function AdminNewQuotesPage() {
-  const [pendingFilters, setPendingFilters]   = useState<JobFilters>(EMPTY_FILTERS);
-  const [awaitingFilters, setAwaitingFilters] = useState<JobFilters>(EMPTY_FILTERS);
+  const [pendingFilters]  = useState<JobFilters>(EMPTY_FILTERS);
+  const [awaitingFilters] = useState<JobFilters>(EMPTY_FILTERS);
   const [pendingPage, setPendingPage]         = useState(1);
   const [awaitingPage, setAwaitingPage]       = useState(1);
 
@@ -92,15 +91,7 @@ export function AdminNewQuotesPage() {
   useEffect(() => { if (!isLoading) hasLoadedOnce.current = true; }, [isLoading]);
   const isFirstLoad = isLoading && !hasLoadedOnce.current;
 
-  function handlePendingFiltersChange(next: JobFilters) {
-    setPendingFilters(next);
-    setPendingPage(1);
-  }
 
-  function handleAwaitingFiltersChange(next: JobFilters) {
-    setAwaitingFilters(next);
-    setAwaitingPage(1);
-  }
 
   if (isError) {
     return (
@@ -140,14 +131,6 @@ export function AdminNewQuotesPage() {
             defaultView="grid"
             emptyLabel="No pending quotes match the current filters."
             quoteView
-            toolbarSlot={
-              <JobFilterBar
-                filters={pendingFilters}
-                onChange={handlePendingFiltersChange}
-                statusOptions={[]}
-                clients={clients}
-              />
-            }
           />
           {pendingQuery.total > 0 && (
             <Pagination
@@ -167,14 +150,6 @@ export function AdminNewQuotesPage() {
               defaultView="grid"
               quoteView
               emptyLabel="No awaiting client quotes match the current filters."
-              toolbarSlot={
-                <JobFilterBar
-                  filters={awaitingFilters}
-                  onChange={handleAwaitingFiltersChange}
-                  statusOptions={[]}
-                  clients={clients}
-                />
-              }
             />
             {awaitingQuery.total > 0 && (
               <Pagination

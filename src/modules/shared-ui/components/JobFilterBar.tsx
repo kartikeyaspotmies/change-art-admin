@@ -121,15 +121,20 @@ export function JobFilterBar({ filters, onChange, statusOptions = JOB_STATUS_OPT
   function closePanel() { setOpen(false); }
 
   function setField<K extends keyof Draft>(k: K, v: Draft[K]) {
-    setDraft((p) => ({ ...p, [k]: v }));
+    const nextDraft = { ...draft, [k]: v };
+    setDraft(nextDraft);
+    onChange({ search: filters.search, ...nextDraft });
   }
 
-  function handleApply() { onChange({ search: filters.search, ...draft }); closePanel(); }
+  function handleApply() {
+    onChange({ search: filters.search, ...draft });
+    closePanel();
+  }
 
   function handleClear() {
     const empty: Draft = { orderType: '', priority: '', status: '', clientId: '', dateFrom: '', dateTo: '' };
     setDraft(empty);
-    onChange({ search: '', ...empty });
+    onChange({ search: filters.search, ...empty });
     closePanel();
   }
 
@@ -239,21 +244,22 @@ export function JobFilterBar({ filters, onChange, statusOptions = JOB_STATUS_OPT
               </div>
             </div>
 
-            {/* Actions — pushed to the right */}
+            {/* Actions — always visible */}
             <div className="fjb-inline-actions">
-              {(draftDirty || !isFiltersEmpty(filters)) && (
+              <button
+                type="button"
+                className="fjb-apply-btn"
+                onClick={handleApply}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                <span>Apply Filter</span>
+              </button>
+              {(!isFiltersEmpty(filters) || draftDirty) && (
                 <button type="button" className="fjb-clear-btn" onClick={handleClear} aria-label="Clear all filters">
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                   <span>Clear</span>
                 </button>
               )}
-              <button
-                type="button"
-                className={`fjb-apply-btn${draftDirty ? ' fjb-apply-btn--ready' : ''}`}
-                onClick={handleApply}
-              >
-                Apply
-              </button>
             </div>
 
           </div>

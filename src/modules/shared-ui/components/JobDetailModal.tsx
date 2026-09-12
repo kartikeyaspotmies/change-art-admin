@@ -90,11 +90,24 @@ interface JobDetailModalProps {
 }
 
 function currentStepIndex(job: Job): number {
-  switch (job.stage) {
-    case 'quote': return 0;
-    case 'delivered': return 2;
-    default: return 1;
+  const norm = (job.rawStatus ?? job.status ?? '').toUpperCase().replace(/\s+/g, '_');
+  if (
+    norm === 'DELIVERED' ||
+    norm === 'DISPATCHED' ||
+    norm === 'COMPLETED' ||
+    job.stage === 'delivered' ||
+    job.status === 'Dispatched' ||
+    (job.status as string) === 'Completed'
+  ) {
+    return 3;
   }
+  if (norm === 'READY_TO_DELIVER' || norm === 'QC' || job.stage === 'qc') {
+    return 2;
+  }
+  if (job.stage === 'quote' || norm === 'QUOTE_SUBMITTED' || norm === 'QUOTE_APPROVED' || norm === 'DRAFT') {
+    return 0;
+  }
+  return 1;
 }
 
 function displayStatus(status: string): string {
@@ -1709,115 +1722,173 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 )}
 
                 {/* Requirements (Requested vs Completed) */}
-                <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm">
-                  <h3 className="text-[13px] sm:text-[14px] font-bold text-slate-800 mb-2.5 tracking-tight">
-                    Requirements (Requested vs Completed)
-                  </h3>
-                  <div className="rounded-lg border border-slate-200 overflow-x-auto bg-white">
-                    <table className="w-full border-collapse text-left text-[10px] sm:text-[10.5px]">
-                      <colgroup>
-                        <col className="w-auto" />
-                        <col className="w-auto" />
-                        <col className="w-auto" />
-                        <col className="w-auto" />
-                        <col className="w-full" />
-                      </colgroup>
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold text-[10.5px] sm:text-[11px]">
-                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Requirement</th>
-                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Requested</th>
-                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Completed</th>
-                          <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Status</th>
-                          <th className="py-2 px-2.5 font-bold whitespace-nowrap">Notes (If Any)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 text-slate-800">
-                        {fieldFlags.processType && (
-                          <tr>
-                            <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Process Type</td>
-                            <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
-                              {job.process || job.order || 'Not Specified'}
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
-                            <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
-                                <span>Pending</span>
-                              </div>
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
-                          </tr>
-                        )}
-                        {(fieldFlags.size || (job.width || job.height)) && (
-                          <tr>
-                            <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Size</td>
-                            <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
-                              {job.width && job.height ? `${job.width}" W x ${job.height}" H` : (job.width || job.height ? `${job.width || '-'} W x ${job.height || '-'} H` : 'Not Specified')}
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
-                            <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
-                                <span>Pending</span>
-                              </div>
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
-                          </tr>
-                        )}
-                        {fieldFlags.colors && job.colors != null && job.colors > 0 && (
-                          <tr>
-                            <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Colors</td>
-                            <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
-                              {`${job.colors} ${job.colors === 1 ? 'Color' : 'Colors'}`}
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
-                            <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
-                                <span>Pending</span>
-                              </div>
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] leading-relaxed break-words">
-                              {job.colors > 0 && job.colors < 3 ? 'Minimum 3 colors required to achieve depth and clarity.' : '-'}
-                            </td>
-                          </tr>
-                        )}
-                        {(fieldFlags.placement || job.placement) && (
-                          <tr>
-                            <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Placement</td>
-                            <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
-                              {job.placement || 'Not Specified'}
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
-                            <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
-                                <span>Pending</span>
-                              </div>
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
-                          </tr>
-                        )}
-                        {(fieldFlags.outputFormat || job.finalFiles?.length) && (
-                          <tr>
-                            <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Output File Format</td>
-                            <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
-                              {job.finalFiles?.length ? job.finalFiles.join(', ') : 'Not Specified'}
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 border-r border-slate-200 whitespace-nowrap">-</td>
-                            <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5 font-bold text-slate-800 text-[10px] sm:text-[10.5px] whitespace-nowrap">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />
-                                <span>Pending</span>
-                              </div>
-                            </td>
-                            <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] leading-relaxed break-words">-</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                {(() => {
+                  const isReqCompleted =
+                    displayJob.stage === 'delivered' ||
+                    displayJob.status === 'Dispatched' ||
+                    (displayJob.status as string) === 'Completed' ||
+                    normalizedStatus(displayJob) === 'DELIVERED' ||
+                    normalizedStatus(displayJob) === 'DISPATCHED' ||
+                    normalizedStatus(displayJob) === 'COMPLETED';
+
+                  return (
+                    <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 shadow-sm">
+                      <h3 className="text-[13px] sm:text-[14px] font-bold text-slate-800 mb-2.5 tracking-tight">
+                        Requirements (Requested vs Completed)
+                      </h3>
+                      <div className="rounded-lg border border-slate-200 overflow-x-auto bg-white">
+                        <table className="w-full border-collapse text-left text-[10px] sm:text-[10.5px]">
+                          <colgroup>
+                            <col className="w-auto" />
+                            <col className="w-auto" />
+                            <col className="w-auto" />
+                            <col className="w-auto" />
+                            <col className="w-full" />
+                          </colgroup>
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold text-[10.5px] sm:text-[11px]">
+                              <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Requirement</th>
+                              <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Requested</th>
+                              <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Completed</th>
+                              <th className="py-2 px-2.5 border-r border-slate-200 font-bold whitespace-nowrap">Status</th>
+                              <th className="py-2 px-2.5 font-bold whitespace-nowrap">Notes (If Any)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 text-slate-800">
+                            {fieldFlags.processType && (
+                              <tr>
+                                <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Process Type</td>
+                                <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                                  {job.process || job.order || 'Not Specified'}
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-700 font-medium border-r border-slate-200 whitespace-nowrap">
+                                  {isReqCompleted ? (job.process || job.order || 'Completed') : '-'}
+                                </td>
+                                <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                                  <div className={cn(
+                                    "inline-flex items-center gap-1.5 font-bold text-[10px] sm:text-[10.5px] whitespace-nowrap",
+                                    isReqCompleted ? "text-emerald-700" : "text-slate-800"
+                                  )}>
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full shrink-0 inline-block",
+                                      isReqCompleted ? "bg-emerald-500" : "bg-amber-500"
+                                    )} />
+                                    <span>{isReqCompleted ? 'Completed' : 'Pending'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
+                              </tr>
+                            )}
+                            {(fieldFlags.size || (job.width || job.height)) && (
+                              <tr>
+                                <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Size</td>
+                                <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                                  {job.width && job.height ? `${job.width}" W x ${job.height}" H` : (job.width || job.height ? `${job.width || '-'} W x ${job.height || '-'} H` : 'Not Specified')}
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-700 font-medium border-r border-slate-200 whitespace-nowrap">
+                                  {isReqCompleted ? (job.width && job.height ? `${job.width}" W x ${job.height}" H` : (job.width || job.height ? `${job.width || '-'} W x ${job.height || '-'} H` : 'Completed')) : '-'}
+                                </td>
+                                <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                                  <div className={cn(
+                                    "inline-flex items-center gap-1.5 font-bold text-[10px] sm:text-[10.5px] whitespace-nowrap",
+                                    isReqCompleted ? "text-emerald-700" : "text-slate-800"
+                                  )}>
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full shrink-0 inline-block",
+                                      isReqCompleted ? "bg-emerald-500" : "bg-amber-500"
+                                    )} />
+                                    <span>{isReqCompleted ? 'Completed' : 'Pending'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
+                              </tr>
+                            )}
+                            {fieldFlags.colors && job.colors != null && job.colors > 0 && (
+                              <tr>
+                                <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Colors</td>
+                                <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                                  {`${job.colors} ${job.colors === 1 ? 'Color' : 'Colors'}`}
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-700 font-medium border-r border-slate-200 whitespace-nowrap">
+                                  {isReqCompleted ? `${job.colors} ${job.colors === 1 ? 'Color' : 'Colors'}` : '-'}
+                                </td>
+                                <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                                  <div className={cn(
+                                    "inline-flex items-center gap-1.5 font-bold text-[10px] sm:text-[10.5px] whitespace-nowrap",
+                                    isReqCompleted ? "text-emerald-700" : "text-slate-800"
+                                  )}>
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full shrink-0 inline-block",
+                                      isReqCompleted ? "bg-emerald-500" : "bg-amber-500"
+                                    )} />
+                                    <span>{isReqCompleted ? 'Completed' : 'Pending'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] leading-relaxed break-words">
+                                  {job.colors > 0 && job.colors < 3 ? 'Minimum 3 colors required to achieve depth and clarity.' : '-'}
+                                </td>
+                              </tr>
+                            )}
+                            {(fieldFlags.placement || job.placement) && (
+                              <tr>
+                                <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Placement</td>
+                                <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                                  {job.placement || 'Not Specified'}
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-700 font-medium border-r border-slate-200 whitespace-nowrap">
+                                  {isReqCompleted ? (job.placement || 'Completed') : '-'}
+                                </td>
+                                <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                                  <div className={cn(
+                                    "inline-flex items-center gap-1.5 font-bold text-[10px] sm:text-[10.5px] whitespace-nowrap",
+                                    isReqCompleted ? "text-emerald-700" : "text-slate-800"
+                                  )}>
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full shrink-0 inline-block",
+                                      isReqCompleted ? "bg-emerald-500" : "bg-amber-500"
+                                    )} />
+                                    <span>{isReqCompleted ? 'Completed' : 'Pending'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] break-words">-</td>
+                              </tr>
+                            )}
+                            {(fieldFlags.outputFormat || job.finalFiles?.length) && (
+                              <tr>
+                                <td className="py-2 px-2.5 font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">Output File Format</td>
+                                <td className="py-2 px-2.5 font-bold text-slate-900 border-r border-slate-200 whitespace-nowrap">
+                                  {job.finalFiles?.length ? job.finalFiles.join(', ') : 'Not Specified'}
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-700 font-medium border-r border-slate-200 whitespace-nowrap">
+                                  {isReqCompleted ? (
+                                    allCompletedFiles.length > 0
+                                      ? allCompletedFiles.map((f) => f.file_name.split('.').pop()?.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join(', ')
+                                      : (job.finalFiles?.length ? job.finalFiles.join(', ') : 'Completed')
+                                  ) : '-'}
+                                </td>
+                                <td className="py-2 px-2.5 border-r border-slate-200 whitespace-nowrap">
+                                  <div className={cn(
+                                    "inline-flex items-center gap-1.5 font-bold text-[10px] sm:text-[10.5px] whitespace-nowrap",
+                                    isReqCompleted ? "text-emerald-700" : "text-slate-800"
+                                  )}>
+                                    <span className={cn(
+                                      "w-1.5 h-1.5 rounded-full shrink-0 inline-block",
+                                      isReqCompleted ? "bg-emerald-500" : "bg-amber-500"
+                                    )} />
+                                    <span>{isReqCompleted ? 'Completed' : 'Pending'}</span>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2.5 text-slate-500 text-[11px] sm:text-[11.5px] leading-relaxed break-words">
+                                  {isReqCompleted ? 'Provided as requested.' : '-'}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Additional Instructions */}
                 <div className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-sm">

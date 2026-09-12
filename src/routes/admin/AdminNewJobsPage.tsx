@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GreetingHero,
-  JobFilterBar,
   JobTable,
   Pagination,
   StatGrid,
@@ -30,7 +29,7 @@ function mapPriority(p: string): string | undefined {
 }
 
 export function AdminNewJobsPage() {
-  const [filters, setFilters] = useState<JobFilters>(EMPTY_FILTERS);
+  const [filters] = useState<JobFilters>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounced(filters.search, 300);
@@ -71,10 +70,7 @@ export function AdminNewJobsPage() {
   useEffect(() => { if (!isLoading) hasLoadedOnce.current = true; }, [isLoading]);
   const isFirstLoad = isLoading && !hasLoadedOnce.current;
 
-  function handleFiltersChange(next: JobFilters) {
-    setFilters(next);
-    setPage(1);
-  }
+
 
   if (isError) {
     return (
@@ -113,14 +109,6 @@ export function AdminNewJobsPage() {
             showActions
             defaultView="grid"
             emptyLabel="No pending jobs."
-            toolbarSlot={
-              <JobFilterBar
-                filters={filters}
-                onChange={handleFiltersChange}
-                statusOptions={[]}
-                clients={clients}
-              />
-            }
           />
           {total > 0 && (
             <Pagination

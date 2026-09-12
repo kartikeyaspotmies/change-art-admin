@@ -138,7 +138,19 @@ export function CSProjectsPage() {
     setSearchParams(nextParams, { replace: true });
   }
 
+  const isAllProjects = !projectParam && !filterParam;
   const activeFilterLabel = filterParam || projectParam;
+
+  const sectionTitle = useMemo(() => {
+    if (projectParam === 'Live') return 'Live (Direct) Projects';
+    if (projectParam === 'Live Quote') return 'Live Quote Projects';
+    if (projectParam === 'Quote') return 'Quote Projects';
+    if (projectParam === 'Amend') return 'Amend Projects';
+    if (filterParam === 'In Production') return 'In Production Projects';
+    if (filterParam) return `${filterParam} Projects`;
+    if (projectParam) return `${projectParam} Projects`;
+    return 'All Projects';
+  }, [projectParam, filterParam]);
 
   const activeClient = useMemo(() => {
     if (!filters.clientId) return null;
@@ -163,7 +175,7 @@ export function CSProjectsPage() {
   if (isError) {
     return (
       <div className="page">
-        <GreetingHero title="All Projects" subtitle="All jobs across the Client Servicing pipeline." />
+        <GreetingHero title={sectionTitle} subtitle="All jobs across the Client Servicing pipeline." />
         <div className="flex items-center justify-center py-16 text-[var(--color-crimson)] text-sm">
           Failed to load projects. Please refresh and try again.
         </div>
@@ -174,7 +186,7 @@ export function CSProjectsPage() {
   return (
     <div className="page">
       <GreetingHero
-        title="All Projects"
+        title={sectionTitle}
         subtitle={activeFilterSubtitle}
       />
 
@@ -193,12 +205,14 @@ export function CSProjectsPage() {
         </div>
       ) : filteredData.length === 0 ? (
         <>
-          <JobFilterBar
-            filters={filters}
-            onChange={handleFiltersChange}
-            statusOptions={JOB_STATUS_OPTIONS}
-            clients={clients}
-          />
+          {isAllProjects && (
+            <JobFilterBar
+              filters={filters}
+              onChange={handleFiltersChange}
+              statusOptions={JOB_STATUS_OPTIONS}
+              clients={clients}
+            />
+          )}
           <div className="flex items-center justify-center py-16 text-text-faint text-sm">
             {activeFilterLabel ? `No ${activeFilterLabel.toLowerCase()} jobs.` : 'No projects match these filters.'}
           </div>
@@ -216,12 +230,14 @@ export function CSProjectsPage() {
               setSearchParams(next, { replace: true });
             }}
             toolbarSlot={
-              <JobFilterBar
-                filters={filters}
-                onChange={handleFiltersChange}
-                statusOptions={JOB_STATUS_OPTIONS}
-                clients={clients}
-              />
+              isAllProjects ? (
+                <JobFilterBar
+                  filters={filters}
+                  onChange={handleFiltersChange}
+                  statusOptions={JOB_STATUS_OPTIONS}
+                  clients={clients}
+                />
+              ) : undefined
             }
           />
           <Pagination
