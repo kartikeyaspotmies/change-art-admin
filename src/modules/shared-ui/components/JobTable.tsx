@@ -211,9 +211,9 @@ export function JobTable({
             className="btn font-bold flex-1 min-w-0"
             style={{ fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
             onClick={() => setViewJobId(j.uuid ?? j.id)}
-            aria-label={`Upload files for ${j.id}`}
+            aria-label={`Dispatch ${j.id}`}
           >
-            Upload
+            Dispatch
           </button>
         ) : null}
         {needsAcknowledgement ? (
@@ -731,7 +731,7 @@ function TableView({
                     </div>
                   )}
                 </td>
-              {/* <td>
+                {/* <td>
                 <img
                   className="table-preview"
                   src={jobImage(j, 0, 220, 160)}
@@ -741,42 +741,42 @@ function TableView({
                   onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                 />
               </td> */}
-              <td><Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge></td>
-              <td><Badge accent={projectTypeBadgeAccent(j.project)}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</Badge></td>
-              <td><PriorityChip priority={j.priority} /></td>
-              <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Completed" /> : <Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge>}</td>
-              {!minimalColumns && (
-                <td className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</td>
-              )}
-              {!minimalColumns && (
-                <td onClick={(e) => e.stopPropagation()}>
-                  {renderRowActions ? renderRowActions(j) : (
-                    j.stage === 'delivered' ? (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        style={{ fontSize: 12, padding: '5px 12px', gap: 5 }}
-                        onClick={() => onOpen?.(j)}
-                      >
-                        <Download className="w-3.5 h-3.5" aria-hidden />
-                        Download
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        style={{ fontSize: 12, padding: '5px 12px' }}
-                        onClick={() => onOpen?.(j)}
-                      >
-                        View
-                      </button>
-                    )
-                  )}
-                </td>
-              )}
-            </tr>
-          );
-        })}
+                <td><Badge accent={orderBadgeAccent(j.order)}>{j.order}</Badge></td>
+                <td><Badge accent={projectTypeBadgeAccent(j.project)}>{projectTypeBadgeLabel(j.project, j.modificationCount)}</Badge></td>
+                <td><PriorityChip priority={j.priority} /></td>
+                <td>{isCompletedStatus(j.status, j.stage) ? <CompletedStatusBadge label="Completed" /> : <Badge accent={statusBadgeAccent(j.status)}>{j.status}</Badge>}</td>
+                {!minimalColumns && (
+                  <td className="text-[12px] text-text-muted whitespace-nowrap">{formatDate(j.created)}</td>
+                )}
+                {!minimalColumns && (
+                  <td onClick={(e) => e.stopPropagation()}>
+                    {renderRowActions ? renderRowActions(j) : (
+                      j.stage === 'delivered' ? (
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          style={{ fontSize: 12, padding: '5px 12px', gap: 5 }}
+                          onClick={() => onOpen?.(j)}
+                        >
+                          <Download className="w-3.5 h-3.5" aria-hidden />
+                          Download
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          style={{ fontSize: 12, padding: '5px 12px' }}
+                          onClick={() => onOpen?.(j)}
+                        >
+                          View
+                        </button>
+                      )
+                    )}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -985,7 +985,7 @@ function GridView({
                         Assign
                       </button>
                     )}
-                    {/* Upload Files button — ready-to-dispatch jobs only. */}
+                    {/* Dispatch button — ready-to-dispatch jobs only. */}
                     {isReadyDispatch && (
                       <button
                         type="button"
@@ -993,7 +993,7 @@ function GridView({
                         style={{ fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
                         onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                       >
-                        Upload
+                        Dispatch
                       </button>
                     )}
                     {/* Send ETA button — job placed, awaiting acknowledgement */}

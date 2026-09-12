@@ -114,7 +114,17 @@ export function CSProjectsPage() {
   }, [filterParam, searchParams]);
 
   const open       = useMemo(() => allData.filter((j) => j.stage !== 'delivered' && !isJobEtaExpired(j)), [allData]);
-  const ready      = useMemo(() => allData.filter((j) => j.status === 'Ready to Deliver' || isJobEtaExpired(j)), [allData]);
+  const ready      = useMemo(
+    () =>
+      allData
+        .filter((j) => (j.status === 'Ready to Deliver' || isJobEtaExpired(j)) && j.status !== 'On Hold')
+        .map((j) =>
+          isJobEtaExpired(j) && j.status !== 'Dispatched'
+            ? { ...j, status: 'Ready to Deliver' as const, stage: 'delivered' as const }
+            : j
+        ),
+    [allData],
+  );
   const amend      = useMemo(() => allData.filter((j) => j.project === 'Amend'), [allData]);
 
   const filteredData = useMemo(() => applyJobFilters(allData, filters, clients), [allData, filters, clients]);

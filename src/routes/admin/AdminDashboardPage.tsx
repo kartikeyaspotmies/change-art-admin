@@ -74,9 +74,16 @@ export function AdminDashboardPage() {
   );
   const quote = useMemo(() => jobs.filter(isQuoteAwaitingClient), [jobs]);
   const amend = useMemo(() => jobs.filter((j) => j.project === 'Amend'), [jobs]);
-  const inProduction = useMemo(() => jobs.filter((j) => IN_PRODUCTION_STATUSES.includes(j.status)), [jobs]);
+  const inProduction = useMemo(() => jobs.filter((j) => IN_PRODUCTION_STATUSES.includes(j.status) && !isJobEtaExpired(j)), [jobs]);
   const readyToDispatch = useMemo(
-    () => jobs.filter((j) => j.status === 'Ready to Deliver' || isJobEtaExpired(j)),
+    () =>
+      jobs
+        .filter((j) => (j.status === 'Ready to Deliver' || isJobEtaExpired(j)) && j.status !== 'On Hold')
+        .map((j) =>
+          isJobEtaExpired(j) && j.status !== 'Dispatched'
+            ? { ...j, status: 'Ready to Deliver' as const, stage: 'delivered' as const }
+            : j
+        ),
     [jobs],
   );
   const missedDeadlines = useMemo(() => jobs.filter((j) => isJobEtaExpired(j)).length, [jobs]);
@@ -205,7 +212,7 @@ export function AdminDashboardPage() {
           {
             accent: 'cs-teal',
             tag: 'Ready to Dispatch',
-            description: 'Upload & Dispatch',
+            description: 'Ready to Dispatch',
             value: loading(readyToDispatch.length),
             statusText: 'Ready to Send',
             icon: <Send />,

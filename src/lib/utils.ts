@@ -116,6 +116,7 @@ export function isJobEtaExpired(job: {
   // request and it re-enters production with a fresh ETA cycle.
   if (
     job.rawStatus === 'HOLD' ||
+    job.status === 'On Hold' ||
     job.rawStatus === 'MODIFICATION_REQUESTED' ||
     job.status === 'Dispatched' ||
     job.status === 'Cancelled' ||

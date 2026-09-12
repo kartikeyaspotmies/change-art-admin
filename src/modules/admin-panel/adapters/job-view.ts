@@ -17,7 +17,7 @@ import type {
   JobStage,
   JobStatus as JobStatusDisplay,
 } from '@modules/shared-ui';
-import { normalizeRefNumber } from '@lib/utils';
+import { normalizeRefNumber, isJobEtaExpired } from '@lib/utils';
 import { resolveClientCardExpiry } from '@lib/card-expiry';
 
 const ORDER_DISPLAY: Record<OrderType, JobOrderType> = {
@@ -115,6 +115,7 @@ const STATUS_MAP: Record<JobStatus, StageDisplay> = {
  * linger in the working queue forever after it's done.
  */
 export function isPipelineActive(job: Pick<Job, 'stage' | 'status'>): boolean {
+  if (job.status === 'On Hold') return true;
   return job.stage !== 'delivered' && job.status !== 'Pending';
 }
 
@@ -145,14 +146,12 @@ export function adaptJobCard(
   // JOB_PLACED means CS created the job but the TL hasn't acknowledged it yet.
   // Only flip to "In Production" once the ack has been sent; before that show
   // "Pending" so staff can see the job still needs acknowledgement.
-  const displayStatus: JobStatusDisplay =
+  let displayStatus: JobStatusDisplay =
     card.status === JobStatus.JOB_PLACED && !card.acknowledgement_sent_at
       ? 'Pending'
       : mapped.status;
 
-  // A held job keeps the kanban column it was in before the hold, instead of
-  // jumping to HOLD's fallback stage — only the status label/badge changes.
-  const stage: JobStage =
+  let stage: JobStage =
     card.status === JobStatus.HOLD && card.pre_hold_status
       ? (STATUS_MAP[card.pre_hold_status]?.stage ?? mapped.stage)
       : mapped.stage;
@@ -160,6 +159,23 @@ export function adaptJobCard(
   const effectiveAcknowledgedAt = card.acknowledgement_sent_at
     ? new Date(new Date(card.acknowledgement_sent_at).getTime() + (card.total_held_ms ?? 0)).toISOString()
     : null;
+
+  if (
+    card.status !== JobStatus.HOLD &&
+    displayStatus !== 'On Hold' &&
+    isJobEtaExpired({
+      effectiveAcknowledgedAt,
+      acknowledgedAt: card.acknowledgement_sent_at ? String(card.acknowledgement_sent_at) : null,
+      etaHours: card.eta_hours,
+      status: displayStatus,
+      rawStatus: card.status,
+      stage,
+      created: card.time_and_date ?? card.created_at,
+    })
+  ) {
+    displayStatus = 'Ready to Deliver';
+    stage = 'delivered';
+  }
 
   const assignedUserId =
     card.current_handler_id ??

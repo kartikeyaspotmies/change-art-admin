@@ -79,9 +79,16 @@ export function CSDashboardPage() {
   );
   const quote = useMemo(() => allJobs.filter(isQuoteAwaitingClient), [allJobs]);
   const amend = useMemo(() => allJobs.filter((j) => j.project === 'Amend'), [allJobs]);
-  const inProduction = useMemo(() => allJobs.filter((j) => IN_PRODUCTION_STATUSES.includes(j.status)), [allJobs]);
+  const inProduction = useMemo(() => allJobs.filter((j) => IN_PRODUCTION_STATUSES.includes(j.status) && !isJobEtaExpired(j)), [allJobs]);
   const readyToDispatch = useMemo(
-    () => allJobs.filter((j) => j.status === 'Ready to Deliver' || isJobEtaExpired(j)),
+    () =>
+      allJobs
+        .filter((j) => (j.status === 'Ready to Deliver' || isJobEtaExpired(j)) && j.status !== 'On Hold')
+        .map((j) =>
+          isJobEtaExpired(j) && j.status !== 'Dispatched'
+            ? { ...j, status: 'Ready to Deliver' as const, stage: 'delivered' as const }
+            : j
+        ),
     [allJobs],
   );
   const missedDeadlines = useMemo(() => allJobs.filter((j) => isJobEtaExpired(j)).length, [allJobs]);
@@ -179,7 +186,7 @@ export function CSDashboardPage() {
     {
       accent: 'cs-teal',
       tag: 'Ready to Dispatch',
-      description: 'Upload & Dispatch',
+      description: 'Ready to Dispatch',
       value: readyToDispatch.length,
       statusText: 'Ready to Send',
       icon: <Send />,

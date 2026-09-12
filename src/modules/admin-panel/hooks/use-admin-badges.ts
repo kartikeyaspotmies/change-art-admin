@@ -4,6 +4,9 @@ import { EmailIngestionStatus } from '@contracts';
 import { queryKeys } from '@lib/query-keys';
 import { adminService } from '../services/admin.service';
 import { useUnreadCount } from '@modules/notifications/hooks/use-notifications';
+import { useAdminJobViews } from './use-admin-jobs';
+import { isJobEtaExpired } from '@lib/utils';
+import { IN_PRODUCTION_STATUSES } from '@modules/shared-ui';
 
 /**
  * Shared across both nav-badge hooks — the Email Inbox badge counts emails
@@ -42,6 +45,8 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
     enabled,
   });
 
+  const { jobs } = useAdminJobViews(enabled ? { per_page: 200 } : { per_page: 1 });
+
   // Shares its cache key with the Profile Requests tab on the Clients page
   // so opening that tab is a cache hit.
   const { data: pendingChangeRequests } = useQuery({
@@ -70,9 +75,6 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
 
   return useMemo(() => {
     const badges: Record<string, number> = {};
-    // All of these come straight from the backend's countBadges() — full
-    // table counts, not scanned from a capped page of fetched jobs — so
-    // they stay accurate no matter how many job cards exist.
     if (data) {
       badges['new-quotes'] = data['new-quotes'] ?? 0;
       badges['new-jobs'] = data['new-jobs'] ?? 0;
@@ -82,6 +84,18 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
       badges['in-production'] = data['in-production'] ?? 0;
       badges['deliver'] = data['deliver'] ?? 0;
     }
+
+    if (jobs && jobs.length > 0) {
+      const readyCount = jobs.filter((j) => j.status === 'Ready to Deliver' || isJobEtaExpired(j)).length;
+      if (readyCount > 0) {
+        badges['deliver'] = Math.max(badges['deliver'] ?? 0, readyCount);
+      }
+      const activeProdCount = jobs.filter((j) => IN_PRODUCTION_STATUSES.includes(j.status) && !isJobEtaExpired(j)).length;
+      if (activeProdCount >= 0 && data) {
+        badges['in-production'] = activeProdCount;
+      }
+    }
+
     if (pendingChangeRequests || pendingSignups) {
       badges['clients'] = (pendingChangeRequests?.meta.total ?? 0) + (pendingSignups?.length ?? 0);
     }
@@ -92,7 +106,7 @@ export function useAdminNavBadges(enabled: boolean): Record<string, number> {
       badges['email-inbox'] = pendingEmailCount;
     }
     return badges;
-  }, [data, pendingChangeRequests, pendingSignups, unreadData, pendingEmailCount]);
+  }, [data, jobs, pendingChangeRequests, pendingSignups, unreadData, pendingEmailCount]);
 }
 
 /**
