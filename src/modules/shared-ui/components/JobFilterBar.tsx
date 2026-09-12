@@ -53,6 +53,16 @@ export const JOB_STATUS_OPTIONS = [
   { value: 'Cancelled',        label: 'Cancelled' },
 ];
 
+/**
+ * Display statuses that count as "In Production" for the sidebar's single
+ * aggregate nav item — spans every active work stage (junior/senior/sewout/
+ * QC), not just the top-level "In Production" label. Keep in sync with
+ * job-view.ts's STATUS_MAP: any status whose `stage` is junior/senior/
+ * sewout/qc (excluding 'Pending' and 'Amend', which are their own buckets)
+ * belongs here.
+ */
+export const IN_PRODUCTION_STATUSES = ['In Production', 'Senior Review', 'Sewout', 'In QC'];
+
 export const QUOTE_STATUS_OPTIONS = [
   { value: 'Quote Submitted', label: 'Quote Submitted' },
   { value: 'Quote Approved',  label: 'Quote Sent' },
@@ -80,7 +90,11 @@ export function applyJobFilters<
   }
   if (f.orderType) result = result.filter((j) => j.order === f.orderType);
   if (f.priority)  result = result.filter((j) => j.priority === f.priority);
-  if (f.status)    result = result.filter((j) => j.status === f.status);
+  if (f.status === 'In Production') {
+    result = result.filter((j) => IN_PRODUCTION_STATUSES.includes(j.status));
+  } else if (f.status) {
+    result = result.filter((j) => j.status === f.status);
+  }
   if (f.clientId) {
     const targetClient = clients.find((c) => c.client_id === f.clientId || c.id === f.clientId);
     result = result.filter((j) => {

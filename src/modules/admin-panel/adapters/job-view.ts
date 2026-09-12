@@ -106,6 +106,30 @@ const STATUS_MAP: Record<JobStatus, StageDisplay> = {
   [JobStatus.HOLD]: { status: 'On Hold', stage: 'junior' },
 };
 
+/**
+ * Whether a Live / Live Quote project card belongs in the active pipeline
+ * view (sidebar's Live (Direct) / Live Quote nav items, badges, dashboard
+ * counts). A card tagged `project` Live/Live Quote is excluded once it's
+ * either still awaiting ETA ('Pending' — hasn't moved past New Requests
+ * yet) or already dispatched (`stage === 'delivered'`), so it doesn't
+ * linger in the working queue forever after it's done.
+ */
+export function isPipelineActive(job: Pick<Job, 'stage' | 'status'>): boolean {
+  return job.stage !== 'delivered' && job.status !== 'Pending';
+}
+
+/**
+ * Whether a card belongs on the "Quote" sidebar section: either a priced
+ * quote awaiting the client's confirmation (QUOTE_APPROVED), or a quote
+ * the client already confirmed but that's still waiting on staff to send
+ * an ETA (`project` flipped to 'Live Quote', status 'Pending'). It only
+ * moves to Live Quote once that ETA is sent — QUOTE_SUBMITTED (not yet
+ * priced) belongs on New Requests instead, so it's excluded here.
+ */
+export function isQuoteAwaitingClient(job: Pick<Job, 'project' | 'status'>): boolean {
+  return job.status === 'Quote Approved' || (job.project === 'Live Quote' && job.status === 'Pending');
+}
+
 export interface ClientInfo {
   name: string;
   clientId: string;

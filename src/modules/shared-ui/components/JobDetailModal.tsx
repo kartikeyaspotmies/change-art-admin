@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { JobQueriesSection } from './JobQueriesSection';
-import { X, Download, Send, AlertCircle, Timer, CheckCircle2, FileText, Upload, Loader2, Copy, CreditCard, ShoppingCart, Pencil, Search, Play, Info, DollarSign, Check, Clock, Image as ImageIcon, User, Building2 } from 'lucide-react';
+import { X, Download, Send, AlertCircle, Timer, CheckCircle2, XCircle, FileText, Upload, Loader2, Copy, CreditCard, ShoppingCart, Pencil, Search, Play, Info, DollarSign, Check, Clock, Image as ImageIcon, User, Building2 } from 'lucide-react';
 import { getCardExpiryStatus } from '@lib/card-expiry';
 import { MarkCompleteModal } from '@modules/cs-panel/components/MarkCompleteModal';
 import { useQueryClient } from '@tanstack/react-query';
@@ -433,6 +433,23 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
     job?.rawStatus === JobStatus.HOLD,
   );
 
+  const isAmendJob = Boolean(
+    job && (
+      normalizedStatus(job) === 'MODIFICATION_REQUESTED' ||
+      job.project === 'Amend' ||
+      Boolean(job.modificationNotes)
+    )
+  );
+
+  const handleScrollToModificationRequest = useCallback(() => {
+    const el = document.getElementById('client-modification-request-card');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      toast('Modification details section below');
+    }
+  }, []);
+
   // Subscribe to the job's room while the modal is open. Use the canonical
   // (non-admin-copy) job ID so query events — which are stored and broadcast
   // against the original job — are received correctly.
@@ -606,11 +623,22 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
   const messagesCount = jobQueries?.length ?? 0;
 
   const stepIdx = currentStepIndex(job);
-  const isQuote = _quoteView || job?.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED' || normalizedStatus(job) === 'QUOTE_APPROVED';
+  // Gate the "Review & Set Quoted Price" form strictly on the job's actual
+  // status/stage, not on `_quoteView` (which is just "this modal opened
+  // from the Quote page" — true for every card there, including ones the
+  // client already confirmed and that are only waiting on staff to send
+  // an ETA). Using the page-context flag here re-opened the price form for
+  // those already-priced jobs, asking staff to re-enter a price/ETA that
+  // was already sent; canAcknowledge (below) is what should drive them
+  // instead, and it already locks the ETA to the value sent with the price.
+  const isQuote = job?.stage === 'quote' || normalizedStatus(job) === 'QUOTE_SUBMITTED' || normalizedStatus(job) === 'QUOTE_APPROVED';
   const quoteSent = isQuoteAlreadySent(job);
   const canAcknowledge = normalizedStatus(job) === 'JOB_PLACED' && !job.acknowledgedAt;
   const isAcknowledged = !!job.acknowledgedAt;
   const isDelivered = normalizedStatus(job) === 'DELIVERED';
+  // Awaiting staff's approve/reject decision on a client's modification
+  // request — Assign/Dispatch don't apply until that's resolved.
+  const needsAmendReview = normalizedStatus(job) === 'MODIFICATION_REQUESTED';
   const cardExpiryStatus = getCardExpiryStatus(
     job.clientCardExpMonth != null && job.clientCardExpYear != null
       ? { exp_month: job.clientCardExpMonth, exp_year: job.clientCardExpYear }
@@ -638,6 +666,27 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
       handleClose();
     } catch {
       toast.error('Failed to reject amendment. Please try again.');
+    } finally {
+      setAmendBusy(null);
+    }
+  }
+
+  // Approve routes the modification request back into production
+  // (MODIFICATION_REQUESTED → CS_APPROVED via cs_amend_reroute). Only once
+  // this fires does the job leave New Requests and become a real Amend
+  // project in the pipeline.
+  async function handleApproveAmendment() {
+    const id = requireUuid('approve amendment');
+    if (!id || !job || job.version === undefined) return;
+    setAmendBusy('approve');
+    try {
+      await adminService.transitionJob(id, 'cs_amend_reroute', job.version);
+      toast.success('Amendment approved — job routed back into production.');
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.jobs.byId(id) });
+      handleClose();
+    } catch {
+      toast.error('Failed to approve amendment. Please try again.');
     } finally {
       setAmendBusy(null);
     }
@@ -934,8 +983,12 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                   {unholdBusy ? 'Unholding…' : 'Unhold Project'}
                 </button>
               )}
-              {/* ETA Countdown Timer */}
-              {!isDelivered && isAcknowledged && etaCountdown && (
+              {/* ETA Countdown Timer — hidden while awaiting amend approval:
+                  `acknowledgedAt` is a leftover from the job's original
+                  production run before it was delivered, so it's stale
+                  once a modification request reopens it and shouldn't
+                  display as a live countdown. */}
+              {!isDelivered && !needsAmendReview && !isAmendJob && isAcknowledged && etaCountdown && (
                 <div
                   className={cn(
                     "flex items-center gap-1.5 px-2.5 h-7 rounded-lg border",
@@ -950,6 +1003,26 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                     {etaCountdown.display}
                   </span>
                 </div>
+              )}
+              {isAmendJob && (
+                <button
+                  type="button"
+                  onClick={handleScrollToModificationRequest}
+                  className="px-2.5 h-7 rounded-lg flex items-center gap-1.5 transition-all bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-300 text-rose-800 hover:from-rose-100 hover:to-pink-100 hover:border-rose-400 font-bold shadow-xs text-[11px] shrink-0 cursor-pointer group"
+                  title="Click to view Client's Modification Request"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                  </span>
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 group-hover:scale-110 transition-transform" aria-hidden />
+                  <span className="font-bold text-rose-900 tracking-tight">Client's Modification Request</span>
+                  {job.modificationCount ? (
+                    <span className="bg-rose-200/90 text-rose-950 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border border-rose-300/60 ml-0.5">
+                      AMEND R{job.modificationCount}
+                    </span>
+                  ) : null}
+                </button>
               )}
               <button
                 type="button"
@@ -2142,41 +2215,54 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
           )}
 
           {/* ── MODIFICATION REQUEST ── client's description + attached files ── */}
-          {normalizedStatus(job) === 'MODIFICATION_REQUESTED' && (() => {
+          {isAmendJob && (() => {
             const amendFiles = (adminJobFiles ?? []).filter(
               (f) => f.file_category === FileCategory.ORIGINAL,
             );
             return (
               <div
-                className="mx-6 mb-4 rounded-xl overflow-hidden"
-                style={{ border: '1.5px solid rgba(225,29,72,0.35)', background: 'rgba(225,29,72,0.05)' }}
+                id="client-modification-request-card"
+                className="mx-6 my-6 rounded-2xl overflow-hidden shadow-sm ring-2 ring-rose-500/20 scroll-mt-6 border border-rose-200/80 bg-white"
               >
                 {/* Header */}
                 <div
-                  className="px-4 py-2.5 flex items-center gap-2"
-                  style={{ borderBottom: '1px solid rgba(225,29,72,0.2)', background: 'rgba(225,29,72,0.08)' }}
+                  className="px-5 py-3.5 flex items-center gap-2.5"
+                  style={{ background: 'rgba(225,29,72,0.06)', borderBottom: '1px solid rgba(225,29,72,0.16)' }}
                 >
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" style={{ color: '#e11d48' }} aria-hidden />
-                  <span className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: '#e11d48' }}>
-                    Client's Modification Request{job.modificationCount ? ` — Amend R${job.modificationCount}` : ''}
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                    style={{ background: 'rgba(225,29,72,0.12)' }}
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" style={{ color: '#e11d48' }} aria-hidden />
                   </span>
+                  <span className="text-[12px] font-bold" style={{ color: '#9f1239' }}>
+                    Client's Modification Request
+                  </span>
+                  {job.modificationCount ? (
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-[0.04em] px-2 py-0.5 rounded-full ml-auto shrink-0"
+                      style={{ background: 'rgba(225,29,72,0.12)', color: '#e11d48' }}
+                    >
+                      Amend R{job.modificationCount}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Description */}
-                <div className="px-4 pt-3 pb-2">
+                <div className="px-5 pt-4 pb-3">
                   {job.modificationNotes ? (
-                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-main)' }}>
+                    <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap text-slate-800">
                       {job.modificationNotes}
                     </p>
                   ) : (
-                    <p className="text-[12.5px] italic" style={{ color: 'var(--text-faint)' }}>No description provided.</p>
+                    <p className="text-[12.5px] italic text-slate-400">No description provided.</p>
                   )}
                 </div>
 
                 {/* Attached files */}
                 {amendFiles.length > 0 && (
-                  <div className="px-4 pb-3">
-                    <p className="text-[10.5px] font-bold uppercase tracking-[0.07em] mb-2 mt-1" style={{ color: 'var(--text-faint)' }}>
+                  <div className="px-5 pt-2 pb-4">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.07em] mb-2" style={{ color: 'var(--text-faint)' }}>
                       Attached Files ({amendFiles.length})
                     </p>
                     <ul className="flex flex-col gap-1.5">
@@ -2184,9 +2270,9 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                         <li
                           key={f.id}
                           className="flex items-center gap-2.5 rounded-lg px-3 py-2"
-                          style={{ background: 'rgba(225,29,72,0.07)', border: '1px solid rgba(225,29,72,0.18)' }}
+                          style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
                         >
-                          <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#e11d48' }} aria-hidden />
+                          <FileText className="w-3.5 h-3.5 shrink-0" style={{ color: '#94a3b8' }} aria-hidden />
                           <span className="text-[12px] font-medium truncate flex-1" style={{ color: 'var(--text-main)' }}>
                             {f.file_name}
                           </span>
@@ -2200,8 +2286,9 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                               href={f.storage_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="shrink-0 text-[11px] font-semibold"
-                              style={{ color: '#e11d48' }}
+                              className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors hover:bg-slate-200/70"
+                              style={{ color: '#64748b' }}
+                              aria-label={`Download ${f.file_name}`}
                             >
                               <Download className="w-3.5 h-3.5" aria-hidden />
                             </a>
@@ -2211,6 +2298,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                     </ul>
                   </div>
                 )}
+
               </div>
             );
           })()}
@@ -2248,6 +2336,32 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {needsAmendReview && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  disabled={amendBusy !== null}
+                  onClick={() => setShowRejectDialog(true)}
+                  className="btn font-bold text-[11px] sm:text-[11.5px] px-3 sm:px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 shadow-xs"
+                >
+                  <XCircle className="w-3.5 h-3.5 text-slate-500" aria-hidden />
+                  <span>Reject</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={amendBusy !== null}
+                  onClick={handleApproveAmendment}
+                  className="btn font-bold text-[11px] sm:text-[11.5px] px-3.5 sm:px-4.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-700 text-white border-none"
+                >
+                  {amendBusy === 'approve' ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <CheckCircle2 className="w-3.5 h-3.5" aria-hidden />
+                  )}
+                  <span>{amendBusy === 'approve' ? 'Approving…' : 'Approve & Route to Production'}</span>
+                </button>
+              </div>
+            )}
             {canAcknowledge && (
               <button
                 type="button"
@@ -2259,7 +2373,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 <span className="sm:hidden">Acknowledge</span>
               </button>
             )}
-            {!job.assignedTo && job.stage !== 'delivered' && job.stage !== 'quote' && (
+            {!job.assignedTo && job.stage !== 'delivered' && job.stage !== 'quote' && !needsAmendReview && (
               <button
                 type="button"
                 className="btn bg-purple-600 hover:bg-purple-700 text-white text-[10.5px] sm:text-[11.5px] font-bold px-2.5 sm:px-3.5 py-1.5 rounded-lg flex items-center gap-1 sm:gap-1.5 shadow-sm whitespace-nowrap shrink-0"
@@ -2269,7 +2383,7 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                 <span>Assign</span>
               </button>
             )}
-            {!isDelivered && !canAcknowledge && !quoteSent && (
+            {!isDelivered && !canAcknowledge && !quoteSent && !needsAmendReview && (
               <button
                 type="button"
                 className="btn bg-purple-600 hover:bg-purple-700 text-white text-[10.5px] sm:text-[11.5px] font-bold px-2.5 sm:px-3.5 py-1.5 rounded-lg flex items-center gap-1 sm:gap-1.5 shadow-sm whitespace-nowrap shrink-0"

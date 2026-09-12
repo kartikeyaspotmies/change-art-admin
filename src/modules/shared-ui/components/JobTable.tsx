@@ -24,6 +24,7 @@ import {
   Eye,
   Pencil,
   UserPlus,
+  AlertCircle,
 } from 'lucide-react';
 import { useAdminJobById } from '@modules/admin-panel/hooks/use-admin-jobs';
 
@@ -161,13 +162,28 @@ export function JobTable({
     const isReadyToDispatch = j.status === 'Ready to Deliver';
     const needsQuotePrep = j.status === 'Quote Submitted';
     const isQuoteAwaiting = j.project === 'Quote' || j.status === 'Quote Submitted';
+    // A modification request sits here awaiting staff approval/rejection
+    // (workflow action cs_amend_reroute) before it becomes an Amend
+    // project — it isn't ready for Assign/Dispatch yet.
+    const needsAmendReview = j.rawStatus === 'MODIFICATION_REQUESTED';
     // 'Pending' = JOB_PLACED with no acknowledgement sent yet — the TL hasn't
     // set an ETA, so dispatching isn't possible until that happens.
     const needsAcknowledgement = isPendingAcknowledgement(j);
-    const showDispatch = j.stage !== 'delivered' && j.stage !== 'quote' && !needsAcknowledgement;
+    const showDispatch = j.stage !== 'delivered' && j.stage !== 'quote' && !needsAcknowledgement && !needsAmendReview;
     return (
       <div className="job-actions flex gap-1 flex-nowrap flex-1 items-center w-full min-w-0" onClick={(e) => e.stopPropagation()}>
-        {(!j.assignedTo && j.stage !== 'delivered' && j.stage !== 'quote') ? (
+        {needsAmendReview ? (
+          <button
+            type="button"
+            className="btn font-bold flex-1 min-w-0"
+            style={{ fontSize: 10, padding: '0 5px', background: stageAccentColor(j.project), color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
+            onClick={() => setViewJobId(j.uuid ?? j.id)}
+            aria-label={`Review amendment request for ${j.id}`}
+          >
+            Review
+          </button>
+        ) : null}
+        {(!j.assignedTo && j.stage !== 'delivered' && j.stage !== 'quote' && !needsAmendReview) ? (
           <button
             type="button"
             className="btn font-bold flex-1 min-w-0"
@@ -674,29 +690,47 @@ function TableView({
           </tr>
         </thead>
         <tbody>
-          {jobs.map((j) => (
-            <tr key={j.id} className={priorityCardClass(j.priority)} onClick={() => onOpen?.(j)}>
-              <td>
-                <div className="job-cell">
-                  <div>
-                    <span className="ref-code">{j.ref}</span>
+          {jobs.map((j) => {
+            const isModificationJob =
+              j.rawStatus === 'MODIFICATION_REQUESTED' ||
+              (j.status as string) === 'Modification Requested' ||
+              j.project === 'Amend' ||
+              Boolean(j.modificationNotes);
+
+            return (
+              <tr key={j.id} className={cn(priorityCardClass(j.priority), isModificationJob && 'bg-rose-50/40 dark:bg-rose-950/20')} onClick={() => onOpen?.(j)}>
+                <td>
+                  <div className="job-cell">
+                    <div>
+                      <span className="ref-code">{j.ref}</span>
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td>
-                <span
-                  className="font-bold text-[14px] text-text-main block"
-                  title={j.design}
-                  style={{
-                    maxWidth: 120,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}
-                >
-                  {j.design}
-                </span>
-              </td>
+                </td>
+                <td>
+                  <span
+                    className="font-bold text-[14px] text-text-main block"
+                    title={j.design}
+                    style={{
+                      maxWidth: 140,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {j.design}
+                  </span>
+                  {isModificationJob && (
+                    <div
+                      className="flex items-center gap-1 text-[10.5px] font-semibold text-rose-700 dark:text-rose-300 mt-0.5"
+                      title={j.modificationNotes || 'Client Modification Requested'}
+                    >
+                      <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" aria-hidden />
+                      <span className="truncate max-w-[140px] italic">
+                        {j.modificationNotes || 'Client requested modification'}
+                      </span>
+                    </div>
+                  )}
+                </td>
               {/* <td>
                 <img
                   className="table-preview"
@@ -741,7 +775,8 @@ function TableView({
                 </td>
               )}
             </tr>
-          ))}
+          );
+        })}
         </tbody>
       </table>
     </div>
@@ -769,7 +804,14 @@ function GridView({
           const DeptIcon = departmentIconFor(j.order);
           const StatusIcon = statusIconFor(j.status);
 
-          const isInProd = j.status === 'In Production' || j.stage === 'junior' || j.stage === 'senior' || j.stage === 'qc' || j.stage === 'sewout';
+          // MODIFICATION_REQUESTED borrows `stage: 'qc'` purely so a held
+          // amend keeps its kanban column (see job-view.ts), not because
+          // it's actually mid-QC — it's sitting on New Requests awaiting
+          // staff's approve/reject decision, so it has no real production
+          // progress or ETA yet (both would be stale leftovers from its
+          // original pre-delivery run).
+          const isPendingAmendReview = j.rawStatus === 'MODIFICATION_REQUESTED';
+          const isInProd = !isPendingAmendReview && (j.status === 'In Production' || j.stage === 'junior' || j.stage === 'senior' || j.stage === 'qc' || j.stage === 'sewout');
           const isReadyDispatch = j.status === 'Ready to Deliver';
           // 'Pending' = JOB_PLACED with no acknowledgement sent yet — no ETA
           // exists to dispatch against, so show "Send ETA" instead. Excludes
@@ -779,10 +821,16 @@ function GridView({
           const stageCardClass = getStageCardClass(j.project, j.status);
           const progress = stageProgressPercent(j.stage, j.status);
 
+          const isModificationJob =
+            j.rawStatus === 'MODIFICATION_REQUESTED' ||
+            (j.status as string) === 'Modification Requested' ||
+            j.project === 'Amend' ||
+            Boolean(j.modificationNotes);
+
           return (
             <article
               key={j.id}
-              className={cn('job-card min-w-0', stageCardClass, priorityCardClass(j.priority), actionRequired && 'job-card-attention')}
+              className={cn('job-card min-w-0', stageCardClass, priorityCardClass(j.priority), actionRequired && 'job-card-attention', isModificationJob && 'border-l-4 border-l-rose-500 ring-1 ring-rose-200/60 dark:ring-rose-900/40')}
               onClick={() => onOpen?.(j)}
               role="button"
               tabIndex={0}
@@ -865,7 +913,7 @@ function GridView({
                 {/* ETA Completion Time row — only once acknowledgement has actually
                     been sent; before that there's no real ETA to show (see
                     needsAcknowledgement above). */}
-                {isInProd && !needsAcknowledgement && (j.effectiveAcknowledgedAt ?? j.acknowledgedAt) && (
+                {!isModificationJob && isInProd && !needsAcknowledgement && (j.effectiveAcknowledgedAt ?? j.acknowledgedAt) && (
                   <div className="text-[9.5px] font-semibold text-slate-700 dark:text-slate-300 -mt-0.5">
                     ETA: <span className="font-bold text-slate-900 dark:text-slate-100">{formatEtaDisplay(j.effectiveAcknowledgedAt ?? j.acknowledgedAt, j.etaHours)}</span>
                   </div>
@@ -881,6 +929,23 @@ function GridView({
                     </span>
                   </div>
                 ) : null}
+
+                {/* Client's Modification Request Callout Banner */}
+                {isModificationJob && (
+                  <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200/90 dark:border-rose-800/60 flex items-center justify-between gap-1.5 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-rose-800 dark:text-rose-300 font-bold min-w-0">
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                      </span>
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" aria-hidden />
+                      <span className="font-bold text-rose-900 dark:text-rose-200 truncate">Client's Modification Request</span>
+                    </div>
+                    <span className="bg-rose-200/90 dark:bg-rose-900/60 text-rose-950 dark:text-rose-100 px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider shrink-0">
+                      AMEND R{j.modificationCount || 1}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Image area - Middle */}

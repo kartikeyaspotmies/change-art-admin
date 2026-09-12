@@ -57,6 +57,12 @@ export interface JobCardFilters {
   exclude_stage?: string;
   unacknowledged?: boolean;
   include_ack_placed?: boolean;
+  /**
+   * Admin sidebar section bucket — see the backend schema doc for exact
+   * semantics. Replaces statuses/project_type/unacknowledged when set.
+   * 'new_requests': New Requests page. 'quote_awaiting': Quote page.
+   */
+  view?: 'new_requests' | 'quote_awaiting';
 }
 
 export interface ClientFilters {

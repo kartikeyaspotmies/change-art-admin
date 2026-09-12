@@ -110,8 +110,13 @@ export function isJobEtaExpired(job: {
   created?: string | Date | null;
 }): boolean {
   // A held, dispatched, cancelled, or delivered job is completed/inactive — it cannot be expired or overdue.
+  // A pending modification request is also excluded: `acknowledgedAt`/
+  // `etaHours` here are leftovers from the job's original production run
+  // before it was delivered, so they're stale until staff approves the
+  // request and it re-enters production with a fresh ETA cycle.
   if (
     job.rawStatus === 'HOLD' ||
+    job.rawStatus === 'MODIFICATION_REQUESTED' ||
     job.status === 'Dispatched' ||
     job.status === 'Cancelled' ||
     job.stage === 'delivered'

@@ -13,6 +13,7 @@ import {
 } from '@modules/shared-ui';
 import { useAdminJobViews } from '../../modules/admin-panel/hooks/use-admin-jobs';
 import { useAdminClients } from '../../modules/admin-panel/hooks/use-admin-clients';
+import { isPipelineActive, isQuoteAwaitingClient } from '../../modules/admin-panel/adapters/job-view';
 import { isJobEtaExpired, getDateRangeFromPreset } from '@lib/utils';
 
 const FETCH_SIZE = 200;
@@ -32,10 +33,27 @@ export function CSProjectsPage() {
   const rawProjectParam = searchParams.get('project') ?? '';
   const projectParam = VALID_PROJECT_VALUES.has(rawProjectParam) ? rawProjectParam : '';
   const { jobs: allJobs, isLoading, isError } = useAdminJobViews({ per_page: FETCH_SIZE });
-  const allData = useMemo(
-    () => (projectParam ? allJobs.filter((j) => j.project === projectParam) : allJobs),
-    [allJobs, projectParam],
-  );
+  // Project-type nav filters (Live / Live Quote / Quote / Amend) apply a
+  // status boundary on top of the raw project tag so a card only shows up
+  // once it's actually reached that stage of the pipeline:
+  // - Live / Live Quote: hidden while still 'Pending' (ETA not sent yet)
+  //   and once dispatched (done, not "live").
+  // - Quote: priced quotes awaiting client confirmation (QUOTE_APPROVED),
+  //   PLUS quotes the client already confirmed but still awaiting an ETA
+  //   from staff — those cards are already tagged `project: 'Live Quote'`
+  //   (not 'Quote'), so this bucket can't be gated by an exact project
+  //   match like the others; isQuoteAwaitingClient checks status directly.
+  // - Amend: project === 'Amend' is already a single, terminal-ish status
+  //   (MODIFICATION_REQUESTED), no extra boundary needed.
+  const allData = useMemo(() => {
+    if (!projectParam) return allJobs;
+    if (projectParam === 'Quote') return allJobs.filter(isQuoteAwaitingClient);
+    return allJobs.filter((j) => {
+      if (j.project !== projectParam) return false;
+      if (projectParam === 'Live' || projectParam === 'Live Quote') return isPipelineActive(j);
+      return true;
+    });
+  }, [allJobs, projectParam]);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<JobFilters>(() => {
     const rawClientId = searchParams.get('clientId') || searchParams.get('client_id') || '';

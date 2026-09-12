@@ -60,8 +60,15 @@ function mapStatusFilter(display: string): {
     case 'Pending':
       return { status: 'JOB_PLACED', unacknowledged: true };
     case 'In Production':
+      // Every status that's actively being worked (junior/senior/sewout/QC),
+      // plus acknowledged-but-not-yet-picked-up JOB_PLACED jobs. Must cover
+      // the full pipeline — previously this excluded senior review, sewout,
+      // and QC stages, so those job cards silently vanished from the sidebar.
       return {
-        statuses: 'CS_APPROVED,ASSIGNED,IN_PROGRESS,SENIOR_REJECTED,QC_REJECTED',
+        statuses:
+          'CS_APPROVED,ASSIGNED,IN_PROGRESS,SENIOR_REJECTED,QC_REJECTED,' +
+          'SUBMITTED_TO_SENIOR,SENIOR_REVIEW,SUBMITTED_TO_SEWOUT,SEWOUT_IN_PROGRESS,' +
+          'SUBMITTED_TO_QC,QC_REVIEW',
         include_ack_placed: true,
       };
     case 'Senior Review':
