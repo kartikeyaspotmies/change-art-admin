@@ -243,6 +243,13 @@ export function adaptJobCard(
     width: card.width_inches ?? undefined,
     height: card.height_inches ?? undefined,
     fabric: card.fabric ?? undefined,
+    foamDensity: card.foam_density ?? undefined,
+    chenilleYarnType: card.chenille_yarn_type ?? undefined,
+    appliqueFabricType: card.applique_fabric_type ?? undefined,
+    capStructure: card.cap_structure ?? undefined,
+    backingType: card.backing_type ?? undefined,
+    monogramFontStyle: card.monogram_font_style ?? undefined,
+    borderBackingType: card.border_backing_type ?? undefined,
     stitchCount: card.stitch_count ?? undefined,
     acknowledgedAt: card.acknowledgement_sent_at
       ? String(card.acknowledgement_sent_at)

@@ -236,6 +236,13 @@ export interface IJobCard {
   height_inches: number | null;
   num_colors: number | null;
   fabric: string | null;
+  foam_density: string | null;
+  chenille_yarn_type: string | null;
+  applique_fabric_type: string | null;
+  cap_structure: string | null;
+  backing_type: string | null;
+  monogram_font_style: string | null;
+  border_backing_type: string | null;
   payment: string | null;
   mail_description: string | null;
   sewout_required: boolean | null;

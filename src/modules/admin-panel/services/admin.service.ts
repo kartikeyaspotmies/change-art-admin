@@ -146,6 +146,13 @@ export interface UpdateJobCardBody {
   width_inches?: number;
   height_inches?: number;
   fabric?: string;
+  foam_density?: string;
+  chenille_yarn_type?: string;
+  applique_fabric_type?: string;
+  cap_structure?: string;
+  backing_type?: string;
+  monogram_font_style?: string;
+  border_backing_type?: string;
 }
 
 export interface CreateJobCardBody {
@@ -164,6 +171,13 @@ export interface CreateJobCardBody {
   height_inches?: number;
   num_colors?: number;
   fabric?: string;
+  foam_density?: string;
+  chenille_yarn_type?: string;
+  applique_fabric_type?: string;
+  cap_structure?: string;
+  backing_type?: string;
+  monogram_font_style?: string;
+  border_backing_type?: string;
   sewout_required?: boolean;
   description?: string;
   billing_address?: string;

@@ -177,6 +177,15 @@ function computeExpectedCompletionIso(startIsoStr?: string | null, etaHours?: nu
   return new Date(endMs).toISOString();
 }
 
+function SpecificServiceTagIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.59 9.59a2 2 0 0 0 2.82 0l4.59-4.59a2 2 0 0 0 0-2.83z" />
+      <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function PlacementTargetIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1688,6 +1697,9 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                     Job Details
                   </h3>
                   <div className="space-y-0.5">
+                    {job.specificType && (
+                      <JobDetailInfoRow icon={SpecificServiceTagIcon} label="Specific Service" value={job.specificType} />
+                    )}
                     {(fieldFlags.placement || job.placement) && (
                       <JobDetailInfoRow icon={PlacementTargetIcon} label="Placement" value={job.placement || 'Not Specified'} />
                     )}
@@ -1699,6 +1711,27 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                     )}
                     {(fieldFlags.fabric || job.fabric) && (
                       <JobDetailInfoRow icon={FabricCylinderIcon} label="Fabric" value={job.fabric || 'Not Specified'} />
+                    )}
+                    {job.specificType === '3D / Puff Digitizing' && (
+                      <JobDetailInfoRow icon={FabricCylinderIcon} label="Foam Density" value={job.foamDensity || 'Not Specified'} />
+                    )}
+                    {job.specificType === 'Chenille Digitizing' && (
+                      <JobDetailInfoRow icon={FabricCylinderIcon} label="Chenille Yarn Type" value={job.chenilleYarnType || 'Not Specified'} />
+                    )}
+                    {job.specificType === 'Appliqué Digitizing' && (
+                      <JobDetailInfoRow icon={FabricCylinderIcon} label="Appliqué Fabric Type" value={job.appliqueFabricType || 'Not Specified'} />
+                    )}
+                    {job.specificType === 'Cap / Hat Digitizing' && (
+                      <JobDetailInfoRow icon={FabricCylinderIcon} label="Cap Structure" value={job.capStructure || 'Not Specified'} />
+                    )}
+                    {job.specificType === 'Jacket Back / Large Digitizing' && (
+                      <JobDetailInfoRow icon={FabricCylinderIcon} label="Backing Type" value={job.backingType || 'Not Specified'} />
+                    )}
+                    {job.specificType === 'Monogram Digitizing' && (
+                      <JobDetailInfoRow icon={FabricCylinderIcon} label="Monogram Font Style" value={job.monogramFontStyle || 'Not Specified'} />
+                    )}
+                    {job.specificType === 'Badge / Patch Digitizing' && (
+                      <JobDetailInfoRow icon={FabricCylinderIcon} label="Border & Backing" value={job.borderBackingType || 'Not Specified'} />
                     )}
                     <JobDetailInfoRow icon={AssignedUserIcon} label="Assigned To" value={job.assignedTo || 'Not Assigned'} />
                     <JobDetailInfoRow icon={CreatedCalendarIcon} label="Created Date" value={formatDate(job.created) || 'Jul 08, 2026'} />
@@ -2219,6 +2252,27 @@ export function JobDetailModal({ job, onClose, onEdit: _onEdit, onAssign, quoteV
                   <div className="text-[11px] font-bold uppercase text-slate-400 mb-2">Technical Specs</div>
                   {(fieldFlags.fabric || displayJob.fabric) && (
                     <DetailRow label="Fabric" value={displayJob.fabric || 'Not Specified'} />
+                  )}
+                  {displayJob.specificType === '3D / Puff Digitizing' && (
+                    <DetailRow label="Foam Density" value={displayJob.foamDensity || 'Not Specified'} />
+                  )}
+                  {displayJob.specificType === 'Chenille Digitizing' && (
+                    <DetailRow label="Chenille Yarn Type" value={displayJob.chenilleYarnType || 'Not Specified'} />
+                  )}
+                  {displayJob.specificType === 'Appliqué Digitizing' && (
+                    <DetailRow label="Appliqué Fabric Type" value={displayJob.appliqueFabricType || 'Not Specified'} />
+                  )}
+                  {displayJob.specificType === 'Cap / Hat Digitizing' && (
+                    <DetailRow label="Cap Structure" value={displayJob.capStructure || 'Not Specified'} />
+                  )}
+                  {displayJob.specificType === 'Jacket Back / Large Digitizing' && (
+                    <DetailRow label="Backing Type" value={displayJob.backingType || 'Not Specified'} />
+                  )}
+                  {displayJob.specificType === 'Monogram Digitizing' && (
+                    <DetailRow label="Monogram Font Style" value={displayJob.monogramFontStyle || 'Not Specified'} />
+                  )}
+                  {displayJob.specificType === 'Badge / Patch Digitizing' && (
+                    <DetailRow label="Border & Backing" value={displayJob.borderBackingType || 'Not Specified'} />
                   )}
                   <DetailRow label="Complexity" value={displayJob.complexity || 'Standard'} />
                   <DetailRow label="Process" value={displayJob.process || displayJob.order} />
@@ -3470,6 +3524,13 @@ function CompareView({
     { label: 'Width (in)', get: (j) => j.width != null ? `${j.width}"` : '—' },
     { label: 'Height (in)', get: (j) => j.height != null ? `${j.height}"` : '—' },
     { label: 'Fabric', get: (j) => j.fabric || '—' },
+    { label: 'Foam Density', get: (j) => j.foamDensity || '—' },
+    { label: 'Chenille Yarn Type', get: (j) => j.chenilleYarnType || '—' },
+    { label: 'Appliqué Fabric Type', get: (j) => j.appliqueFabricType || '—' },
+    { label: 'Cap Structure', get: (j) => j.capStructure || '—' },
+    { label: 'Backing Type', get: (j) => j.backingType || '—' },
+    { label: 'Monogram Font Style', get: (j) => j.monogramFontStyle || '—' },
+    { label: 'Border & Backing', get: (j) => j.borderBackingType || '—' },
     { label: 'Stitch Count', get: (j) => j.stitchCount != null ? j.stitchCount.toLocaleString() : '—' },
     { label: 'Notes', get: (j) => j.notes || '—' },
   ];
