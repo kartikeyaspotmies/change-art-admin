@@ -82,6 +82,19 @@ export interface IUser {
   updated_at: IsoDateTime;
 }
 
+/** Admin-managed shift definition (e.g. "Morning" 06:00–14:00). `users.shift` stores the shift's `name`, not its id. */
+export interface IShift {
+  id: string;
+  tenant_id: string;
+  name: string;
+  /** 24-hour "HH:MM". */
+  start_time: string;
+  /** 24-hour "HH:MM". May be earlier than start_time for overnight shifts (e.g. Night 22:00–06:00). */
+  end_time: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface IClientGroup {
   id: string;
   tenant_id: string;
