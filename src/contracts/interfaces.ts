@@ -163,6 +163,8 @@ export interface IClient {
   /** When an admin last sent the Credit Card Authorization Form to this client. */
   cc_form_sent_at: IsoDateTime | null;
   cc_form_sent_by: string | null;
+  /** Admin-set flag: CC form still needs to be sent. Cleared once actually sent. */
+  cc_form_required: boolean;
   accounting_notes: string | null;
   default_instruction?: string | null;
   internal_notes?: string | null;

@@ -371,7 +371,7 @@ export const adminService = {
   },
 
   /** Admin/CS: update accounting status (hotlisted, send_cc_form, or others). */
-  setClientAccountingStatus(id: string, status: 'hotlisted' | 'send_cc_form' | 'others'): Promise<IClient> {
+  setClientAccountingStatus(id: string, status: 'hotlisted' | 'send_cc_form' | 'updated_cc_required' | 'others'): Promise<IClient> {
     return apiClient.patch<IClient, { status: string }>(`/api/v1/clients/${id}/accounting-status`, {
       status,
     });
