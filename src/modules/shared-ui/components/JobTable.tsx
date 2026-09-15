@@ -159,7 +159,6 @@ export function JobTable({
   }, [onOpen]);
 
   const builtInActions = useCallback((j: Job) => {
-    const isReadyToDispatch = j.status === 'Ready to Deliver';
     const needsQuotePrep = j.status === 'Quote Submitted';
     const isQuoteAwaiting = j.project === 'Quote' || j.status === 'Quote Submitted';
     // A modification request sits here awaiting staff approval/rejection
@@ -205,17 +204,6 @@ export function JobTable({
             Prepare Quote
           </button>
         ) : null}
-        {isReadyToDispatch ? (
-          <button
-            type="button"
-            className="btn font-bold flex-1 min-w-0"
-            style={{ fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
-            onClick={() => setViewJobId(j.uuid ?? j.id)}
-            aria-label={`Dispatch ${j.id}`}
-          >
-            Dispatch
-          </button>
-        ) : null}
         {needsAcknowledgement ? (
           <button
             type="button"
@@ -230,29 +218,23 @@ export function JobTable({
         {showDispatch ? (
           <button
             type="button"
-            className={isReadyToDispatch ? 'btn font-bold flex-1 min-w-0' : 'btn btn-outline font-bold flex-1 min-w-0'}
-            style={
-              isReadyToDispatch
-                ? { fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }
-                : { fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }
-            }
+            className="btn btn-outline font-bold flex-1 min-w-0"
+            style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
             onClick={() => setViewJobId(j.uuid ?? j.id)}
             aria-label={`Dispatch ${j.id}`}
           >
             Dispatch
           </button>
         ) : null}
-        {isReadyToDispatch ? null : (
-          <button
-            type="button"
-            className="btn btn-outline font-bold flex-1 min-w-0"
-            style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
-            onClick={() => setViewJobId(j.uuid ?? j.id)}
-            aria-label={`${isQuoteAwaiting ? 'Reply' : 'View'} ${j.id}`}
-          >
-            {isQuoteAwaiting ? 'Reply' : 'View'}
-          </button>
-        )}
+        <button
+          type="button"
+          className="btn btn-outline font-bold flex-1 min-w-0"
+          style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
+          onClick={() => setViewJobId(j.uuid ?? j.id)}
+          aria-label={`${isQuoteAwaiting ? 'Reply' : 'View'} ${j.id}`}
+        >
+          {isQuoteAwaiting ? 'Reply' : 'View'}
+        </button>
         <RowActionsMenu
           ariaLabel={`More actions for ${j.id}`}
           triggerClassName="!flex-shrink-0 !flex-grow-0 flex items-center justify-center !p-0 !border-none !bg-transparent text-text-muted hover:text-text-main"
@@ -812,7 +794,6 @@ function GridView({
           // original pre-delivery run).
           const isPendingAmendReview = j.rawStatus === 'MODIFICATION_REQUESTED';
           const isInProd = !isPendingAmendReview && (j.status === 'In Production' || j.stage === 'junior' || j.stage === 'senior' || j.stage === 'qc' || j.stage === 'sewout');
-          const isReadyDispatch = j.status === 'Ready to Deliver';
           // 'Pending' = JOB_PLACED with no acknowledgement sent yet — no ETA
           // exists to dispatch against, so show "Send ETA" instead. Excludes
           // stage 'quote', where 'Pending' means something else (see below).
@@ -985,17 +966,6 @@ function GridView({
                         Assign
                       </button>
                     )}
-                    {/* Dispatch button — ready-to-dispatch jobs only. */}
-                    {isReadyDispatch && (
-                      <button
-                        type="button"
-                        className="btn font-bold flex-1 min-w-0"
-                        style={{ fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }}
-                        onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
-                      >
-                        Dispatch
-                      </button>
-                    )}
                     {/* Send ETA button — job placed, awaiting acknowledgement */}
                     {needsAcknowledgement && (
                       <button
@@ -1011,12 +981,8 @@ function GridView({
                     {j.stage !== 'delivered' && j.stage !== 'quote' && !needsAcknowledgement && (
                       <button
                         type="button"
-                        className={isReadyDispatch ? 'btn font-bold flex-1 min-w-0' : 'btn btn-outline font-bold flex-1 min-w-0'}
-                        style={
-                          isReadyDispatch
-                            ? { fontSize: 10, padding: '0 5px', background: DISPATCH_ACCENT, color: '#fff', border: 'none', height: 25, borderRadius: 5, whiteSpace: 'nowrap' }
-                            : { fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }
-                        }
+                        className="btn btn-outline font-bold flex-1 min-w-0"
+                        style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
                         onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
                       >
                         Dispatch
@@ -1045,16 +1011,14 @@ function GridView({
                       </button>
                     )}
                     {/* View / View Progress button */}
-                    {!isReadyDispatch && (
-                      <button
-                        type="button"
-                        className="btn btn-outline font-bold flex-1 min-w-0"
-                        style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
-                        onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
-                      >
-                        {isInProd ? 'Progress' : 'View'}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      className="btn btn-outline font-bold flex-1 min-w-0"
+                      style={{ fontSize: 10, padding: '0 5px', height: 25, borderRadius: 5, whiteSpace: 'nowrap', ...stageOutlineStyle(j.project) }}
+                      onClick={(e) => { e.stopPropagation(); onOpen?.(j); }}
+                    >
+                      {isInProd ? 'Progress' : 'View'}
+                    </button>
                   </div>
                 )}
               </div>
@@ -1099,8 +1063,6 @@ function stageAccentColor(project: string): string {
   }
 }
 
-/** Teal accent used for the "Ready to Dispatch" stage — matches job-card-stage-dispatch / jc-title-dispatch. */
-const DISPATCH_ACCENT = '#0d9488';
 
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace('#', '');
