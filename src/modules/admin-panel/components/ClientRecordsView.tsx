@@ -417,8 +417,9 @@ export function ClientRecordsView({
       else if (ccSent) accountingVal = 'Updated CC Required';
       else if (ccRequired) accountingVal = 'Send CC Form';
 
-      let actionVal: ClientDisplayRecord['action'] = 'Send CC Form';
+      let actionVal: ClientDisplayRecord['action'] = '-';
       if (accountingVal === 'Updated CC Required') actionVal = 'Resend CC Form';
+      else if (accountingVal === 'Send CC Form') actionVal = 'Send CC Form';
       else if (accountingVal === 'Hotlisted') actionVal = 'Send Payment Reminder';
 
       const joinedSource = c.date || c.created_at;
